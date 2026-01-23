@@ -19,44 +19,53 @@ This script runs on Google's servers. It acts as an API, receiving data from you
 
 ### **Code to Copy:**
 ```javascript
-// CONFIGURATION
+/**
+ * GOOGLE APPS SCRIPT - HTF Solutions Backend
+ * Handles data for: Vouchers, Bookings, Staff
+ */
+
+// CONFIGURATION - Sheet names
 const SHEET_NAMES = {
   VOUCHERS: "Vouchers",
-  STAFF: "Staff",
-  BOOKINGS: "Bookings"
+  BOOKINGS: "Bookings",
+  STAFF: "Staff"
 };
 
 /**
- * Handles GET requests (Reading data)
- * Uses JSONP to bypass CORS restrictions for reading data
+ * Handles GET requests (Reading data via JSONP)
  */
 function doGet(e) {
   const params = e.parameter;
-  const callback = params.callback;
-  const sheetName = params.sheet || SHEET_NAMES.VOUCHERS; // Default to Vouchers
+  const callback = params.callback || 'callback';
+  const sheetName = params.sheet || SHEET_NAMES.VOUCHERS;
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
   
   // If sheet doesn't exist, return error
   if (!sheet) {
     return ContentService.createTextOutput(
-      callback + "(" + JSON.stringify({ error: "Sheet not found" }) + ")"
+      callback + "(" + JSON.stringify({ error: "Sheet not found: " + sheetName }) + ")"
     ).setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 
   // Read all data
   const rows = sheet.getDataRange().getValues();
+  if (rows.length === 0) {
+    return ContentService.createTextOutput(
+      callback + "(" + JSON.stringify([]) + ")"
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
   const headers = rows[0];
   const data = rows.slice(1).map(row => {
     let obj = {};
     headers.forEach((header, index) => {
-      // Convert header to camelCase if needed, or keep simple
       obj[header] = row[index];
     });
     return obj;
   });
 
-  // Return data wrapped in callback function
   return ContentService.createTextOutput(
     callback + "(" + JSON.stringify(data) + ")"
   ).setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -67,39 +76,112 @@ function doGet(e) {
  */
 function doPost(e) {
   try {
-    // Parse the incoming JSON data
     const postData = JSON.parse(e.postData.contents);
-    const sheetName = postData.sheet || SHEET_NAMES.VOUCHERS;
+    const action = postData.action || 'create';
     
-    // Get or Create Sheet
-    let ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(sheetName);
-    
-    // If sheet doesn't exist, create it and add headers based on first data item
-    if (!sheet) {
-      sheet = ss.insertSheet(sheetName);
-      // You might want to define fixed headers here if strict schema is needed
-      const headers = Object.keys(postData.data);
-      sheet.appendRow(headers);
+    if (action === 'create') {
+      return handleCreate(postData);
+    } else if (action === 'redeem') {
+      return handleRedeem(postData);
     }
     
-    // Append the row
-    // Note: This simple version assumes the columns are in the same order as the object keys.
-    // For production, you should match keys to header column indices.
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const row = headers.map(header => {
-      return postData.data[header] || ""; // Fill empty string if data missing for that column
-    });
-    
-    sheet.appendRow(row);
-
-    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
-      .setMimeType(ContentService.MimeType.JSON);
-
+    return createResponse({ status: "error", message: "Unknown action" });
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createResponse({ status: "error", message: error.toString() });
   }
+}
+
+/**
+ * Handle creating new records (Vouchers, Bookings, Staff)
+ */
+function handleCreate(postData) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Determine which sheet based on data structure
+  let sheetName;
+  if (postData.voucherCode) {
+    sheetName = SHEET_NAMES.VOUCHERS;
+  } else if (postData.className || postData.bookingType === 'class') {
+    sheetName = SHEET_NAMES.BOOKINGS;
+  } else if (postData.staffName || postData.role) {
+    sheetName = SHEET_NAMES.STAFF;
+  } else {
+    return createResponse({ status: "error", message: "Cannot determine sheet type" });
+  }
+  
+  let sheet = ss.getSheetByName(sheetName);
+  
+  // Create sheet if it doesn't exist
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    // Add headers based on sheet type
+    if (sheetName === SHEET_NAMES.VOUCHERS) {
+      sheet.appendRow(['code', 'guestName', 'status', 'details', 'timestamp']);
+    } else if (sheetName === SHEET_NAMES.BOOKINGS) {
+      sheet.appendRow(['bookingId', 'className', 'customerName', 'customerEmail', 'customerPhone', 'timeSlot', 'day', 'coach', 'numPeople', 'status', 'timestamp']);
+    } else if (sheetName === SHEET_NAMES.STAFF) {
+      sheet.appendRow(['staffId', 'staffName', 'role', 'email', 'phone', 'status', 'timestamp']);
+    }
+  }
+  
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const timestamp = new Date().toISOString();
+  
+  // Build row based on headers
+  const row = headers.map(header => {
+    if (header === 'timestamp') return timestamp;
+    return postData[header] || "";
+  });
+  
+  sheet.appendRow(row);
+  
+  return createResponse({ status: "success", message: "Record created" });
+}
+
+/**
+ * Handle redeeming vouchers (mark as used)
+ */
+function handleRedeem(postData) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.VOUCHERS);
+  
+  if (!sheet) {
+    return createResponse({ status: "error", message: "Vouchers sheet not found" });
+  }
+  
+  const voucherCode = postData.voucherCode;
+  const serviceType = postData.serviceType || 'Unknown';
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const codeIndex = headers.indexOf('code');
+  const statusIndex = headers.indexOf('status');
+  const detailsIndex = headers.indexOf('details');
+  
+  // Find the voucher
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][codeIndex] === voucherCode) {
+      // Update status
+      sheet.getRange(i + 1, statusIndex + 1).setValue('Redeemed');
+      
+      // Append redemption info to details
+      const currentDetails = data[i][detailsIndex] || '';
+      const redemptionInfo = `\nRedeemed: ${serviceType} at ${new Date().toISOString()}`;
+      sheet.getRange(i + 1, detailsIndex + 1).setValue(currentDetails + redemptionInfo);
+      
+      return createResponse({ status: "success", message: "Voucher redeemed" });
+    }
+  }
+  
+  return createResponse({ status: "error", message: "Voucher not found" });
+}
+
+/**
+ * Helper to create JSON response
+ */
+function createResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 ```
 

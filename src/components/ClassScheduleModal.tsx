@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { X, ChevronLeft, Clock, Users, Phone } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../constants';
-
 import { COUNTRIES } from '../constants/countries';
 import CountrySelect from './CountrySelect';
 import { trackBooking, trackOutboundLink } from '../utils/analytics';
 import { useVoucher } from '../contexts/VoucherContext';
+import { submitBooking } from '../utils/sheetData';
 
 const ClassScheduleModal: React.FC<{ onClose: () => void; initialClass?: string | null; initialCoach?: string | null }> = ({ onClose, initialClass, initialCoach }) => {
     const { t, language } = useLanguage();
@@ -65,11 +65,26 @@ const ClassScheduleModal: React.FC<{ onClose: () => void; initialClass?: string 
         }
     };
 
-    const handleFinalConfirmOnWhatsApp = () => {
-        if (selectedTimeForBooking) {
+    const handleFinalConfirmOnWhatsApp = async () => {
+        if (selectedTimeForBooking && selectedClassForBooking) {
 
             const dialCode = COUNTRIES.find(c => c.code === mainBooker.countryIso)?.dial_code || '+62';
             const fullPhoneNumber = `${dialCode}${mainBooker.whatsapp.replace(/^0+/, '')}`;
+
+            // Save booking to Google Sheets
+            const guestDetailsForSheet = numPeople > 1 ? guestDetails.slice(0, numPeople - 1).filter(g => g.name.trim()) : [];
+
+            await submitBooking({
+                className: selectedClassForBooking,
+                customerName: mainBooker.name,
+                customerEmail: mainBooker.email,
+                customerPhone: fullPhoneNumber,
+                timeSlot: selectedTimeForBooking.time,
+                day: selectedTimeForBooking.day,
+                coach: selectedTimeForBooking.coach,
+                numPeople: numPeople,
+                guestDetails: guestDetailsForSheet
+            });
 
             let detailsMsg = '';
             if (numPeople > 1) {
