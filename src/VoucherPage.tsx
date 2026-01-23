@@ -210,7 +210,7 @@ const VoucherPage: React.FC = () => {
             <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <img src="/htf-logo.png" alt="HTF Solutions" className="h-12 w-auto object-contain" />
+                        <img src="/htf-logo.png" alt="HTF Solutions" className="h-20 w-auto object-contain" />
                         <div>
                             <h1 className="text-xl font-serif font-bold">Reception Hub</h1>
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Digital Pass Management</p>
