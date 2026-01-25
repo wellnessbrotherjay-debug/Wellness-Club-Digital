@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Search, CheckCircle, XCircle, Loader2, Smartphone, ChevronDown } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera } from 'lucide-react';
+import QRScanner from './QRScanner';
 
 const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
     const [code, setCode] = useState('');
     const [serviceType, setServiceType] = useState<'Massage' | 'Fitness' | 'Food/Beverage' | ''>('');
     const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error'>('idle');
+    const [showScanner, setShowScanner] = useState(false);
 
     const handleVerify = async () => {
         const cleanCode = code.trim().toUpperCase();
@@ -129,10 +131,29 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
 
                 <div className="flex-1 flex flex-col justify-center">
                     {status === 'idle' && (
-                        <div className="text-center py-10 opacity-20">
-                            <Smartphone size={64} className="mx-auto mb-4" />
-                            <p className="text-sm font-bold uppercase tracking-widest">Ready to Validate</p>
+                        <div className="text-center py-10">
+                            <button
+                                onClick={() => setShowScanner(true)}
+                                className="group relative"
+                            >
+                                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 group-hover:bg-[#c5a572]/10 group-hover:text-[#c5a572] transition-all">
+                                    <Camera size={32} />
+                                </div>
+                                <p className="text-sm font-bold uppercase tracking-widest text-gray-400 group-hover:text-[#c5a572] transition-colors">Start Mobile Scan</p>
+                                <div className="mt-2 text-[10px] text-gray-300 uppercase tracking-widest font-bold">or enter ID manually above</div>
+                            </button>
                         </div>
+                    )}
+
+                    {showScanner && (
+                        <QRScanner
+                            onScanSuccess={(scannedCode) => {
+                                setCode(scannedCode);
+                                setShowScanner(false);
+                                // Verification will be triggered if they have a service selected
+                            }}
+                            onClose={() => setShowScanner(false)}
+                        />
                     )}
 
                     {status === 'valid' && (
