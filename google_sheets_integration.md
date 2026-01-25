@@ -18,7 +18,6 @@ This script runs on Google's servers. It acts as an API, receiving data from you
 10. Click **Deploy** and copy the **Web app URL**.
 
 ### **Code to Copy:**
-```javascript
 /**
  * GOOGLE APPS SCRIPT - HTF Solutions Backend
  * Handles data for: Vouchers, Bookings, Staff
@@ -28,7 +27,8 @@ This script runs on Google's servers. It acts as an API, receiving data from you
 const SHEET_NAMES = {
   VOUCHERS: "Vouchers",
   BOOKINGS: "Bookings",
-  STAFF: "Staff"
+  STAFF: "Staff",
+  SCHEDULES: "Schedules"
 };
 
 /**
@@ -92,7 +92,7 @@ function doPost(e) {
 }
 
 /**
- * Handle creating new records (Vouchers, Bookings, Staff)
+ * Handle creating new records (Vouchers, Bookings, Staff, Schedules)
  */
 function handleCreate(postData) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -103,6 +103,8 @@ function handleCreate(postData) {
     sheetName = SHEET_NAMES.VOUCHERS;
   } else if (postData.className || postData.bookingType === 'class') {
     sheetName = SHEET_NAMES.BOOKINGS;
+  } else if (postData.sheetType === 'schedule' || postData.shift) {
+    sheetName = SHEET_NAMES.SCHEDULES;
   } else if (postData.staffName || postData.role) {
     sheetName = SHEET_NAMES.STAFF;
   } else {
@@ -116,11 +118,13 @@ function handleCreate(postData) {
     sheet = ss.insertSheet(sheetName);
     // Add headers based on sheet type
     if (sheetName === SHEET_NAMES.VOUCHERS) {
-      sheet.appendRow(['code', 'guestName', 'status', 'details', 'timestamp']);
+      sheet.appendRow(['code', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'imageUrl', 'services', 'created_at', 'redeemed_at']);
     } else if (sheetName === SHEET_NAMES.BOOKINGS) {
       sheet.appendRow(['bookingId', 'className', 'customerName', 'customerEmail', 'customerPhone', 'timeSlot', 'day', 'coach', 'numPeople', 'status', 'timestamp']);
     } else if (sheetName === SHEET_NAMES.STAFF) {
       sheet.appendRow(['staffId', 'staffName', 'role', 'email', 'phone', 'status', 'timestamp']);
+    } else if (sheetName === SHEET_NAMES.SCHEDULES) {
+      sheet.appendRow(['scheduleId', 'staffId', 'staffName', 'date', 'shift', 'status', 'timestamp']);
     }
   }
   
@@ -129,7 +133,17 @@ function handleCreate(postData) {
   
   // Build row based on headers
   const row = headers.map(header => {
-    if (header === 'timestamp') return timestamp;
+    // Map frontend keys to backend headers
+    if (header === 'created_at' || header === 'timestamp') return timestamp;
+    if (header === 'code') return postData.voucherCode; 
+    if (header === 'guestName') return postData.guestName || postData.userName; 
+    
+    if (header === 'roomNumber') return postData.roomNumber || "";
+    if (header === 'checkIn') return postData.checkIn || "";
+    if (header === 'checkOut') return postData.checkOut || "";
+    if (header === 'imageUrl') return postData.imageUrl || "";
+    if (header === 'services') return postData.services || "";
+    
     return postData[header] || "";
   });
   
@@ -150,13 +164,12 @@ function handleRedeem(postData) {
   }
   
   const voucherCode = postData.voucherCode;
-  const serviceType = postData.serviceType || 'Unknown';
   
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const codeIndex = headers.indexOf('code');
   const statusIndex = headers.indexOf('status');
-  const detailsIndex = headers.indexOf('details');
+  const redeemedAtIndex = headers.indexOf('redeemed_at');
   
   // Find the voucher
   for (let i = 1; i < data.length; i++) {
@@ -164,10 +177,10 @@ function handleRedeem(postData) {
       // Update status
       sheet.getRange(i + 1, statusIndex + 1).setValue('Redeemed');
       
-      // Append redemption info to details
-      const currentDetails = data[i][detailsIndex] || '';
-      const redemptionInfo = `\nRedeemed: ${serviceType} at ${new Date().toISOString()}`;
-      sheet.getRange(i + 1, detailsIndex + 1).setValue(currentDetails + redemptionInfo);
+      // Update redeemed_at if it exists
+      if (redeemedAtIndex !== -1) {
+         sheet.getRange(i + 1, redeemedAtIndex + 1).setValue(new Date().toISOString());
+      }
       
       return createResponse({ status: "success", message: "Voucher redeemed" });
     }

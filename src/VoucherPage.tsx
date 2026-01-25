@@ -15,6 +15,7 @@ interface VoucherData {
     checkIn: string;
     checkOut: string;
     services: string[];
+    imageUrl?: string;
     timestamp: string; // ISO string for storage
 }
 
@@ -35,6 +36,7 @@ const VoucherPage: React.FC = () => {
         roomNumber: '',
         checkIn: new Date().toISOString().split('T')[0],
         checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        imageUrl: '',
     });
 
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -43,7 +45,7 @@ const VoucherPage: React.FC = () => {
     const [recentVouchers, setRecentVouchers] = useState<VoucherData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8y4tdQIIbRDq7zaWsSDc2oEBsSXomEQP2nC-cZYcCteJwl6FwvvuGP3S8I6pTWGvG/exec';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
 
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
     const [fetchError, setFetchError] = useState(false);
@@ -54,32 +56,17 @@ const VoucherPage: React.FC = () => {
             setIsFetchingHistory(false);
             setFetchError(false);
             const mapped = data.map(item => {
-                // Parse details string "Room: 101 | In: 2026-01-23..."
-                // Or fallback to dummy parsing if needed
-                let room = '';
-                let checkIn = '';
-                let checkOut = '';
-
-                if (item.details) {
-                    const roomMatch = item.details.match(/Room:\s*([^|]+)/);
-                    if (roomMatch) room = roomMatch[1].trim();
-
-                    const inMatch = item.details.match(/In:\s*([^|]+)/);
-                    if (inMatch) checkIn = inMatch[1].trim();
-
-                    const outMatch = item.details.match(/Out:\s*([^|]+)/);
-                    if (outMatch) checkOut = outMatch[1].trim();
-                }
-
                 return {
                     id: item.code,
                     guestName: item.guestName,
-                    roomNumber: room,
-                    checkIn: checkIn,
-                    checkOut: checkOut,
+                    // Now reading directly from columns, with fallback to empty string
+                    roomNumber: item.roomNumber || '',
+                    checkIn: item.checkIn ? new Date(item.checkIn).toISOString().split('T')[0] : '', // Ensure date string format
+                    checkOut: item.checkOut ? new Date(item.checkOut).toISOString().split('T')[0] : '',
                     status: item.status,
                     timestamp: item.timestamp,
-                    services: [] // Not strictly needed for list view, but could parse from details
+                    imageUrl: item.imageUrl || '',
+                    services: item.services ? item.services.split(', ') : []
                 };
             }).reverse(); // Show newest first
 
@@ -140,8 +127,13 @@ const VoucherPage: React.FC = () => {
         const payload = JSON.stringify({
             voucherCode: voucherId,
             userName: formData.guestName,
-            status: 'Active',
-            details: `Room: ${formData.roomNumber} | In: ${formData.checkIn} | Out: ${formData.checkOut} | Services: ${selectedServices.join(', ')}`
+            status: 'Created',
+            roomNumber: formData.roomNumber,
+            checkIn: formData.checkIn,
+            checkOut: formData.checkOut,
+            imageUrl: formData.imageUrl,
+            services: selectedServices.join(', ')
+            // details field is removed
         });
 
         try {
@@ -158,6 +150,7 @@ const VoucherPage: React.FC = () => {
                 roomNumber: formData.roomNumber,
                 checkIn: formData.checkIn,
                 checkOut: formData.checkOut,
+                imageUrl: formData.imageUrl,
                 services: selectedServices,
                 timestamp: new Date().toISOString()
             };
@@ -178,6 +171,7 @@ const VoucherPage: React.FC = () => {
             roomNumber: '',
             checkIn: new Date().toISOString().split('T')[0],
             checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            imageUrl: '',
         });
         setSelectedServices([]);
         setCurrentVoucher(null);
@@ -295,7 +289,24 @@ const VoucherPage: React.FC = () => {
                                                 value={formData.checkIn}
                                                 onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
                                             />
-                                            <Calendar className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                                            <Calendar
+                                                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer pointer-events-auto"
+                                                size={18}
+                                                onClick={(e) => {
+                                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                    if (input) {
+                                                        try {
+                                                            if (typeof (input as any).showPicker === 'function') {
+                                                                (input as any).showPicker();
+                                                            } else {
+                                                                input.focus();
+                                                            }
+                                                        } catch (err) {
+                                                            input.focus();
+                                                        }
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
@@ -307,7 +318,24 @@ const VoucherPage: React.FC = () => {
                                                 value={formData.checkOut}
                                                 onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
                                             />
-                                            <Calendar className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                                            <Calendar
+                                                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer pointer-events-auto"
+                                                size={18}
+                                                onClick={(e) => {
+                                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                    if (input) {
+                                                        try {
+                                                            if (typeof (input as any).showPicker === 'function') {
+                                                                (input as any).showPicker();
+                                                            } else {
+                                                                input.focus();
+                                                            }
+                                                        } catch (err) {
+                                                            input.focus();
+                                                        }
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     </div>
                                 </div>

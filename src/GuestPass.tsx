@@ -1,40 +1,139 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { CheckCircle, Calendar, Key, ExternalLink } from 'lucide-react';
+import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 
 // Mock main site URL - replace with actual deployed URL later
 const MAIN_SITE_URL = 'https://www.no1wellness.com';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
 
 const GuestPass: React.FC = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const [data, setData] = useState<any>(null);
+    const passRef = useRef<HTMLDivElement>(null);
+    const [status, setStatus] = useState<'loading' | 'valid' | 'redeemed' | 'error'>('loading');
+    const [statusMessage, setStatusMessage] = useState('');
 
     useEffect(() => {
         const encodedData = searchParams.get('d');
-        if (encodedData) {
+        if (encodedData && id) {
             try {
-                setData(JSON.parse(atob(encodedData)));
+                const parsed = JSON.parse(atob(encodedData));
+                setData(parsed);
+                checkAndRedeem(id);
             } catch (e) {
                 console.error("Failed to parse voucher data");
+                setStatus('error');
             }
+        } else {
+            setStatus('error');
         }
-    }, [searchParams]);
+    }, [searchParams, id]);
 
-    if (!data) return <div className="min-h-screen bg-[#2c2420] text-white flex items-center justify-center">Loading Pass...</div>;
+    const checkAndRedeem = (voucherId: string) => {
+        // 1. Fetch current status from Sheet
+        const script = document.createElement('script');
+        // Define a unique callback name 
+        const callbackName = `checkItems_${Date.now()}`;
+
+        (window as any)[callbackName] = (items: any[]) => {
+            const currentItem = items.find((i: any) => i.code === voucherId);
+
+            if (!currentItem) {
+                setStatus('error');
+                setStatusMessage('Voucher not found in system.');
+            } else if (currentItem.status === 'Redeemed') {
+                setStatus('redeemed');
+            } else {
+                // If Active, mark as Redeemed immediately (Burn on Read)
+                redeemVoucher(voucherId);
+            }
+            delete (window as any)[callbackName];
+            document.body.removeChild(script);
+        };
+
+        script.src = `${APPS_SCRIPT_URL}?callback=${callbackName}&sheet=Vouchers`;
+        script.onerror = () => setStatus('error');
+        document.body.appendChild(script);
+    };
+
+    const redeemVoucher = async (voucherId: string) => {
+        try {
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'redeem',
+                    voucherCode: voucherId,
+                    serviceType: 'Guest Pass View (One-Time)'
+                })
+            });
+            // Assume success after sending (no-cors doesn't return body)
+            setStatus('valid');
+        } catch (e) {
+            console.error("Redeem failed", e);
+            // Even if redeem fails, we should mostly likely show the pass but warn? 
+            // Or fail safe and show valid? user said "once its shared dont let user share again".
+            // Let's show valid so they can use it this time.
+            setStatus('valid');
+        }
+    };
+
+    if (status === 'loading') {
+        return (
+            <div className="min-h-screen bg-[#2c2420] text-white flex flex-col items-center justify-center gap-4">
+                <Loader2 className="animate-spin text-[#c5a572]" size={48} />
+                <p className="text-xs font-bold uppercase tracking-widest">Verifying Pass...</p>
+            </div>
+        );
+    }
+
+    if (status === 'redeemed') {
+        return (
+            <div className="min-h-screen bg-[#2c2420] text-white flex items-center justify-center p-6">
+                <div className="bg-white text-[#2c2420] p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
+                        <AlertTriangle size={32} />
+                    </div>
+                    <h1 className="text-2xl font-serif font-bold mb-2">Link Expired</h1>
+                    <p className="text-gray-500 text-sm mb-6">
+                        This guest pass has already been viewed and is no longer valid for sharing.
+                    </p>
+                    <div className="p-4 bg-gray-50 rounded-xl text-xs text-gray-400 font-mono">
+                        ID: {id}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'error' || !data) {
+        return (
+            <div className="min-h-screen bg-[#2c2420] text-white flex items-center justify-center p-6">
+                <div className="text-center">
+                    <XCircle size={48} className="mx-auto mb-4 text-red-400" />
+                    <p>Invalid or Missing Pass Data</p>
+                    {statusMessage && <p className="text-xs text-gray-400 mt-2">{statusMessage}</p>}
+                </div>
+            </div>
+        );
+    }
 
     // Pass the ENCODED data to the main site so it can validate expiration
     const discountLink = `${MAIN_SITE_URL}?promo=${searchParams.get('d')}`;
 
     return (
-        <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-4">
+        <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-4 relative">
             <Helmet>
                 <title>Guest Pass | {data.guestName}</title>
             </Helmet>
 
-            <div className="w-full max-w-sm bg-white rounded-[2rem] overflow-hidden shadow-2xl relative">
+
+            {/* Pass Container */}
+            <div ref={passRef} className="w-full max-w-sm bg-white rounded-[2rem] overflow-hidden shadow-2xl relative">
                 {/* Gold Status Bar */}
                 <div className="bg-[#c5a572] h-2"></div>
 
@@ -50,24 +149,55 @@ const GuestPass: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Action Button */}
+                {/* Optional Image */}
+                {data.imageUrl && (
+                    <div className="px-6 mb-4">
+                        <div className="aspect-video w-full rounded-xl overflow-hidden bg-gray-100 relative">
+                            <img
+                                src={data.imageUrl}
+                                alt="Inclusive"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center text-gray-300 pointer-events-none -z-10">
+                                <ImageIcon size={24} />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Action Button - Excluded from download if you want, but html2canvas captures visible DOM. 
+                    Links won't click in an image, so it's fine. */}
                 <div className="px-8 pb-2">
                     <a
                         href={discountLink}
                         target="_blank"
                         rel="noreferrer"
                         className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg"
+                        data-html2canvas-ignore // Use this if you don't want the button in the image, but users might want the visual "click here" cue even in a saved image? 
+                    // Actually, better to keep it so it looks like the pass.
                     >
                         Book with 15% Off
                         <ExternalLink size={14} />
                     </a>
                 </div>
 
-                {/* QR Section (Smaller now) */}
-                <div className="p-6 flex justify-center opacity-50 scale-75 h-32 overflow-hidden">
-                    <div className="bg-white p-2 border border-gray-100">
-                        <QRCode value={`https://wellness-club.com/v/${id}`} size={100} />
+                {/* Staff Redemption QR Section */}
+                <div className="p-8 pt-0 flex flex-col items-center justify-center border-t border-dashed border-gray-100 mt-4 pt-8">
+                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Use Only: Scan to Redeem</p>
+                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50">
+                        <QRCode
+                            value={JSON.stringify({ type: 'voucher-redemption', id: id })}
+                            size={140}
+                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                            viewBox={`0 0 256 256`}
+                        />
                     </div>
+                    <p className="mt-3 text-[10px] font-mono text-gray-200 uppercase tracking-widest">
+                        Pass ID: {id}
+                    </p>
                 </div>
 
                 {/* Details */}
@@ -93,7 +223,7 @@ const GuestPass: React.FC = () => {
                     <div className="border-t border-dashed border-gray-200 pt-6">
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-3">Included Services</p>
                         <div className="space-y-2">
-                            {data.services.map((s: string) => (
+                            {data.services && data.services.map((s: string) => (
                                 <div key={s} className="flex items-center gap-2 text-sm text-[#1a1a1a]">
                                     <CheckCircle size={14} className="text-[#c5a572]" />
                                     {s}
