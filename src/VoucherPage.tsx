@@ -233,9 +233,6 @@ const VoucherPage: React.FC = () => {
                 })
             });
 
-            // DEBUG: Confirm delivery
-            alert(`Debug: WhatsApp request sent via proxy for ${currentVoucher.guestName}.`);
-
             setWaStatus('sent');
             setTimeout(() => setWaStatus('idle'), 3000);
         } catch (e) {

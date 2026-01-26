@@ -214,7 +214,7 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
                             </button>
 
                             {isMenuOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto p-2">
+                                <div className="mt-2 bg-white border border-gray-100 rounded-xl shadow-inner z-50 max-h-64 overflow-y-auto p-2 animate-fade-in">
                                     {!code.trim() ? (
                                         <div className="p-4 text-center text-xs text-gray-400">
                                             Please enter or scan a valid Voucher ID first.
@@ -283,7 +283,7 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
 
                 <div className="flex-1 flex flex-col justify-center">
                     {status === 'idle' && !showScanner && (
-                        <div className="text-center py-10">
+                        <div className="text-center py-10 mt-4">
                             {selectedServices.length === 0 && (
                                 <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Select services to unlock scanner</p>
                             )}
