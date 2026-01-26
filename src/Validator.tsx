@@ -75,6 +75,12 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
     const [expireDate, setExpireDate] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+    // Reset selection when code changes (either via scan or typing)
+    // This prevents "stale" services from one voucher leaking into the next
+    React.useEffect(() => {
+        setSelectedServices([]);
+    }, [code]);
+
     // Derived state: Filter groups based on the current voucher's entitlements
     const getFilteredGroups = useCallback(() => {
         // If no code entered, show nothing or all? 
@@ -140,6 +146,7 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
             // Artificial delay so the user can see the "Redeeming" status on mobile
             setTimeout(() => {
                 setStatus('valid');
+                setSelectedServices([]); // RESET SELECTION
                 if (!manualCode) setCode('');
             }, 1500);
 
@@ -151,10 +158,9 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
 
     const handleScanSuccess = useCallback((scannedCode: string) => {
         setCode(scannedCode);
-        if (scannedCode && selectedServices.length > 0) {
-            handleVerify(scannedCode);
-        }
-    }, [handleVerify, selectedServices]);
+        setSelectedServices([]); // RESET SELECTION ON NEW SCAN
+        setShowScanner(false);
+    }, []);
 
     const closeScanner = useCallback(() => {
         setShowScanner(false);
