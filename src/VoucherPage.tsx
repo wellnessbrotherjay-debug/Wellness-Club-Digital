@@ -228,9 +228,13 @@ const VoucherPage: React.FC = () => {
                 },
                 body: JSON.stringify({
                     whatsapp: `${countryCode}${whatsappNumber.replace(/^0+/, '')}`,
-                    link: voucherUrl(currentVoucher)
+                    // Use short URL (GuestPass will hydrate data from ID)
+                    link: `${window.location.origin}/v/${currentVoucher.id}`
                 })
             });
+
+            // DEBUG: Confirm delivery
+            alert(`Debug: WhatsApp request sent via proxy for ${currentVoucher.guestName}.`);
 
             setWaStatus('sent');
             setTimeout(() => setWaStatus('idle'), 3000);
@@ -512,7 +516,7 @@ const VoucherPage: React.FC = () => {
                                     <div className="mt-6 w-full max-w-sm pt-6 border-t border-dashed border-gray-200 mx-auto">
                                         <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 block text-left">Send to Guest (WhatsApp)</label>
                                         <div className="flex gap-2">
-                                            <div className="w-28">
+                                            <div className="w-32">
                                                 <CountrySelector value={countryCode} onChange={setCountryCode} />
                                             </div>
                                             <input
@@ -520,7 +524,7 @@ const VoucherPage: React.FC = () => {
                                                 placeholder="Number..."
                                                 value={whatsappNumber}
                                                 onChange={e => setWhatsappNumber(e.target.value)}
-                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-green-500 transition-colors"
+                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm font-mono focus:outline-none focus:border-green-500 transition-colors"
                                             />
                                             <button
                                                 onClick={sendToWhatsApp}

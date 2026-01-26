@@ -28,12 +28,15 @@ const GuestPass: React.FC = () => {
                 console.error("Failed to parse voucher data");
                 setStatus('error');
             }
+        } else if (id) {
+            // No encoded data? Fetch from sheet!
+            checkStatus(id, true);
         } else {
             setStatus('error');
         }
     }, [searchParams, id]);
 
-    const checkStatus = (voucherId: string) => {
+    const checkStatus = (voucherId: string, needsHydration: boolean = false) => {
         // 1. Fetch current status from Sheet
         const script = document.createElement('script');
         // Define a unique callback name 
@@ -45,11 +48,25 @@ const GuestPass: React.FC = () => {
             if (!currentItem) {
                 setStatus('error');
                 setStatusMessage('Voucher not found in system.');
-            } else if (currentItem.status === 'Redeemed') {
-                setStatus('redeemed');
             } else {
-                // Voucher is Active - just show it!
-                setStatus('valid');
+                // Determine status
+                if (currentItem.status === 'Redeemed') {
+                    setStatus('redeemed');
+                } else {
+                    setStatus('valid');
+                }
+
+                // Hydrate data if needed (for short URLs)
+                if (needsHydration) {
+                    setData({
+                        guestName: currentItem.guestName,
+                        roomNumber: currentItem.roomNumber,
+                        // Handle date format differences if necessary
+                        checkOut: currentItem.checkOut ? new Date(currentItem.checkOut).toISOString().split('T')[0] : '',
+                        services: currentItem.services ? currentItem.services.split(', ') : [],
+                        imageUrl: currentItem.imageUrl || ''
+                    });
+                }
             }
             delete (window as any)[callbackName];
             document.body.removeChild(script);
