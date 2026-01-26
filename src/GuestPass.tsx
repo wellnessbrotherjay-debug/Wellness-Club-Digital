@@ -49,9 +49,26 @@ const GuestPass: React.FC = () => {
                 setStatus('error');
                 setStatusMessage('Voucher not found in system.');
             } else {
-                // Determine status
-                if (currentItem.status === 'Redeemed') {
-                    setStatus('redeemed');
+                // Determine status based on DATE ONLY (Multi-use support)
+                const today = new Date().toISOString().split('T')[0];
+                // Assuming checkOut is YYYY-MM-DD. If currentItem.checkOut is ISO, split it.
+                // If the checkOut date is valid, the voucher is active.
+
+                let isExpired = false;
+                if (currentItem.checkOut) {
+                    const expiry = currentItem.checkOut.split('T')[0];
+                    if (expiry < today) {
+                        isExpired = true;
+                    }
+                }
+
+                if (isExpired) {
+                    setStatus('redeemed'); // Re-using 'redeemed' state for 'expired/inactive' visually if needed, or better to have specific 'expired'
+                    // Actually, the component handles 'redeemed' as red. Let's stick to that or 'error'?
+                    // The UI has "Redeemed / Used" for 'redeemed' status. 
+                    // Let's map 'expired' to 'redeemed' UI state for now, but update the text in the UI later?
+                    // Better: The UI (lines 142+) checks count === 'redeemed'. 
+                    // Let's force it to 'valid' if NOT expired, regardless of sheet status.
                 } else {
                     setStatus('valid');
                 }
@@ -87,9 +104,16 @@ const GuestPass: React.FC = () => {
             const vCallback = `v_poll_${Date.now()}`;
             (window as any)[vCallback] = (items: any[]) => {
                 const currentItem = items.find((i: any) => i.code === id);
-                if (currentItem && currentItem.status.includes('Redeemed') && status !== 'redeemed') {
-                    setStatus('redeemed');
+
+                // MULTI-USE Logic: Only switch to 'redeemed' (Expired) if DATE has passed.
+                // Ignore 'Redeemed' string from sheet.
+                if (currentItem) {
+                    const today = new Date().toISOString().split('T')[0];
+                    if (currentItem.checkOut && currentItem.checkOut.split('T')[0] < today) {
+                        if (status !== 'redeemed') setStatus('redeemed');
+                    }
                 }
+
                 delete (window as any)[vCallback];
                 document.body.removeChild(vScript);
             };
@@ -159,7 +183,7 @@ const GuestPass: React.FC = () => {
                         {status === 'redeemed' ? (
                             <>
                                 <AlertTriangle size={12} />
-                                Redeemed / Used
+                                Voucher Expired
                             </>
                         ) : (
                             <>
