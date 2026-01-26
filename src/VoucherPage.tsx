@@ -502,14 +502,25 @@ const VoucherPage: React.FC = () => {
                                             Copy Link
                                         </button>
 
-                                        <a
-                                            href={`/v/${currentVoucher.id}?d=${btoa(JSON.stringify(currentVoucher))}`}
-                                            target="_blank"
+                                        <button
+                                            onClick={() => {
+                                                const width = 375;
+                                                const height = 800;
+                                                const left = (window.screen.width - width) / 2;
+                                                const top = (window.screen.height - height) / 2;
+
+                                                // Link without base64 data (it's fetched by ID now)
+                                                window.open(
+                                                    `${window.location.origin}/v/${currentVoucher.id}`,
+                                                    'GuestPassPopup',
+                                                    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+                                                );
+                                            }}
                                             className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#2c2420] text-white rounded-xl hover:bg-black text-sm font-bold transition-all"
                                         >
                                             Open Pass
                                             <ExternalLink size={16} />
-                                        </a>
+                                        </button>
                                     </div>
 
                                     {/* WHATSAPP SENDER */}
