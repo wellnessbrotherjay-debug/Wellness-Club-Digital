@@ -4,14 +4,20 @@ import QRScanner from './QRScanner';
 
 const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
     const [code, setCode] = useState('');
-    const [serviceType, setServiceType] = useState<'Massage' | 'Fitness' | 'Food/Beverage' | ''>('');
+    const [serviceType, setServiceType] = useState<string>('');
     const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error'>('idle');
     const [showScanner, setShowScanner] = useState(false);
 
-    const handleVerify = async () => {
-        const cleanCode = code.trim().toUpperCase();
-        if (!cleanCode || !serviceType) {
-            alert("Please enter voucher code and select service type");
+    const handleVerify = async (manualCode?: string) => {
+        const targetCode = (manualCode || code).trim().toUpperCase();
+
+        if (!targetCode) {
+            alert("Please scan or enter a voucher code");
+            return;
+        }
+
+        if (!serviceType) {
+            alert("Please select a service type first");
             return;
         }
 
@@ -24,18 +30,19 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({
                     action: 'redeem',
-                    voucherCode: cleanCode,
-                    serviceType: serviceType // Send service type to backend
+                    voucherCode: targetCode,
+                    serviceType: serviceType
                 })
             });
 
-            // Artificial delay to feel like a search
+            // Artificial delay so the user can see the "Redeeming" status on mobile
             setTimeout(() => {
                 setStatus('valid');
-            }, 1000);
+                if (!manualCode) setCode('');
+            }, 1500);
 
         } catch (e) {
-            console.error(e);
+            console.error("Redemption failed:", e);
             setStatus('error');
         }
     };
@@ -69,49 +76,54 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Service Redeemed For</label>
-                        <select
-                            value={serviceType}
-                            onChange={(e) => setServiceType(e.target.value as any)}
-                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-medium appearance-none cursor-pointer"
-                        >
-                            <option value="">Select specific service...</option>
+                        <div className="relative">
+                            <select
+                                value={serviceType}
+                                onChange={(e) => {
+                                    setServiceType(e.target.value);
+                                    if (status !== 'searching') setStatus('idle');
+                                }}
+                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-medium appearance-none cursor-pointer"
+                            >
+                                <option value="">Select specific service...</option>
 
-                            <optgroup label="Massage & Spa">
-                                <option value="Signature Massage">No.1 Signature Massage</option>
-                                <option value="Slimming Massage">No.1 Slimming Massage</option>
-                                <option value="Lymphatic Massage">No.1 Lymphatic Massage</option>
-                                <option value="Relaxing Massage">No.1 Relaxing Massage</option>
-                            </optgroup>
+                                <optgroup label="Massage & Spa">
+                                    <option value="Signature Massage">No.1 Signature Massage</option>
+                                    <option value="Slimming Massage">No.1 Slimming Massage</option>
+                                    <option value="Lymphatic Massage">No.1 Lymphatic Massage</option>
+                                    <option value="Relaxing Massage">No.1 Relaxing Massage</option>
+                                </optgroup>
 
-                            <optgroup label="IV Therapy">
-                                <option value="IV Immune Booster">IV Immune Booster</option>
-                                <option value="IV Recovery & Detox">IV Recovery & Detox</option>
-                                <option value="IV Hangover Cure">IV Hangover Cure</option>
-                                <option value="IV Bali Belly">IV Bali Belly Infusion</option>
-                            </optgroup>
+                                <optgroup label="IV Therapy">
+                                    <option value="IV Immune Booster">IV Immune Booster</option>
+                                    <option value="IV Recovery & Detox">IV Recovery & Detox</option>
+                                    <option value="IV Hangover Cure">IV Hangover Cure</option>
+                                    <option value="IV Bali Belly">IV Bali Belly Infusion</option>
+                                </optgroup>
 
-                            <optgroup label="Fitness & Wellness">
-                                <option value="Yoga Class">Yoga Class</option>
-                                <option value="Reformer Pilates">Reformer Pilates</option>
-                                <option value="Pilates + GUIDED Recovery">Pilates + Guided Recovery</option>
-                                <option value="Kickboxing">Kickboxing / Muay Thai</option>
-                                <option value="Zumba">Zumba</option>
-                                <option value="Private Session">Private Fitness Session</option>
-                            </optgroup>
+                                <optgroup label="Fitness & Wellness">
+                                    <option value="Yoga Class">Yoga Class</option>
+                                    <option value="Reformer Pilates">Reformer Pilates</option>
+                                    <option value="Pilates + GUIDED Recovery">Pilates + Guided Recovery</option>
+                                    <option value="Kickboxing">Kickboxing / Muay Thai</option>
+                                    <option value="Zumba">Zumba</option>
+                                    <option value="Private Session">Private Fitness Session</option>
+                                </optgroup>
 
-                            <optgroup label="Other">
-                                <option value="Food & Beverage">Food & Beverage</option>
-                                <option value="Day Pass">Day Pass (Facilities Only)</option>
-                                <option value="Event Access">Event Access</option>
-                            </optgroup>
-                        </select>
-                        <div className="absolute right-4 top-[3.2rem] pointer-events-none text-gray-400">
-                            <ChevronDown size={16} />
+                                <optgroup label="Other">
+                                    <option value="Food & Beverage">Food & Beverage</option>
+                                    <option value="Day Pass">Day Pass (Facilities Only)</option>
+                                    <option value="Event Access">Event Access</option>
+                                </optgroup>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <ChevronDown size={16} />
+                            </div>
                         </div>
                     </div>
 
                     <button
-                        onClick={handleVerify}
+                        onClick={() => handleVerify()}
                         disabled={!code || !serviceType || status === 'searching'}
                         className="w-full bg-[#2c2420] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-bold text-sm uppercase tracking-widest"
                     >
@@ -132,9 +144,18 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                 <div className="flex-1 flex flex-col justify-center">
                     {status === 'idle' && (
                         <div className="text-center py-10">
+                            {!serviceType && (
+                                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Select service type to unlock scanner</p>
+                            )}
                             <button
-                                onClick={() => setShowScanner(true)}
-                                className="group relative"
+                                onClick={() => {
+                                    if (!serviceType) {
+                                        alert("Please select a service type first");
+                                        return;
+                                    }
+                                    setShowScanner(true);
+                                }}
+                                className={`group relative ${!serviceType ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}
                             >
                                 <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 group-hover:bg-[#c5a572]/10 group-hover:text-[#c5a572] transition-all">
                                     <Camera size={32} />
@@ -149,14 +170,20 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                         <QRScanner
                             onScanSuccess={(scannedCode) => {
                                 setCode(scannedCode);
-                                setShowScanner(false);
-                                // Verification will be triggered if they have a service selected
+                                if (scannedCode && serviceType) {
+                                    handleVerify(scannedCode);
+                                }
                             }}
-                            onClose={() => setShowScanner(false)}
+                            onClose={() => {
+                                setShowScanner(false);
+                                setStatus('idle');
+                            }}
+                            valStatus={status}
+                            currentService={serviceType}
                         />
                     )}
 
-                    {status === 'valid' && (
+                    {status === 'valid' && !showScanner && (
                         <div className="bg-green-50 p-6 rounded-2xl border border-green-100 animate-fade-in text-center">
                             <div className="w-16 h-16 bg-green-100/50 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <CheckCircle size={32} className="text-green-600" />
@@ -183,20 +210,14 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                         </div>
                     )}
 
-                    {status === 'invalid' && (
+                    {(status === 'invalid' || status === 'error') && !showScanner && (
                         <div className="bg-red-50 p-6 rounded-2xl border border-red-100 animate-fade-in text-center">
                             <XCircle size={48} className="text-red-400 mx-auto mb-4" />
                             <div className="text-red-700 font-bold uppercase tracking-widest text-xs mb-2">
-                                Error
+                                System Error
                             </div>
-                            <p className="text-sm text-gray-600">Could not verify voucher details.</p>
-                        </div>
-                    )}
-
-                    {status === 'error' && (
-                        <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 animate-fade-in text-center">
-                            <p className="text-sm text-orange-600 font-medium">Network error. Check connection and try again.</p>
-                            <button onClick={handleVerify} className="mt-4 text-xs font-bold uppercase tracking-widest underline">Retry</button>
+                            <p className="text-sm text-gray-600">Check internet connection and try again.</p>
+                            <button onClick={() => setStatus('idle')} className="mt-4 text-xs font-bold uppercase tracking-widest underline">Retry</button>
                         </div>
                     )}
                 </div>

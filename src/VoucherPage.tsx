@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import {
     CheckCircle, Loader2, Copy, ExternalLink,
     RefreshCw, Calendar, PlusCircle, Scan,
-    List, History, Search, Trash2, Smartphone, XCircle
+    List, History, Search, Trash2, Smartphone, XCircle, AlertCircle
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
@@ -16,7 +16,9 @@ interface VoucherData {
     checkOut: string;
     services: string[];
     imageUrl?: string;
-    timestamp: string; // ISO string for storage
+    status?: string;
+    created_at?: string;
+    redeemed_at?: string;
 }
 
 const SERVICES_LIST = [
@@ -64,7 +66,8 @@ const VoucherPage: React.FC = () => {
                     checkIn: item.checkIn ? new Date(item.checkIn).toISOString().split('T')[0] : '', // Ensure date string format
                     checkOut: item.checkOut ? new Date(item.checkOut).toISOString().split('T')[0] : '',
                     status: item.status,
-                    timestamp: item.timestamp,
+                    created_at: item.created_at || item.timestamp, // Fallback if old data
+                    redeemed_at: item.redeemed_at,
                     imageUrl: item.imageUrl || '',
                     services: item.services ? item.services.split(', ') : []
                 };
@@ -74,8 +77,11 @@ const VoucherPage: React.FC = () => {
         };
     }, []);
 
-    const fetchVouchersFromSheet = () => {
-        setIsFetchingHistory(true);
+    const fetchVouchersFromSheet = (isSilent: boolean = false) => {
+        // ONLY show the loading spinner if NOT silent (initial load or manual retry)
+        if (!isSilent) {
+            setIsFetchingHistory(true);
+        }
         setFetchError(false);
 
         const script = document.createElement('script');
@@ -91,16 +97,16 @@ const VoucherPage: React.FC = () => {
         };
     };
 
-    // Load from Sheet on mount and when tab changes
+    // Consolidated load effect
     useEffect(() => {
-        if (activeTab === 'issued') {
-            fetchVouchersFromSheet();
-        }
-    }, [activeTab]);
+        fetchVouchersFromSheet(); // Initial load (not silent)
 
-    // Initial load
-    useEffect(() => {
-        fetchVouchersFromSheet();
+        // Background polling every 5 seconds (silent)
+        const pollInterval = setInterval(() => {
+            fetchVouchersFromSheet(true);
+        }, 5000);
+
+        return () => clearInterval(pollInterval);
     }, []);
 
     // Removed localStorage logic as we now fetch from Sheets
@@ -152,7 +158,7 @@ const VoucherPage: React.FC = () => {
                 checkOut: formData.checkOut,
                 imageUrl: formData.imageUrl,
                 services: selectedServices,
-                timestamp: new Date().toISOString()
+                created_at: new Date().toISOString()
             };
 
             setCurrentVoucher(newVoucher);
@@ -395,8 +401,17 @@ const VoucherPage: React.FC = () => {
 
                                 <div className="text-center relative z-10 w-full">
                                     <div className="flex items-center gap-2 text-green-600 font-bold uppercase tracking-widest text-[10px] mb-2 justify-center">
-                                        <CheckCircle size={14} />
-                                        <span>Voucher Created Successfully</span>
+                                        {recentVouchers.find(v => v.id === currentVoucher.id)?.status === 'Redeemed' ? (
+                                            <div className="flex items-center gap-2 text-red-500 bg-red-50 px-4 py-1 rounded-full animate-bounce mt-2">
+                                                <AlertCircle size={14} />
+                                                <span>Voucher Validated & Redeemed</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <CheckCircle size={14} />
+                                                <span>Voucher Created Successfully</span>
+                                            </>
+                                        )}
                                     </div>
                                     <h3 className="text-3xl font-serif text-[#2c2420] mb-1 font-bold">{currentVoucher.id}</h3>
                                     <p className="text-gray-500 text-sm mb-8">{currentVoucher.guestName} • Room {currentVoucher.roomNumber}</p>
@@ -479,10 +494,10 @@ const VoucherPage: React.FC = () => {
                                     <p className="text-red-800 font-bold uppercase tracking-widest text-xs mb-2">Connection Error</p>
                                     <p className="text-gray-500 text-xs mb-6 max-w-xs mx-auto">Could not fetch data from Google Sheets.</p>
                                     <button
-                                        onClick={fetchVouchersFromSheet}
-                                        className="px-6 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-red-100 transition-colors"
+                                        onClick={() => fetchVouchersFromSheet()}
+                                        className="mt-6 px-8 py-3 bg-white text-red-600 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm border border-red-100 hover:bg-red-50 transition-colors"
                                     >
-                                        Retry
+                                        Try Again
                                     </button>
                                 </div>
                             )}
@@ -506,10 +521,17 @@ const VoucherPage: React.FC = () => {
                                                     <h3 className="font-bold text-lg">{voucher.guestName}</h3>
                                                     <span className="px-2 py-0.5 bg-[#f0ede6] text-[#2c2420] text-[9px] font-bold rounded uppercase">Room {voucher.roomNumber}</span>
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                                                    <span className="font-mono text-[#c5a572] font-bold">{voucher.id}</span>
-                                                    <span>•</span>
-                                                    <span>Issued {new Date(voucher.timestamp).toLocaleDateString()} at {new Date(voucher.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <div className="flex flex-col gap-1 text-[10px] text-gray-400 mt-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
+                                                        <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
+                                                    </div>
+                                                    {voucher.status === 'Redeemed' && voucher.redeemed_at && (
+                                                        <div className="flex items-center gap-2 text-red-400">
+                                                            <CheckCircle size={10} />
+                                                            <span className="uppercase font-bold tracking-tighter">Redeemed: {new Date(voucher.redeemed_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

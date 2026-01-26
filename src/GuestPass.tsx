@@ -59,6 +59,30 @@ const GuestPass: React.FC = () => {
         document.body.appendChild(script);
     };
 
+    // Background polling for real-time status updates
+    useEffect(() => {
+        if (!id || status === 'loading') return;
+
+        const pollInterval = setInterval(() => {
+            const script = document.createElement('script');
+            const callbackName = `poll_${id.replace(/-/g, '')}_${Date.now()}`;
+
+            (window as any)[callbackName] = (items: any[]) => {
+                const currentItem = items.find((i: any) => i.code === id);
+                if (currentItem && currentItem.status === 'Redeemed' && status !== 'redeemed') {
+                    setStatus('redeemed');
+                }
+                delete (window as any)[callbackName];
+                document.body.removeChild(script);
+            };
+
+            script.src = `${APPS_SCRIPT_URL}?callback=${callbackName}&sheet=Vouchers&t=${Date.now()}`;
+            document.body.appendChild(script);
+        }, 5000);
+
+        return () => clearInterval(pollInterval);
+    }, [id, status]);
+
     const redeemVoucher = async (voucherId: string) => {
         try {
             await fetch(APPS_SCRIPT_URL, {
@@ -87,25 +111,6 @@ const GuestPass: React.FC = () => {
             <div className="min-h-screen bg-[#2c2420] text-white flex flex-col items-center justify-center gap-4">
                 <Loader2 className="animate-spin text-[#c5a572]" size={48} />
                 <p className="text-xs font-bold uppercase tracking-widest">Verifying Pass...</p>
-            </div>
-        );
-    }
-
-    if (status === 'redeemed') {
-        return (
-            <div className="min-h-screen bg-[#2c2420] text-white flex items-center justify-center p-6">
-                <div className="bg-white text-[#2c2420] p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
-                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
-                        <AlertTriangle size={32} />
-                    </div>
-                    <h1 className="text-2xl font-serif font-bold mb-2">Link Expired</h1>
-                    <p className="text-gray-500 text-sm mb-6">
-                        This guest pass has already been viewed and is no longer valid for sharing.
-                    </p>
-                    <div className="p-4 bg-gray-50 rounded-xl text-xs text-gray-400 font-mono">
-                        ID: {id}
-                    </div>
-                </div>
             </div>
         );
     }
@@ -143,9 +148,18 @@ const GuestPass: React.FC = () => {
                         No.1 Wellness
                     </div>
                     <h1 className="text-2xl font-serif text-[#1a1a1a] italic mb-1">Guest Access Pass</h1>
-                    <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-bold uppercase tracking-widest mt-2">
-                        <CheckCircle size={12} />
-                        Active
+                    <div className={`flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest mt-2 ${status === 'redeemed' ? 'text-red-500' : 'text-green-600'}`}>
+                        {status === 'redeemed' ? (
+                            <>
+                                <AlertTriangle size={12} />
+                                Redeemed / Used
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle size={12} />
+                                Active
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -185,20 +199,22 @@ const GuestPass: React.FC = () => {
                 </div>
 
                 {/* Staff Redemption QR Section */}
-                <div className="p-8 pt-0 flex flex-col items-center justify-center border-t border-dashed border-gray-100 mt-4 pt-8">
-                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Use Only: Scan to Redeem</p>
-                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50">
-                        <QRCode
-                            value={JSON.stringify({ type: 'voucher-redemption', id: id })}
-                            size={140}
-                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                            viewBox={`0 0 256 256`}
-                        />
+                {status !== 'redeemed' && (
+                    <div className="p-8 pt-0 flex flex-col items-center justify-center border-t border-dashed border-gray-100 mt-4 pt-8 animate-fade-in">
+                        <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Use Only: Scan to Redeem</p>
+                        <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50">
+                            <QRCode
+                                value={JSON.stringify({ type: 'voucher-redemption', id: id })}
+                                size={140}
+                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                viewBox={`0 0 256 256`}
+                            />
+                        </div>
+                        <p className="mt-3 text-[10px] font-mono text-gray-200 uppercase tracking-widest">
+                            Pass ID: {id}
+                        </p>
                     </div>
-                    <p className="mt-3 text-[10px] font-mono text-gray-200 uppercase tracking-widest">
-                        Pass ID: {id}
-                    </p>
-                </div>
+                )}
 
                 {/* Details */}
                 <div className="p-8 pt-0 space-y-6">
