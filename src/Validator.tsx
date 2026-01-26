@@ -159,7 +159,6 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
     const handleScanSuccess = useCallback((scannedCode: string) => {
         setCode(scannedCode);
         setSelectedServices([]); // RESET SELECTION ON NEW SCAN
-        setShowScanner(false);
     }, []);
 
     const closeScanner = useCallback(() => {
@@ -313,6 +312,10 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
                             onClose={closeScanner}
                             valStatus={status}
                             currentService={selectedServices.join(', ')}
+                            serviceGroups={filteredServiceGroups}
+                            selectedServices={selectedServices}
+                            toggleService={toggleService}
+                            onRedeem={() => handleVerify()}
                         />
                     )}
 

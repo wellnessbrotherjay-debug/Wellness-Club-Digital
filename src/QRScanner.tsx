@@ -1,15 +1,22 @@
 import React, { useEffect, useRef, memo } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { XCircle, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { XCircle, Loader2, CheckCircle, AlertCircle, Camera } from 'lucide-react';
 
 interface QRScannerProps {
     onScanSuccess: (decodedText: string) => void;
     onClose: () => void;
     valStatus?: 'idle' | 'searching' | 'valid' | 'invalid' | 'error' | 'expired';
     currentService?: string;
+    serviceGroups?: any[];
+    selectedServices?: string[];
+    toggleService?: (value: string) => void;
+    onRedeem?: () => void;
 }
 
-const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus, currentService }) => {
+const QRScanner: React.FC<QRScannerProps> = ({
+    onScanSuccess, onClose, valStatus, currentService,
+    serviceGroups = [], selectedServices = [], toggleService, onRedeem
+}) => {
     const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
     const [isCameraActive, setIsCameraActive] = React.useState(false);
     const [scannedResult, setScannedResult] = React.useState<string | null>(null);
@@ -171,65 +178,102 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
 
             <div className="mt-10 text-center max-w-xs w-full px-4">
                 {scannedResult ? (
-                    <div className="animate-fade-in flex flex-col items-center">
-                        <div className={`border rounded-2xl p-6 w-full mb-6 transition-all duration-500 ${valStatus === 'valid' ? 'bg-green-500/20 border-green-500/40 shadow-[0_0_30px_rgba(34,197,94,0.2)]' : 'bg-black/40 border-white/10'}`}>
+                    <div className="animate-fade-in flex flex-col items-center w-full">
+                        <div className={`border rounded-2xl p-6 w-full mb-6 transition-all duration-500 overflow-hidden ${valStatus === 'valid' ? 'bg-green-500/20 border-green-500/40 shadow-[0_0_30px_rgba(34,197,94,0.2)]' : 'bg-black/40 border-white/10'}`}>
                             {valStatus === 'searching' ? (
-                                <div className="flex flex-col items-center py-2">
+                                <div className="flex flex-col items-center py-4">
                                     <Loader2 className="animate-spin text-[#c5a572] mb-3" size={32} />
                                     <h2 className="text-xl font-serif text-white">Redeeming...</h2>
-                                    <p className="text-[10px] text-white/40 uppercase font-bold mt-2">Updating Sheet</p>
+                                    <div className="mt-4 px-3 py-1 bg-[#c5a572]/10 rounded-full">
+                                        <p className="text-[10px] text-[#c5a572] uppercase font-bold tracking-widest leading-none">{currentService}</p>
+                                    </div>
                                 </div>
                             ) : valStatus === 'valid' ? (
-                                <div className="animate-scale-in">
+                                <div className="animate-scale-in flex flex-col items-center py-2 text-center">
+                                    <CheckCircle size={48} className="text-green-500 mb-4" />
                                     <h2 className="text-2xl font-serif text-green-400 mb-1">Voucher Redeemed!</h2>
-                                    <div className="flex items-center justify-center gap-2 mb-4">
-                                        <span className="text-[10px] text-green-500/60 font-bold uppercase tracking-widest">Time:</span>
-                                        <span className="text-[10px] text-white font-mono bg-white/10 px-2 py-0.5 rounded">{validationTime}</span>
+                                    <p className="text-white/60 text-xs mb-4">{validationTime}</p>
+                                    <div className="bg-green-500/20 px-4 py-2 rounded-xl border border-green-500/30">
+                                        <p className="text-[10px] text-green-400 uppercase font-bold tracking-widest mb-1">Items Logged:</p>
+                                        <p className="text-sm text-white font-bold">{currentService}</p>
                                     </div>
-                                    <div className="px-3 py-1 bg-green-500/20 rounded-full inline-block mb-2">
-                                        <p className="text-[9px] text-green-400 uppercase font-bold tracking-widest">{currentService}</p>
-                                    </div>
-                                </div>
-                            ) : valStatus === 'error' ? (
-                                <div className="flex flex-col items-center py-2">
-                                    <AlertCircle className="text-red-500 mb-3" size={32} />
-                                    <h2 className="text-xl font-serif text-white">System Error</h2>
-                                    <p className="text-[10px] text-red-400 uppercase font-bold mt-1">Check Hub connection</p>
-                                    <button
-                                        onClick={() => onScanSuccessRef.current(scannedResult)}
-                                        className="mt-4 text-[10px] text-white bg-red-500/20 px-4 py-2 rounded-full font-bold uppercase"
-                                    >
-                                        Retry Redemption
-                                    </button>
                                 </div>
                             ) : (
-                                <>
-                                    <h2 className="text-2xl font-serif text-white mb-1">Captured</h2>
-                                    <p className="text-[10px] text-white/40 uppercase font-bold mb-4">Ready to Redeem</p>
-                                </>
-                            )}
-                            {valStatus !== 'error' && (
-                                <p className="text-white font-mono tracking-widest text-lg bg-black/40 py-3 px-4 rounded-xl border border-white/5 mt-2">{scannedResult}</p>
+                                <div className="flex flex-col w-full h-full max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    <div className="flex justify-between items-center mb-4 sticky top-0 bg-[#2c2420]/80 backdrop-blur-sm py-2 z-10">
+                                        <div>
+                                            <h2 className="text-lg font-serif text-white">{scannedResult}</h2>
+                                            <p className="text-[9px] text-green-400 uppercase font-bold tracking-widest">Active • Select Services</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {serviceGroups.length === 0 ? (
+                                            <div className="py-8 text-center bg-red-500/10 border border-red-500/30 rounded-xl">
+                                                <AlertCircle className="text-red-500 mx-auto mb-2" size={20} />
+                                                <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest">No valid services found</p>
+                                            </div>
+                                        ) : (
+                                            serviceGroups.map(group => (
+                                                <div key={group.label} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                                    <div className="text-[8px] font-bold uppercase tracking-widest text-[#c5a572] mb-2">{group.label}</div>
+                                                    <div className="space-y-1">
+                                                        {group.items.map((item: any) => (
+                                                            <button
+                                                                key={item.value}
+                                                                onClick={() => toggleService?.(item.value)}
+                                                                className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${selectedServices.includes(item.value)
+                                                                    ? 'bg-[#c5a572] text-white'
+                                                                    : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                                                    }`}
+                                                            >
+                                                                <span className="text-xs font-bold">{item.label}</span>
+                                                                {selectedServices.includes(item.value) && <CheckCircle size={14} />}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 w-full">
-                            <button
-                                onClick={() => {
-                                    setScannedResult(null);
-                                    setValidationTime(null);
-                                    hasScannedRef.current = false;
-                                    // Don't stop the camera, just allow another scan
-                                }}
-                                className="bg-[#c5a572] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-[#c5a572]/20 hover:bg-[#b39462] transition-colors"
-                            >
-                                {valStatus === 'valid' ? 'Scan Next' : 'Reset Overlay'}
-                            </button>
+                        <div className="grid grid-cols-2 gap-4 w-full">
                             <button
                                 onClick={onClose}
-                                className="bg-white/10 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-white/20 transition-all border border-white/5"
+                                className="bg-white/10 text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-white/20 transition-all border border-white/5"
                             >
                                 {valStatus === 'valid' ? 'Done' : 'Cancel'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (valStatus === 'valid') {
+                                        setScannedResult(null);
+                                        setValidationTime(null);
+                                        hasScannedRef.current = false;
+                                    } else {
+                                        onRedeem?.();
+                                    }
+                                }}
+                                disabled={valStatus === 'searching' || (valStatus !== 'valid' && selectedServices.length === 0)}
+                                className={`py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl transition-all flex items-center justify-center gap-2 ${valStatus === 'valid'
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-[#c5a572] text-white hover:bg-[#b39462] disabled:opacity-50'
+                                    }`}
+                            >
+                                {valStatus === 'valid' ? (
+                                    <>
+                                        <Camera size={14} /> Scan Next
+                                    </>
+                                ) : valStatus === 'searching' ? (
+                                    <Loader2 className="animate-spin" size={14} />
+                                ) : (
+                                    <>
+                                        <CheckCircle size={14} /> Redeem Now
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
