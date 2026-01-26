@@ -28,7 +28,8 @@ const SHEET_NAMES = {
   VOUCHERS: "Vouchers",
   BOOKINGS: "Bookings",
   STAFF: "Staff",
-  SCHEDULES: "Schedules"
+  SCHEDULES: "Schedules",
+  REDEMPTIONS: "Redemptions"
 };
 
 /**
@@ -153,40 +154,57 @@ function handleCreate(postData) {
 }
 
 /**
- * Handle redeeming vouchers (mark as used)
+ * Handle redeeming vouchers (Log a new use for a specific service)
  */
 function handleRedeem(postData) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.VOUCHERS);
+  const voucherSheet = ss.getSheetByName(SHEET_NAMES.VOUCHERS);
   
-  if (!sheet) {
+  if (!voucherSheet) {
     return createResponse({ status: "error", message: "Vouchers sheet not found" });
   }
   
   const voucherCode = postData.voucherCode;
+  const serviceType = postData.serviceType || "General Use";
   
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const codeIndex = headers.indexOf('code');
-  const statusIndex = headers.indexOf('status');
-  const redeemedAtIndex = headers.indexOf('redeemed_at');
+  // 1. Verify Voucher Exists and get Guest Name
+  const voucherData = voucherSheet.getDataRange().getValues();
+  const voucherHeaders = voucherData[0];
+  const codeIndex = voucherHeaders.indexOf('code');
+  const guestNameIndex = voucherHeaders.indexOf('guestName');
+  const statusIndex = voucherHeaders.indexOf('status');
+  const redeemedAtIndex = voucherHeaders.indexOf('redeemed_at');
   
-  // Find the voucher
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][codeIndex] === voucherCode) {
-      // Update status
-      sheet.getRange(i + 1, statusIndex + 1).setValue('Redeemed');
+  let guestName = "Unknown";
+  let found = false;
+  for (let i = 1; i < voucherData.length; i++) {
+    if (voucherData[i][codeIndex] === voucherCode) {
+      guestName = voucherData[i][guestNameIndex];
+      found = true;
       
-      // Update redeemed_at if it exists
+      // Update the main voucher status to reflect last use
+      voucherSheet.getRange(i + 1, statusIndex + 1).setValue('Redeemed (' + serviceType + ')');
       if (redeemedAtIndex !== -1) {
-         sheet.getRange(i + 1, redeemedAtIndex + 1).setValue(new Date().toISOString());
+        voucherSheet.getRange(i + 1, redeemedAtIndex + 1).setValue(new Date().toISOString());
       }
-      
-      return createResponse({ status: "success", message: "Voucher redeemed" });
+      break;
     }
   }
   
-  return createResponse({ status: "error", message: "Voucher not found" });
+  if (!found) {
+    return createResponse({ status: "error", message: "Voucher not found" });
+  }
+
+  // 2. Log entry in the Redemptions history sheet
+  let redeemSheet = ss.getSheetByName(SHEET_NAMES.REDEMPTIONS);
+  if (!redeemSheet) {
+    redeemSheet = ss.insertSheet(SHEET_NAMES.REDEMPTIONS);
+    redeemSheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType']);
+  }
+  
+  redeemSheet.appendRow([new Date().toISOString(), voucherCode, guestName, serviceType]);
+  
+  return createResponse({ status: "success", message: "Redemption logged for: " + serviceType });
 }
 
 /**

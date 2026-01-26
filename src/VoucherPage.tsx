@@ -19,6 +19,14 @@ interface VoucherData {
     status?: string;
     created_at?: string;
     redeemed_at?: string;
+    redemptions?: RedemptionData[];
+}
+
+interface RedemptionData {
+    timestamp: string;
+    voucherCode: string;
+    guestName: string;
+    serviceType: string;
 }
 
 const SERVICES_LIST = [
@@ -46,6 +54,7 @@ const VoucherPage: React.FC = () => {
     const [currentVoucher, setCurrentVoucher] = useState<VoucherData | null>(null);
     const [recentVouchers, setRecentVouchers] = useState<VoucherData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [redemptions, setRedemptions] = useState<RedemptionData[]>([]);
 
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
 
@@ -53,13 +62,12 @@ const VoucherPage: React.FC = () => {
     const [fetchError, setFetchError] = useState(false);
     const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
 
-    // Extend window to support JSONP callback
+    // Extend window to support JSONP callbacks
     useEffect(() => {
         (window as any).loadVouchers = (data: any[]) => {
             setIsFetchingHistory(false);
             setFetchError(false);
             const mapped = data.map(item => {
-                // Defensive date parsing to prevent crashes
                 const safeDate = (dateStr: any) => {
                     if (!dateStr) return '';
                     const d = new Date(dateStr);
@@ -73,33 +81,40 @@ const VoucherPage: React.FC = () => {
                     checkIn: safeDate(item.checkIn),
                     checkOut: safeDate(item.checkOut),
                     status: item.status,
-                    created_at: item.created_at || item.timestamp, // Fallback if old data
+                    created_at: item.created_at || item.timestamp,
                     redeemed_at: item.redeemed_at,
                     imageUrl: item.imageUrl || '',
-                    services: item.services ? item.services.split(', ') : []
+                    services: item.services ? item.services.split(', ') : [],
+                    redemptions: [] // Will be populated after mapping
                 };
-            }).reverse(); // Show newest first
+            }).reverse();
 
             setRecentVouchers(mapped);
             setHasInitialLoaded(true);
         };
+
+        (window as any).loadRedemptions = (data: any[]) => {
+            setRedemptions(data || []);
+        };
     }, []);
 
-    const fetchVouchersFromSheet = (isSilent: boolean = false) => {
-        // ONLY show the loading spinner if NOT silent (initial load or manual retry)
-        if (!isSilent) {
-            setIsFetchingHistory(true);
-        }
+    const fetchData = (isSilent: boolean = false) => {
+        if (!isSilent) setIsFetchingHistory(true);
         setFetchError(false);
 
-        const script = document.createElement('script');
-        script.src = `${APPS_SCRIPT_URL}?callback=loadVouchers&t=${Date.now()}`;
-        document.body.appendChild(script);
+        // Fetch Vouchers
+        const vScript = document.createElement('script');
+        vScript.src = `${APPS_SCRIPT_URL}?callback=loadVouchers&sheet=Vouchers&t=${Date.now()}`;
+        document.body.appendChild(vScript);
+        vScript.onload = () => document.body.removeChild(vScript);
 
-        // Cleanup
-        script.onload = () => document.body.removeChild(script);
-        script.onerror = () => {
-            document.body.removeChild(script);
+        // Fetch Redemptions
+        const rScript = document.createElement('script');
+        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
+        document.body.appendChild(rScript);
+        rScript.onload = () => document.body.removeChild(rScript);
+
+        rScript.onerror = vScript.onerror = () => {
             setIsFetchingHistory(false);
             setFetchError(true);
         };
@@ -107,11 +122,10 @@ const VoucherPage: React.FC = () => {
 
     // Consolidated load effect
     useEffect(() => {
-        fetchVouchersFromSheet(); // Initial load (not silent)
+        fetchData(); // Initial load
 
-        // Background polling every 5 seconds (silent)
         const pollInterval = setInterval(() => {
-            fetchVouchersFromSheet(true);
+            fetchData(true);
         }, 5000);
 
         return () => clearInterval(pollInterval);
@@ -502,7 +516,7 @@ const VoucherPage: React.FC = () => {
                                     <p className="text-red-800 font-bold uppercase tracking-widest text-xs mb-2">Connection Error</p>
                                     <p className="text-gray-500 text-xs mb-6 max-w-xs mx-auto">Could not fetch data from Google Sheets.</p>
                                     <button
-                                        onClick={() => fetchVouchersFromSheet()}
+                                        onClick={() => fetchData()}
                                         className="mt-6 px-8 py-3 bg-white text-red-600 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm border border-red-100 hover:bg-red-50 transition-colors"
                                     >
                                         Try Again
@@ -529,17 +543,19 @@ const VoucherPage: React.FC = () => {
                                                     <h3 className="font-bold text-lg">{voucher.guestName}</h3>
                                                     <span className="px-2 py-0.5 bg-[#f0ede6] text-[#2c2420] text-[9px] font-bold rounded uppercase">Room {voucher.roomNumber}</span>
                                                 </div>
-                                                <div className="flex flex-col gap-1 text-[10px] text-gray-400 mt-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
-                                                        <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
-                                                    </div>
-                                                    {voucher.status === 'Redeemed' && voucher.redeemed_at && (
-                                                        <div className="flex items-center gap-2 text-red-400">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
+                                                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
+                                                </div>
+
+                                                {/* REDEMPTION HISTORY IN LIST */}
+                                                <div className="mt-2 space-y-1">
+                                                    {redemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 text-green-600 bg-green-50 px-2 py-0.5 rounded-md self-start w-fit">
                                                             <CheckCircle size={10} />
-                                                            <span className="uppercase font-bold tracking-tighter">Redeemed: {new Date(voucher.redeemed_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                            <span className="text-[9px] font-bold uppercase">{redeem.serviceType} • {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                         </div>
-                                                    )}
+                                                    ))}
                                                 </div>
                                             </div>
                                         </div>

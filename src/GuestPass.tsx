@@ -15,6 +15,7 @@ const GuestPass: React.FC = () => {
     const passRef = useRef<HTMLDivElement>(null);
     const [status, setStatus] = useState<'loading' | 'valid' | 'redeemed' | 'error'>('loading');
     const [statusMessage, setStatusMessage] = useState('');
+    const [redemptions, setRedemptions] = useState<any[]>([]);
 
     useEffect(() => {
         const encodedData = searchParams.get('d');
@@ -59,25 +60,36 @@ const GuestPass: React.FC = () => {
         document.body.appendChild(script);
     };
 
-    // Background polling for real-time status updates
+    // Background polling for real-time status updates (both Vouchers and Redemptions)
     useEffect(() => {
         if (!id || status === 'loading') return;
 
         const pollInterval = setInterval(() => {
-            const script = document.createElement('script');
-            const callbackName = `poll_${id.replace(/-/g, '')}_${Date.now()}`;
-
-            (window as any)[callbackName] = (items: any[]) => {
+            // 1. Poll Vouchers
+            const vScript = document.createElement('script');
+            const vCallback = `v_poll_${Date.now()}`;
+            (window as any)[vCallback] = (items: any[]) => {
                 const currentItem = items.find((i: any) => i.code === id);
-                if (currentItem && currentItem.status === 'Redeemed' && status !== 'redeemed') {
+                if (currentItem && currentItem.status.includes('Redeemed') && status !== 'redeemed') {
                     setStatus('redeemed');
                 }
-                delete (window as any)[callbackName];
-                document.body.removeChild(script);
+                delete (window as any)[vCallback];
+                document.body.removeChild(vScript);
             };
+            vScript.src = `${APPS_SCRIPT_URL}?callback=${vCallback}&sheet=Vouchers&t=${Date.now()}`;
+            document.body.appendChild(vScript);
 
-            script.src = `${APPS_SCRIPT_URL}?callback=${callbackName}&sheet=Vouchers&t=${Date.now()}`;
-            document.body.appendChild(script);
+            // 2. Poll Redemptions
+            const rScript = document.createElement('script');
+            const rCallback = `r_poll_${Date.now()}`;
+            (window as any)[rCallback] = (items: any[]) => {
+                setRedemptions(items.filter(i => i.voucherCode === id));
+                delete (window as any)[rCallback];
+                document.body.removeChild(rScript);
+            };
+            rScript.src = `${APPS_SCRIPT_URL}?callback=${rCallback}&sheet=Redemptions&t=${Date.now()}`;
+            document.body.appendChild(rScript);
+
         }, 5000);
 
         return () => clearInterval(pollInterval);
@@ -176,23 +188,36 @@ const GuestPass: React.FC = () => {
                     </a>
                 </div>
 
-                {/* Staff Redemption QR Section */}
-                {status !== 'redeemed' && (
-                    <div className="p-8 pt-0 flex flex-col items-center justify-center border-t border-dashed border-gray-100 mt-4 pt-8 animate-fade-in">
-                        <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Use Only: Scan to Redeem</p>
-                        <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50">
-                            <QRCode
-                                value={JSON.stringify({ type: 'voucher-redemption', id: id })}
-                                size={140}
-                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                viewBox={`0 0 256 256`}
-                            />
-                        </div>
-                        <p className="mt-3 text-[10px] font-mono text-gray-200 uppercase tracking-widest">
-                            Pass ID: {id}
-                        </p>
+                {/* Staff Redemption QR Section - ALWAYS show for multi-use */}
+                <div className="p-8 pt-0 flex flex-col items-center justify-center border-t border-dashed border-gray-100 mt-4 pt-8 animate-fade-in">
+                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Use Only: Scan to Redeem</p>
+                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50">
+                        <QRCode
+                            value={JSON.stringify({ type: 'voucher-redemption', id: id })}
+                            size={140}
+                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                            viewBox={`0 0 256 256`}
+                        />
                     </div>
-                )}
+                    <p className="mt-3 text-[10px] font-mono text-gray-200 uppercase tracking-widest">
+                        Pass ID: {id}
+                    </p>
+                    {redemptions.length > 0 && (
+                        <div className="mt-6 w-full bg-green-500/5 rounded-2xl p-4 border border-green-500/10">
+                            <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <CheckCircle size={12} /> Usage History
+                            </p>
+                            <div className="space-y-2">
+                                {redemptions.map((redeem, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-[11px]">
+                                        <span className="text-[#1a1a1a] font-bold">{redeem.serviceType}</span>
+                                        <span className="text-gray-400">{new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 {/* Details */}
                 <div className="p-8 pt-0 space-y-6">
