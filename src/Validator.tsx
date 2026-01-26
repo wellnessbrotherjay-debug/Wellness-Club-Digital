@@ -132,7 +132,8 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
                 body: JSON.stringify({
                     action: 'redeem',
                     voucherCode: targetCode,
-                    serviceType: serviceType
+                    serviceType: serviceType,
+                    redeemedAt: new Date().toLocaleString('sv-SE').replace('T', ' ') // Clean format override
                 })
             });
 

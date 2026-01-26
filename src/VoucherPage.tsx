@@ -166,7 +166,8 @@ const VoucherPage: React.FC = () => {
             checkIn: formData.checkIn,
             checkOut: formData.checkOut,
             imageUrl: formData.imageUrl,
-            services: selectedServices.join(', ')
+            services: selectedServices.join(', '),
+            createdAt: new Date().toLocaleString('sv-SE').replace('T', ' '), // Clean format: YYYY-MM-DD HH:mm:ss
             // details field is removed
         });
 
