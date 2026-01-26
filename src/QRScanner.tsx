@@ -5,7 +5,7 @@ import { XCircle, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 interface QRScannerProps {
     onScanSuccess: (decodedText: string) => void;
     onClose: () => void;
-    valStatus?: 'idle' | 'searching' | 'valid' | 'invalid' | 'error';
+    valStatus?: 'idle' | 'searching' | 'valid' | 'invalid' | 'error' | 'expired';
     currentService?: string;
 }
 

@@ -1,12 +1,14 @@
 import React, { useState, useCallback, memo } from 'react';
-import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera, AlertTriangle } from 'lucide-react';
 import QRScanner from './QRScanner';
+import type { VoucherData } from './VoucherPage';
 
-const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
+const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ scriptUrl, vouchers }) => {
     const [code, setCode] = useState('');
     const [serviceType, setServiceType] = useState<string>('');
-    const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error'>('idle');
+    const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error' | 'expired'>('idle');
     const [showScanner, setShowScanner] = useState(false);
+    const [expireDate, setExpireDate] = useState('');
 
     const handleVerify = useCallback(async (manualCode?: string) => {
         const targetCode = (manualCode || code).trim().toUpperCase();
@@ -19,6 +21,19 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
         if (!serviceType) {
             alert("Please select a service type first");
             return;
+        }
+
+        // Client-side Expiration Check
+        const voucher = vouchers.find(v => v.id === targetCode);
+        if (voucher) {
+            const today = new Date().toISOString().split('T')[0];
+            // If checkOut date (Valid Until) is LESS than today, it is expired.
+            // e.g. Valid until 25th. Today is 26th. 25 < 26. Expired.
+            if (voucher.checkOut < today) {
+                setExpireDate(voucher.checkOut);
+                setStatus('expired');
+                return;
+            }
         }
 
         setStatus('searching');
@@ -79,6 +94,7 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                                 onChange={(e) => {
                                     setCode(e.target.value.toUpperCase());
                                     setStatus('idle');
+                                    setExpireDate('');
                                 }}
                                 onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
                                 className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-mono tracking-widest font-bold"
@@ -94,6 +110,7 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                                 onChange={(e) => {
                                     setServiceType(e.target.value);
                                     if (status !== 'searching') setStatus('idle');
+                                    setExpireDate('');
                                 }}
                                 className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-medium appearance-none cursor-pointer"
                             >
@@ -195,13 +212,13 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                                 <CheckCircle size={32} className="text-green-600" />
                             </div>
                             <div className="text-green-800 font-bold uppercase tracking-widest text-xs mb-2">
-                                Voucher Validated
+                                Service Logged Successfully
                             </div>
                             <p className="text-sm text-gray-600 mb-2 font-medium">
-                                Voucher <strong>{code}</strong> has been marked as redeemed.
+                                <strong>{code}</strong> redeemed for:
                             </p>
-                            <p className="text-xs text-gray-500 mb-6">
-                                Service Type: <strong>{serviceType}</strong>
+                            <p className="text-xl text-green-700 mb-6 font-serif">
+                                {serviceType}
                             </p>
                             <button
                                 onClick={() => {
@@ -212,6 +229,23 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                                 className="px-6 py-2 bg-white border border-green-200 rounded-lg text-xs font-bold uppercase tracking-widest text-green-700 hover:bg-green-100 transition-colors"
                             >
                                 Validate Next
+                            </button>
+                        </div>
+                    )}
+
+                    {status === 'expired' && !showScanner && (
+                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 animate-fade-in text-center">
+                            <div className="w-16 h-16 bg-amber-100/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AlertTriangle size={32} className="text-amber-600" />
+                            </div>
+                            <div className="text-amber-700 font-bold uppercase tracking-widest text-xs mb-2">
+                                Voucher Expired
+                            </div>
+                            <p className="text-sm text-gray-600 mb-6">
+                                This voucher expired on <strong>{expireDate}</strong>.
+                            </p>
+                            <button onClick={() => setStatus('idle')} className="text-xs font-bold uppercase tracking-widest text-amber-700 underline">
+                                Try Another
                             </button>
                         </div>
                     )}

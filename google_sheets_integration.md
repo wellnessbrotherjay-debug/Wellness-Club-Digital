@@ -174,13 +174,36 @@ function handleRedeem(postData) {
   const guestNameIndex = voucherHeaders.indexOf('guestName');
   const statusIndex = voucherHeaders.indexOf('status');
   const redeemedAtIndex = voucherHeaders.indexOf('redeemed_at');
+  const checkOutIndex = voucherHeaders.indexOf('checkOut');
   
   let guestName = "Unknown";
   let found = false;
+  let isExpired = false;
+
   for (let i = 1; i < voucherData.length; i++) {
     if (voucherData[i][codeIndex] === voucherCode) {
       guestName = voucherData[i][guestNameIndex];
       found = true;
+
+      // Check Expiration
+      if (checkOutIndex !== -1) {
+        const checkOutVal = voucherData[i][checkOutIndex];
+        if (checkOutVal) {
+             const checkOutDate = new Date(checkOutVal); 
+             // Set to end of day to ensuring "Valid Until" implies the whole day
+             checkOutDate.setHours(23, 59, 59, 999);
+             
+             const today = new Date();
+             
+             if (today > checkOutDate) {
+                 isExpired = true;
+             }
+        }
+      }
+      
+      if (isExpired) {
+          return createResponse({ status: "error", message: "Voucher Expired" });
+      }
       
       // Update the main voucher status to reflect last use
       voucherSheet.getRange(i + 1, statusIndex + 1).setValue('Redeemed (' + serviceType + ')');
