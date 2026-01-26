@@ -22,7 +22,7 @@ const GuestPass: React.FC = () => {
             try {
                 const parsed = JSON.parse(atob(encodedData));
                 setData(parsed);
-                checkAndRedeem(id);
+                checkStatus(id);
             } catch (e) {
                 console.error("Failed to parse voucher data");
                 setStatus('error');
@@ -32,7 +32,7 @@ const GuestPass: React.FC = () => {
         }
     }, [searchParams, id]);
 
-    const checkAndRedeem = (voucherId: string) => {
+    const checkStatus = (voucherId: string) => {
         // 1. Fetch current status from Sheet
         const script = document.createElement('script');
         // Define a unique callback name 
@@ -47,8 +47,8 @@ const GuestPass: React.FC = () => {
             } else if (currentItem.status === 'Redeemed') {
                 setStatus('redeemed');
             } else {
-                // If Active, mark as Redeemed immediately (Burn on Read)
-                redeemVoucher(voucherId);
+                // Voucher is Active - just show it!
+                setStatus('valid');
             }
             delete (window as any)[callbackName];
             document.body.removeChild(script);
@@ -83,28 +83,6 @@ const GuestPass: React.FC = () => {
         return () => clearInterval(pollInterval);
     }, [id, status]);
 
-    const redeemVoucher = async (voucherId: string) => {
-        try {
-            await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'redeem',
-                    voucherCode: voucherId,
-                    serviceType: 'Guest Pass View (One-Time)'
-                })
-            });
-            // Assume success after sending (no-cors doesn't return body)
-            setStatus('valid');
-        } catch (e) {
-            console.error("Redeem failed", e);
-            // Even if redeem fails, we should mostly likely show the pass but warn? 
-            // Or fail safe and show valid? user said "once its shared dont let user share again".
-            // Let's show valid so they can use it this time.
-            setStatus('valid');
-        }
-    };
 
     if (status === 'loading') {
         return (
