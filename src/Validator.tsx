@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera } from 'lucide-react';
 import QRScanner from './QRScanner';
 
@@ -8,7 +8,7 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
     const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error'>('idle');
     const [showScanner, setShowScanner] = useState(false);
 
-    const handleVerify = async (manualCode?: string) => {
+    const handleVerify = useCallback(async (manualCode?: string) => {
         const targetCode = (manualCode || code).trim().toUpperCase();
 
         if (!targetCode) {
@@ -45,7 +45,19 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
             console.error("Redemption failed:", e);
             setStatus('error');
         }
-    };
+    }, [code, serviceType, scriptUrl]);
+
+    const handleScanSuccess = useCallback((scannedCode: string) => {
+        setCode(scannedCode);
+        if (scannedCode && serviceType) {
+            handleVerify(scannedCode);
+        }
+    }, [handleVerify, serviceType]);
+
+    const closeScanner = useCallback(() => {
+        setShowScanner(false);
+        setStatus('idle');
+    }, []);
 
     return (
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[500px]">
@@ -142,7 +154,7 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                 </div>
 
                 <div className="flex-1 flex flex-col justify-center">
-                    {status === 'idle' && (
+                    {status === 'idle' && !showScanner && (
                         <div className="text-center py-10">
                             {!serviceType && (
                                 <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Select service type to unlock scanner</p>
@@ -168,16 +180,8 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
 
                     {showScanner && (
                         <QRScanner
-                            onScanSuccess={(scannedCode) => {
-                                setCode(scannedCode);
-                                if (scannedCode && serviceType) {
-                                    handleVerify(scannedCode);
-                                }
-                            }}
-                            onClose={() => {
-                                setShowScanner(false);
-                                setStatus('idle');
-                            }}
+                            onScanSuccess={handleScanSuccess}
+                            onClose={closeScanner}
                             valStatus={status}
                             currentService={serviceType}
                         />
@@ -226,4 +230,4 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
     );
 };
 
-export default Validator;
+export default memo(Validator);

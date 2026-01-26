@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { XCircle, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -15,13 +15,30 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
     const [scannedResult, setScannedResult] = React.useState<string | null>(null);
     const [validationTime, setValidationTime] = React.useState<string | null>(null);
     const [invalidCode, setInvalidCode] = React.useState<string | null>(null);
-    const scannerRef = React.useRef<Html5Qrcode | null>(null);
-    const hasScannedRef = React.useRef(false);
+
+    // Crucial: Use refs for props used in the async camera callback to prevent stale closures 
+    const onScanSuccessRef = useRef(onScanSuccess);
+    const valStatusRef = useRef(valStatus);
+    const currentServiceRef = useRef(currentService);
+
+    // Sync refs on every render
+    onScanSuccessRef.current = onScanSuccess;
+    valStatusRef.current = valStatus;
+    currentServiceRef.current = currentService;
+
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const hasScannedRef = useRef(false);
 
     useEffect(() => {
         scannerRef.current = new Html5Qrcode("reader");
 
+        // Small delay to ensure the container is ready and prevent permission race
+        const timer = setTimeout(() => {
+            startCamera();
+        }, 500);
+
         return () => {
+            clearTimeout(timer);
             if (scannerRef.current?.isScanning) {
                 scannerRef.current.stop().catch(err => console.error("Stop failed", err));
             }
@@ -40,7 +57,12 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
         try {
             const devices = await Html5Qrcode.getCameras();
             if (devices && devices.length > 0) {
-                const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
+                // Prefer back camera
+                const backCamera = devices.find(d =>
+                    d.label.toLowerCase().includes('back') ||
+                    d.label.toLowerCase().includes('rear') ||
+                    d.label.toLowerCase().includes('environment')
+                );
                 const cameraId = backCamera ? backCamera.id : devices[0].id;
 
                 await scannerRef.current.start(
@@ -51,6 +73,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                         aspectRatio: 1.0
                     },
                     (decodedText) => {
+                        // Use ref here to check if we already processed a scan
                         if (hasScannedRef.current) return;
 
                         const nwMatch = decodedText.match(/NW-[A-Z0-9]{4,}/i);
@@ -73,30 +96,25 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                             now.getSeconds().toString().padStart(2, '0');
                         setValidationTime(timeStr);
 
-                        onScanSuccess(resultId);
+                        // Trigger the latest callback from the parent
+                        onScanSuccessRef.current(resultId);
                     },
-                    (_error) => { /* ignore scan errors */ }
+                    (_error) => { /* quiet scan failures */ }
                 );
                 setIsCameraActive(true);
             } else {
-                setErrorMsg("No cameras found.");
+                setErrorMsg("No cameras found. Please ensure you are on a mobile device or have a webcam plugged in.");
             }
         } catch (err: any) {
             console.error("Camera start failed", err);
-            if (err.toString().includes("NotAllowedError") || err.toString().includes("Permission denied")) {
-                setErrorMsg("Camera permission denied. Please enable it in browser settings.");
+            const errStr = err.toString();
+            if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied")) {
+                setErrorMsg("Camera permission denied. Please allow camera access in your browser settings to scan vouchers.");
             } else {
-                setErrorMsg("Could not access camera. Refresh the page and try again.");
+                setErrorMsg("Could not access camera. Please refresh the page and try again.");
             }
         }
     };
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            startCamera();
-        }, 500);
-        return () => clearTimeout(timer);
-    }, []);
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 animate-fade-in backdrop-blur-sm">
@@ -113,11 +131,11 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                 {errorMsg && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-black/95 text-center z-20">
                         <XCircle size={48} className="text-red-500 mb-4" />
-                        <h3 className="text-white font-bold mb-2">Camera Issue</h3>
-                        <p className="text-white/60 text-sm mb-6">{errorMsg}</p>
+                        <h3 className="text-white font-bold mb-2">Camera Access Required</h3>
+                        <p className="text-white/60 text-xs mb-6 px-4">{errorMsg}</p>
                         <button
                             onClick={() => window.location.reload()}
-                            className="w-full bg-[#c5a572] text-white py-3 rounded-xl font-bold uppercase tracking-widest text-[10px]"
+                            className="w-full bg-[#c5a572] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg"
                         >
                             Refresh Hub
                         </button>
@@ -127,7 +145,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                 {!isCameraActive && !errorMsg && !scannedResult && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-black/80 text-center z-10">
                         <Loader2 className="animate-spin text-[#c5a572] mb-4" size={32} />
-                        <p className="text-white/60 text-sm">Connecting to camera...</p>
+                        <p className="text-white/60 text-sm">Initializing camera...</p>
                         <button
                             onClick={startCamera}
                             className="mt-6 px-6 py-2 border border-[#c5a572] text-[#c5a572] rounded-full text-[10px] font-bold uppercase"
@@ -159,7 +177,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                                 <div className="flex flex-col items-center py-2">
                                     <Loader2 className="animate-spin text-[#c5a572] mb-3" size={32} />
                                     <h2 className="text-xl font-serif text-white">Redeeming...</h2>
-                                    <p className="text-[10px] text-white/40 uppercase font-bold mt-2">Saving to Google Sheets</p>
+                                    <p className="text-[10px] text-white/40 uppercase font-bold mt-2">Updating Sheet</p>
                                 </div>
                             ) : valStatus === 'valid' ? (
                                 <div className="animate-scale-in">
@@ -176,8 +194,13 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                                 <div className="flex flex-col items-center py-2">
                                     <AlertCircle className="text-red-500 mb-3" size={32} />
                                     <h2 className="text-xl font-serif text-white">System Error</h2>
-                                    <p className="text-[10px] text-red-400 uppercase font-bold mt-1">Check internet connection</p>
-                                    <button onClick={() => onScanSuccess(scannedResult)} className="mt-4 text-[10px] text-white bg-red-500/20 px-4 py-2 rounded-full font-bold uppercase">Retry Redemption</button>
+                                    <p className="text-[10px] text-red-400 uppercase font-bold mt-1">Check Hub connection</p>
+                                    <button
+                                        onClick={() => onScanSuccessRef.current(scannedResult)}
+                                        className="mt-4 text-[10px] text-white bg-red-500/20 px-4 py-2 rounded-full font-bold uppercase"
+                                    >
+                                        Retry Redemption
+                                    </button>
                                 </div>
                             ) : (
                                 <>
@@ -196,10 +219,11 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                                     setScannedResult(null);
                                     setValidationTime(null);
                                     hasScannedRef.current = false;
+                                    // Don't stop the camera, just allow another scan
                                 }}
                                 className="bg-[#c5a572] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-[#c5a572]/20 hover:bg-[#b39462] transition-colors"
                             >
-                                {valStatus === 'valid' ? 'Scan Next' : 'Reset Scanner'}
+                                {valStatus === 'valid' ? 'Scan Next' : 'Reset Overlay'}
                             </button>
                             <button
                                 onClick={onClose}
@@ -228,7 +252,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
                 {!scannedResult && (
                     <div className="mt-8 flex flex-col gap-2">
                         <p className="text-[10px] text-white/20 uppercase font-bold">Having Trouble?</p>
-                        <p className="text-[9px] text-white/30 italic">Check Safari/Chrome settings at the top/bottom bar to ensure Camera access is 'Allow'</p>
+                        <p className="text-[9px] text-white/30 italic">On iOS: Ensure Safari Camera access is set to 'Allow' in Settings</p>
                     </div>
                 )}
             </div>
@@ -236,4 +260,5 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onClose, valStatus
     );
 };
 
-export default QRScanner;
+// Use memo to prevent unneeded re-renders when parent cycles (e.g. from polling)
+export default memo(QRScanner);
