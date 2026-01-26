@@ -3,11 +3,11 @@ import { Helmet } from 'react-helmet-async';
 import {
     CheckCircle, Loader2, Copy, ExternalLink,
     RefreshCw, Calendar, PlusCircle, Scan,
-    List, History, Search, Trash2, XCircle, AlertCircle, ChevronDown
+    List, History, Search, Trash2, XCircle, AlertCircle
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
-import { COUNTRY_CODES } from './data/countryCodes';
+import CountrySelector from './components/CountrySelector';
 
 export interface VoucherData {
     id: string;
@@ -343,26 +343,11 @@ const VoucherPage: React.FC = () => {
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">WhatsApp Number (For Digital Delivery)</label>
                                         <div className="flex gap-2">
-                                            <div className="relative w-32">
-                                                <select
-                                                    value={countryCode}
-                                                    onChange={e => setCountryCode(e.target.value)}
-                                                    className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-3 appearance-none text-sm font-bold focus:outline-none focus:border-[#c5a572] transition-all"
-                                                >
-                                                    {COUNTRY_CODES.map(c => (
-                                                        <option key={c.code} value={c.dial_code}>
-                                                            {c.code} ({c.dial_code})
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                                    <ChevronDown size={14} />
-                                                </div>
-                                            </div>
+                                            <CountrySelector value={countryCode} onChange={setCountryCode} />
                                             <input
                                                 type="text"
                                                 className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium font-mono"
-                                                placeholder="e.g. 812345678"
+                                                placeholder="812345678"
                                                 value={whatsappNumber}
                                                 onChange={e => setWhatsappNumber(e.target.value)}
                                             />
@@ -527,21 +512,8 @@ const VoucherPage: React.FC = () => {
                                     <div className="mt-6 w-full max-w-sm pt-6 border-t border-dashed border-gray-200 mx-auto">
                                         <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 block text-left">Send to Guest (WhatsApp)</label>
                                         <div className="flex gap-2">
-                                            <div className="relative w-24">
-                                                <select
-                                                    value={countryCode}
-                                                    onChange={e => setCountryCode(e.target.value)}
-                                                    className="w-full bg-white border border-gray-200 rounded-lg pl-2 pr-6 py-2 text-xs font-bold appearance-none focus:outline-none focus:border-green-500"
-                                                >
-                                                    {COUNTRY_CODES.map(c => (
-                                                        <option key={c.code} value={c.dial_code}>
-                                                            {c.code} {c.dial_code}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                                    <ChevronDown size={12} />
-                                                </div>
+                                            <div className="w-28">
+                                                <CountrySelector value={countryCode} onChange={setCountryCode} />
                                             </div>
                                             <input
                                                 type="text"
