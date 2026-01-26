@@ -39,10 +39,9 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
         setStatus('searching');
 
         try {
-            await fetch(scriptUrl, {
+            await fetch('/api/redeem-voucher', {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'redeem',
                     voucherCode: targetCode,
