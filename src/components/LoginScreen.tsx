@@ -5,11 +5,12 @@ interface LoginScreenProps {
     onLogin: (role: 'admin' | 'staff') => void;
 }
 
-const ADMIN_PIN = '1234';
+const ADMIN_PIN = '0000';
 const STAFF_PIN = '0000';
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     const [pin, setPin] = useState('');
+    const [selectedRole, setSelectedRole] = useState<'admin' | 'staff'>('admin');
     const [error, setError] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -29,10 +30,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         setIsLoading(true);
         // Simulate network delay for "app feel"
         setTimeout(() => {
-            if (pin === ADMIN_PIN) {
-                onLogin('admin');
-            } else if (pin === STAFF_PIN) {
-                onLogin('staff');
+            const isValid = (selectedRole === 'admin' && pin === ADMIN_PIN) ||
+                (selectedRole === 'staff' && pin === STAFF_PIN);
+
+            if (isValid) {
+                onLogin(selectedRole);
             } else {
                 setError(true);
                 setPin('');
@@ -44,10 +46,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     return (
         <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-6 font-sans">
             <div className="w-full max-w-sm bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 shadow-2xl">
-                <div className="text-center mb-10">
+                <div className="text-center mb-6">
                     <img src="/htf-logo.png" alt="HTF" className="h-16 mx-auto mb-6 opacity-90 invert brightness-0 filter" />
                     <h2 className="text-white font-serif text-2xl font-bold tracking-wide mb-2">Welcome Back</h2>
-                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Enter PIN to Access Hub</p>
+                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Select Role & Enter PIN</p>
+                </div>
+
+                <div className="flex bg-white/5 p-1 rounded-2xl mb-8 border border-white/5">
+                    <button
+                        onClick={() => setSelectedRole('admin')}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedRole === 'admin' ? 'bg-[#c5a572] text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+                    >
+                        Admin (Reception)
+                    </button>
+                    <button
+                        onClick={() => setSelectedRole('staff')}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedRole === 'staff' ? 'bg-[#c5a572] text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+                    >
+                        Staff (Scanner)
+                    </button>
                 </div>
 
                 <div className="flex justify-center gap-4 mb-10">

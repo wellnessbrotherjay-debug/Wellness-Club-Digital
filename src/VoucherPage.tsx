@@ -70,12 +70,14 @@ const VoucherPage: React.FC = () => {
         const params = new URLSearchParams(window.location.search);
         const magicPin = params.get('pin');
 
-        if (magicPin === '1234') {
+        if (magicPin === '0000') {
+            const role = params.get('role') === 'staff' ? 'staff' : 'admin';
+            handleLogin(role);
+            window.history.replaceState({}, '', '/'); // Clear PIN from URL
+        } else if (magicPin === '1234') {
+            // Deprecated 1234 link support
             handleLogin('admin');
-            window.history.replaceState({}, '', '/'); // Clear PIN from URL
-        } else if (magicPin === '0000') {
-            handleLogin('staff');
-            window.history.replaceState({}, '', '/'); // Clear PIN from URL
+            window.history.replaceState({}, '', '/');
         } else {
             // Fallback to saved session
             const savedRole = localStorage.getItem('wellness_session') as 'admin' | 'staff' | null;
