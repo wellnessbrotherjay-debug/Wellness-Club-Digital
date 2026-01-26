@@ -51,6 +51,7 @@ const VoucherPage: React.FC = () => {
 
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
     const [fetchError, setFetchError] = useState(false);
+    const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
 
     // Extend window to support JSONP callback
     useEffect(() => {
@@ -58,13 +59,19 @@ const VoucherPage: React.FC = () => {
             setIsFetchingHistory(false);
             setFetchError(false);
             const mapped = data.map(item => {
+                // Defensive date parsing to prevent crashes
+                const safeDate = (dateStr: any) => {
+                    if (!dateStr) return '';
+                    const d = new Date(dateStr);
+                    return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+                };
+
                 return {
                     id: item.code,
                     guestName: item.guestName,
-                    // Now reading directly from columns, with fallback to empty string
                     roomNumber: item.roomNumber || '',
-                    checkIn: item.checkIn ? new Date(item.checkIn).toISOString().split('T')[0] : '', // Ensure date string format
-                    checkOut: item.checkOut ? new Date(item.checkOut).toISOString().split('T')[0] : '',
+                    checkIn: safeDate(item.checkIn),
+                    checkOut: safeDate(item.checkOut),
                     status: item.status,
                     created_at: item.created_at || item.timestamp, // Fallback if old data
                     redeemed_at: item.redeemed_at,
@@ -74,6 +81,7 @@ const VoucherPage: React.FC = () => {
             }).reverse(); // Show newest first
 
             setRecentVouchers(mapped);
+            setHasInitialLoaded(true);
         };
     }, []);
 
@@ -477,7 +485,7 @@ const VoucherPage: React.FC = () => {
                         </div>
 
                         <div className="grid gap-4">
-                            {isFetchingHistory && (
+                            {isFetchingHistory && !hasInitialLoaded && (
                                 <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
                                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#c5a572]">
                                         <Loader2 size={32} className="animate-spin" />
@@ -486,7 +494,7 @@ const VoucherPage: React.FC = () => {
                                 </div>
                             )}
 
-                            {!isFetchingHistory && fetchError && (
+                            {(!isFetchingHistory || hasInitialLoaded) && fetchError && (
                                 <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100">
                                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-red-400">
                                         <XCircle size={32} />
@@ -502,7 +510,7 @@ const VoucherPage: React.FC = () => {
                                 </div>
                             )}
 
-                            {!isFetchingHistory && !fetchError && filteredVouchers.length === 0 ? (
+                            {(!isFetchingHistory || hasInitialLoaded) && !fetchError && filteredVouchers.length === 0 ? (
                                 <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
                                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
                                         <History size={32} />
