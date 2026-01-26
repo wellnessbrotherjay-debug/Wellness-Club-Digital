@@ -3,44 +3,66 @@ import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera, AlertTriang
 import QRScanner from './QRScanner';
 import type { VoucherData } from './VoucherPage';
 
+// MAPPING: defines which 'Creation Service' unlocks which 'Redeemable Service'
+// "requiredEntitlement" corresponds to the string in VoucherPage.tsx -> SERVICES_LIST
+
 const SERVICE_GROUPS = [
     {
-        label: 'Massage & Spa',
+        label: 'Massage & Spa (No.1 Wellness)',
         items: [
-            { value: 'Signature Massage', label: 'No.1 Signature Massage' },
-            { value: 'Slimming Massage', label: 'No.1 Slimming Massage' },
-            { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage' },
-            { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage' },
+            // User said: "all massage and fnb is linked to no1 wellness"
+            // So we link these to "15% off F&B No.1 Wellness" (assuming this is the main Wellness entitlement key)
+            // Or "15% off TS Salon Services" ? No, presumably F&B/Wellness are shared.
+            { value: 'Signature Massage', label: 'No.1 Signature Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Slimming Massage', label: 'No.1 Slimming Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
         ]
     },
     {
         label: 'IV Therapy',
         items: [
-            { value: 'IV Immune Booster', label: 'IV Immune Booster' },
-            { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox' },
-            { value: 'IV Hangover Cure', label: 'IV Hangover Cure' },
-            { value: 'IV Bali Belly', label: 'IV Bali Belly Infusion' },
+            { value: 'IV Immune Booster', label: 'IV Immune Booster', requiredEntitlement: "15% off F&B No.1 Wellness" }, // Assuming linked to Wellness
+            { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'IV Hangover Cure', label: 'IV Hangover Cure', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'IV Bali Belly', label: 'IV Bali Belly Infusion', requiredEntitlement: "15% off F&B No.1 Wellness" },
+        ]
+    },
+    {
+        label: 'TS Salon Services',
+        items: [
+            { value: 'Hair Cut', label: 'Hair Cut / Styling', requiredEntitlement: "15% off TS Salon Services" },
+            { value: 'Manicure/Pedicure', label: 'Manicure / Pedicure', requiredEntitlement: "15% off TS Salon Services" },
+            { value: 'Facial', label: 'Facial Treatment', requiredEntitlement: "15% off TS Salon Services" },
+            { value: 'Salon General', label: 'General Salon Service', requiredEntitlement: "15% off TS Salon Services" },
+        ]
+    },
+    {
+        label: 'T Store Shopping',
+        items: [
+            { value: 'Apparel', label: 'Apparel / Clothing', requiredEntitlement: "15% off T Store Shopping" },
+            { value: 'Accessories', label: 'Accessories', requiredEntitlement: "15% off T Store Shopping" },
+            { value: 'T Store General', label: 'General Store Purchase', requiredEntitlement: "15% off T Store Shopping" },
         ]
     },
     {
         label: 'Fitness & Wellness',
         items: [
-            { value: '1x Free Yoga Class', label: '1x Free Yoga Class' },
-            { value: 'Yoga Class', label: 'Regular Yoga Class' },
-            { value: 'Reformer Pilates', label: 'Reformer Pilates' },
-            { value: 'Pilates + GUIDED Recovery', label: 'Pilates + Guided Recovery' },
-            { value: 'Kickboxing', label: 'Kickboxing / Muay Thai' },
-            { value: 'Zumba', label: 'Zumba' },
-            { value: 'Private Session', label: 'Private Fitness Session' },
+            { value: '1x Free Yoga Class', label: '1x Free Yoga Class', requiredEntitlement: "1x Free Yoga Class" },
+            { value: 'Yoga Class', label: 'Regular Yoga Class', requiredEntitlement: "1x Free Yoga Class" }, // Or specific yoga entitlement
+            { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: "15% off F&B No.1 Wellness" }, // Assuming Wellness covers this?
+            { value: 'Kickboxing', label: 'Kickboxing / Muay Thai', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Private Session', label: 'Private Fitness Session', requiredEntitlement: "15% off F&B No.1 Wellness" },
         ]
     },
     {
         label: 'Other',
         items: [
-            { value: '15% off F&B No.1 Wellness', label: '15% off F&B No.1 Wellness' },
-            { value: 'Food & Beverage', label: 'Standard Food & Beverage' },
-            { value: 'Day Pass', label: 'Day Pass (Facilities Only)' },
-            { value: 'Event Access', label: 'Event Access' },
+            { value: '15% off F&B No.1 Wellness', label: '15% off F&B No.1 Wellness', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Food & Beverage', label: 'Standard Food & Beverage', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Complimentary Breakfast', label: 'Complimentary Breakfast', requiredEntitlement: "Complimentary Breakfast" },
+            { value: 'Welcome Drink', label: 'Welcome Drink', requiredEntitlement: "Welcome Drink" },
+            { value: 'Day Pass', label: 'Day Pass (Facilities Only)', requiredEntitlement: "15% off F&B No.1 Wellness" },
         ]
     }
 ];
@@ -52,6 +74,29 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
     const [showScanner, setShowScanner] = useState(false);
     const [expireDate, setExpireDate] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // Derived state: Filter groups based on the current voucher's entitlements
+    const getFilteredGroups = useCallback(() => {
+        // If no code entered, show nothing or all? 
+        // Better to show nothing until code is known, BUT users might want to see options.
+        // Let's Find the voucher first.
+        const voucher = vouchers.find(v => v.id === code.trim().toUpperCase());
+
+        if (!voucher) return []; // If code invalid, show no options (forces them to enter/scan valid code first)
+
+        // Filter items
+        return SERVICE_GROUPS.map(group => ({
+            ...group,
+            items: group.items.filter(item => {
+                // If the item doesn't require specific entitlement, show it? (Safe default: hide)
+                if (!item.requiredEntitlement) return false;
+                // Check if voucher has the required service string
+                return voucher.services && voucher.services.includes(item.requiredEntitlement);
+            })
+        })).filter(group => group.items.length > 0); // Remove empty groups
+    }, [code, vouchers]);
+
+    const filteredServiceGroups = getFilteredGroups();
 
     const handleVerify = useCallback(async (manualCode?: string) => {
         const targetCode = (manualCode || code).trim().toUpperCase();
@@ -170,26 +215,36 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
 
                             {isMenuOpen && (
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto p-2">
-                                    {SERVICE_GROUPS.map((group) => (
-                                        <div key={group.label} className="mb-2">
-                                            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-2 py-1 bg-gray-50 rounded mb-1">
-                                                {group.label}
-                                            </div>
-                                            {group.items.map((item) => (
-                                                <button
-                                                    key={item.value}
-                                                    onClick={() => toggleService(item.value)}
-                                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold mb-1 flex items-center justify-between transition-colors ${selectedServices.includes(item.value)
-                                                        ? 'bg-[#c5a572]/10 text-[#c5a572]'
-                                                        : 'hover:bg-gray-50 text-gray-600'
-                                                        }`}
-                                                >
-                                                    {item.label}
-                                                    {selectedServices.includes(item.value) && <CheckCircle size={14} />}
-                                                </button>
-                                            ))}
+                                    {!code.trim() ? (
+                                        <div className="p-4 text-center text-xs text-gray-400">
+                                            Please enter or scan a valid Voucher ID first.
                                         </div>
-                                    ))}
+                                    ) : filteredServiceGroups.length === 0 ? (
+                                        <div className="p-4 text-center text-xs text-red-400">
+                                            No applicable services found for this voucher.
+                                        </div>
+                                    ) : (
+                                        filteredServiceGroups.map((group) => (
+                                            <div key={group.label} className="mb-2">
+                                                <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-2 py-1 bg-gray-50 rounded mb-1">
+                                                    {group.label}
+                                                </div>
+                                                {group.items.map((item) => (
+                                                    <button
+                                                        key={item.value}
+                                                        onClick={() => toggleService(item.value)}
+                                                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold mb-1 flex items-center justify-between transition-colors ${selectedServices.includes(item.value)
+                                                            ? 'bg-[#c5a572]/10 text-[#c5a572]'
+                                                            : 'hover:bg-gray-50 text-gray-600'
+                                                            }`}
+                                                    >
+                                                        {item.label}
+                                                        {selectedServices.includes(item.value) && <CheckCircle size={14} />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             )}
                         </div>
