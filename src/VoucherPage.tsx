@@ -9,6 +9,8 @@ import QRCode from 'react-qr-code';
 import Validator from './Validator';
 import CountrySelector from './components/CountrySelector';
 
+import { LoginScreen } from './components/LoginScreen';
+
 export interface VoucherData {
     id: string;
     guestName: string;
@@ -41,6 +43,7 @@ const SERVICES_LIST = [
 ];
 
 const VoucherPage: React.FC = () => {
+    const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null);
     const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued'>('create');
     const [formData, setFormData] = useState({
         guestName: '',
@@ -60,6 +63,27 @@ const VoucherPage: React.FC = () => {
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [countryCode, setCountryCode] = useState('+62');
     const [waStatus, setWaStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+    // Auth Persistence
+    useEffect(() => {
+        const savedRole = localStorage.getItem('wellness_session') as 'admin' | 'staff' | null;
+        if (savedRole) {
+            setUserRole(savedRole);
+            if (savedRole === 'staff') setActiveTab('validate');
+        }
+    }, []);
+
+    const handleLogin = (role: 'admin' | 'staff') => {
+        setUserRole(role);
+        localStorage.setItem('wellness_session', role);
+        if (role === 'staff') setActiveTab('validate');
+    };
+
+    const handleLogout = () => {
+        setUserRole(null);
+        localStorage.removeItem('wellness_session');
+        setActiveTab('create');
+    };
 
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
     const WA_WEBHOOK_URL = '/api/send-whatsapp';
@@ -258,6 +282,10 @@ const VoucherPage: React.FC = () => {
     const voucherUrl = (voucher: VoucherData) =>
         `${window.location.origin}/v/${voucher.id}?d=${btoa(JSON.stringify(voucher))}`;
 
+    if (!userRole) {
+        return <LoginScreen onLogin={handleLogin} />;
+    }
+
     return (
         <div className="min-h-screen bg-[#f8f8f8] text-[#2c2420] font-sans pb-20">
             <Helmet>
@@ -274,36 +302,46 @@ const VoucherPage: React.FC = () => {
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Digital Pass Management</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end mr-4">
                             <span className="text-xs font-bold">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
                             <span className="text-[10px] text-gray-400 uppercase">Live Dashboard</span>
                         </div>
+                        <button
+                            onClick={handleLogout}
+                            className="text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-600 border border-red-200 px-4 py-2 rounded-lg transition-all hover:bg-red-50"
+                        >
+                            Logout
+                        </button>
                     </div>
                 </div>
 
                 {/* Tab Navigation */}
                 <div className="max-w-7xl mx-auto px-6 overflow-x-auto">
                     <div className="flex border-t border-gray-50">
-                        <button
-                            onClick={() => setActiveTab('create')}
-                            className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'create' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <PlusCircle size={16} /> Create
-                        </button>
+                        {userRole === 'admin' && (
+                            <button
+                                onClick={() => setActiveTab('create')}
+                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'create' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <PlusCircle size={16} /> Create
+                            </button>
+                        )}
                         <button
                             onClick={() => setActiveTab('validate')}
                             className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'validate' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                         >
                             <Scan size={16} /> Validate
                         </button>
-                        <button
-                            onClick={() => setActiveTab('issued')}
-                            className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <List size={16} /> Issued
-                            <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
-                        </button>
+                        {userRole === 'admin' && (
+                            <button
+                                onClick={() => setActiveTab('issued')}
+                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <List size={16} /> Issued
+                                <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
