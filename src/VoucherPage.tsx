@@ -64,12 +64,25 @@ const VoucherPage: React.FC = () => {
     const [countryCode, setCountryCode] = useState('+62');
     const [waStatus, setWaStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
-    // Auth Persistence
+    // Auth Persistence & Magic Links
     useEffect(() => {
-        const savedRole = localStorage.getItem('wellness_session') as 'admin' | 'staff' | null;
-        if (savedRole) {
-            setUserRole(savedRole);
-            if (savedRole === 'staff') setActiveTab('validate');
+        // Check URL for magic PIN
+        const params = new URLSearchParams(window.location.search);
+        const magicPin = params.get('pin');
+
+        if (magicPin === '1234') {
+            handleLogin('admin');
+            window.history.replaceState({}, '', '/'); // Clear PIN from URL
+        } else if (magicPin === '0000') {
+            handleLogin('staff');
+            window.history.replaceState({}, '', '/'); // Clear PIN from URL
+        } else {
+            // Fallback to saved session
+            const savedRole = localStorage.getItem('wellness_session') as 'admin' | 'staff' | null;
+            if (savedRole) {
+                setUserRole(savedRole);
+                if (savedRole === 'staff') setActiveTab('validate');
+            }
         }
     }, []);
 
