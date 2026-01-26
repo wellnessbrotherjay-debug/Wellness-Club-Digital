@@ -660,15 +660,32 @@ const VoucherPage: React.FC = () => {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
-                                                        <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
+                                                        <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
+                                                            Issued: {(() => {
+                                                                if (!voucher.created_at) return 'N/A';
+                                                                try {
+                                                                    return new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                                                                } catch (e) {
+                                                                    return 'Invalid Date';
+                                                                }
+                                                            })()}
+                                                        </span>
                                                     </div>
 
                                                     {/* REDEMPTION HISTORY IN LIST */}
                                                     <div className="mt-2 space-y-1">
-                                                        {redemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
+                                                        {Array.isArray(redemptions) && redemptions.filter(r => r && r.voucherCode === voucher.id).map((redeem, idx) => (
                                                             <div key={idx} className="flex items-center gap-2 text-green-600 bg-green-50 px-2 py-0.5 rounded-md self-start w-fit">
                                                                 <CheckCircle size={10} />
-                                                                <span className="text-[9px] font-bold uppercase">{redeem.serviceType} • {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <span className="text-[9px] font-bold uppercase">
+                                                                    {redeem.serviceType} • {(() => {
+                                                                        try {
+                                                                            return new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                                                        } catch (e) {
+                                                                            return '';
+                                                                        }
+                                                                    })()}
+                                                                </span>
                                                             </div>
                                                         ))}
                                                     </div>

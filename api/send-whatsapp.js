@@ -3,7 +3,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const WA_WEBHOOK_URL = 'https://n8n-7zgtg8upx0ov.kangkung.sumopod.my.id/webhook/wa-notification';
+    const WA_WEBHOOK_URL = 'https://n8n-7zgtg8upx0ov.kangkung.sumopod.my.id/webhook/wa-nottification';
 
     try {
         const response = await fetch(WA_WEBHOOK_URL, {
