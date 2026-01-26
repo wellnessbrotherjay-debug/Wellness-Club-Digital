@@ -3,12 +3,55 @@ import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera, AlertTriang
 import QRScanner from './QRScanner';
 import type { VoucherData } from './VoucherPage';
 
-const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ scriptUrl, vouchers }) => {
+const SERVICE_GROUPS = [
+    {
+        label: 'Massage & Spa',
+        items: [
+            { value: 'Signature Massage', label: 'No.1 Signature Massage' },
+            { value: 'Slimming Massage', label: 'No.1 Slimming Massage' },
+            { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage' },
+            { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage' },
+        ]
+    },
+    {
+        label: 'IV Therapy',
+        items: [
+            { value: 'IV Immune Booster', label: 'IV Immune Booster' },
+            { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox' },
+            { value: 'IV Hangover Cure', label: 'IV Hangover Cure' },
+            { value: 'IV Bali Belly', label: 'IV Bali Belly Infusion' },
+        ]
+    },
+    {
+        label: 'Fitness & Wellness',
+        items: [
+            { value: '1x Free Yoga Class', label: '1x Free Yoga Class' },
+            { value: 'Yoga Class', label: 'Regular Yoga Class' },
+            { value: 'Reformer Pilates', label: 'Reformer Pilates' },
+            { value: 'Pilates + GUIDED Recovery', label: 'Pilates + Guided Recovery' },
+            { value: 'Kickboxing', label: 'Kickboxing / Muay Thai' },
+            { value: 'Zumba', label: 'Zumba' },
+            { value: 'Private Session', label: 'Private Fitness Session' },
+        ]
+    },
+    {
+        label: 'Other',
+        items: [
+            { value: '15% off F&B No.1 Wellness', label: '15% off F&B No.1 Wellness' },
+            { value: 'Food & Beverage', label: 'Standard Food & Beverage' },
+            { value: 'Day Pass', label: 'Day Pass (Facilities Only)' },
+            { value: 'Event Access', label: 'Event Access' },
+        ]
+    }
+];
+
+const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
     const [code, setCode] = useState('');
-    const [serviceType, setServiceType] = useState<string>('');
+    const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error' | 'expired'>('idle');
     const [showScanner, setShowScanner] = useState(false);
     const [expireDate, setExpireDate] = useState('');
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const handleVerify = useCallback(async (manualCode?: string) => {
         const targetCode = (manualCode || code).trim().toUpperCase();
@@ -18,8 +61,8 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
             return;
         }
 
-        if (!serviceType) {
-            alert("Please select a service type first");
+        if (selectedServices.length === 0) {
+            alert("Please select at least one service type");
             return;
         }
 
@@ -27,8 +70,6 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
         const voucher = vouchers.find(v => v.id === targetCode);
         if (voucher) {
             const today = new Date().toISOString().split('T')[0];
-            // If checkOut date (Valid Until) is LESS than today, it is expired.
-            // e.g. Valid until 25th. Today is 26th. 25 < 26. Expired.
             if (voucher.checkOut < today) {
                 setExpireDate(voucher.checkOut);
                 setStatus('expired');
@@ -37,6 +78,7 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
         }
 
         setStatus('searching');
+        const serviceType = selectedServices.join(', ');
 
         try {
             await fetch('/api/redeem-voucher', {
@@ -59,25 +101,35 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
             console.error("Redemption failed:", e);
             setStatus('error');
         }
-    }, [code, serviceType, scriptUrl]);
+    }, [code, selectedServices, vouchers]);
 
     const handleScanSuccess = useCallback((scannedCode: string) => {
         setCode(scannedCode);
-        if (scannedCode && serviceType) {
+        if (scannedCode && selectedServices.length > 0) {
             handleVerify(scannedCode);
         }
-    }, [handleVerify, serviceType]);
+    }, [handleVerify, selectedServices]);
 
     const closeScanner = useCallback(() => {
         setShowScanner(false);
         setStatus('idle');
     }, []);
 
+    const toggleService = (value: string) => {
+        setSelectedServices(prev =>
+            prev.includes(value)
+                ? prev.filter(s => s !== value)
+                : [...prev, value]
+        );
+        if (status !== 'searching') setStatus('idle');
+        setExpireDate('');
+    };
+
     return (
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[500px]">
             <div className="mb-8">
                 <h3 className="text-2xl font-serif font-bold mb-1">Verify & Redeem</h3>
-                <p className="text-sm text-gray-400">Enter voucher ID and select service type to mark as used.</p>
+                <p className="text-sm text-gray-400">Enter voucher ID and select services to redeem.</p>
             </div>
 
             <div className="flex-1 flex flex-col">
@@ -102,59 +154,62 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Service Redeemed For</label>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Services Redeemed For</label>
                         <div className="relative">
-                            <select
-                                value={serviceType}
-                                onChange={(e) => {
-                                    setServiceType(e.target.value);
-                                    if (status !== 'searching') setStatus('idle');
-                                    setExpireDate('');
-                                }}
-                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-medium appearance-none cursor-pointer"
+                            <button
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-medium flex justify-between items-center text-left"
                             >
-                                <option value="">Select specific service...</option>
+                                <span className={selectedServices.length === 0 ? 'text-gray-400' : 'text-[#2c2420] font-bold'}>
+                                    {selectedServices.length === 0
+                                        ? "Select services..."
+                                        : `${selectedServices.length} service${selectedServices.length > 1 ? 's' : ''} selected`}
+                                </span>
+                                <ChevronDown size={16} className={`text-gray-400 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
 
-                                <optgroup label="Massage & Spa">
-                                    <option value="Signature Massage">No.1 Signature Massage</option>
-                                    <option value="Slimming Massage">No.1 Slimming Massage</option>
-                                    <option value="Lymphatic Massage">No.1 Lymphatic Massage</option>
-                                    <option value="Relaxing Massage">No.1 Relaxing Massage</option>
-                                </optgroup>
-
-                                <optgroup label="IV Therapy">
-                                    <option value="IV Immune Booster">IV Immune Booster</option>
-                                    <option value="IV Recovery & Detox">IV Recovery & Detox</option>
-                                    <option value="IV Hangover Cure">IV Hangover Cure</option>
-                                    <option value="IV Bali Belly">IV Bali Belly Infusion</option>
-                                </optgroup>
-
-                                <optgroup label="Fitness & Wellness">
-                                    <option value="1x Free Yoga Class">1x Free Yoga Class</option>
-                                    <option value="Yoga Class">Regular Yoga Class</option>
-                                    <option value="Reformer Pilates">Reformer Pilates</option>
-                                    <option value="Pilates + GUIDED Recovery">Pilates + Guided Recovery</option>
-                                    <option value="Kickboxing">Kickboxing / Muay Thai</option>
-                                    <option value="Zumba">Zumba</option>
-                                    <option value="Private Session">Private Fitness Session</option>
-                                </optgroup>
-
-                                <optgroup label="Other">
-                                    <option value="15% off F&B No.1 Wellness">15% off F&B No.1 Wellness</option>
-                                    <option value="Food & Beverage">Standard Food & Beverage</option>
-                                    <option value="Day Pass">Day Pass (Facilities Only)</option>
-                                    <option value="Event Access">Event Access</option>
-                                </optgroup>
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                <ChevronDown size={16} />
-                            </div>
+                            {isMenuOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto p-2">
+                                    {SERVICE_GROUPS.map((group) => (
+                                        <div key={group.label} className="mb-2">
+                                            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-2 py-1 bg-gray-50 rounded mb-1">
+                                                {group.label}
+                                            </div>
+                                            {group.items.map((item) => (
+                                                <button
+                                                    key={item.value}
+                                                    onClick={() => toggleService(item.value)}
+                                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold mb-1 flex items-center justify-between transition-colors ${selectedServices.includes(item.value)
+                                                        ? 'bg-[#c5a572]/10 text-[#c5a572]'
+                                                        : 'hover:bg-gray-50 text-gray-600'
+                                                        }`}
+                                                >
+                                                    {item.label}
+                                                    {selectedServices.includes(item.value) && <CheckCircle size={14} />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+                        {selectedServices.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {selectedServices.map(s => (
+                                    <span key={s} className="bg-[#c5a572]/10 text-[#c5a572] text-[10px] font-bold uppercase px-2 py-1 rounded-md flex items-center gap-1">
+                                        {s}
+                                        <button onClick={() => toggleService(s)} className="hover:text-[#2c2420]">
+                                            <XCircle size={10} />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <button
                         onClick={() => handleVerify()}
-                        disabled={!code || !serviceType || status === 'searching'}
+                        disabled={!code || selectedServices.length === 0 || status === 'searching'}
                         className="w-full bg-[#2c2420] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-bold text-sm uppercase tracking-widest"
                     >
                         {status === 'searching' ? (
@@ -174,18 +229,18 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
                 <div className="flex-1 flex flex-col justify-center">
                     {status === 'idle' && !showScanner && (
                         <div className="text-center py-10">
-                            {!serviceType && (
-                                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Select service type to unlock scanner</p>
+                            {selectedServices.length === 0 && (
+                                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Select services to unlock scanner</p>
                             )}
                             <button
                                 onClick={() => {
-                                    if (!serviceType) {
-                                        alert("Please select a service type first");
+                                    if (selectedServices.length === 0) {
+                                        alert("Please select at least one service type first");
                                         return;
                                     }
                                     setShowScanner(true);
                                 }}
-                                className={`group relative ${!serviceType ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}
+                                className={`group relative ${selectedServices.length === 0 ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}
                             >
                                 <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 group-hover:bg-[#c5a572]/10 group-hover:text-[#c5a572] transition-all">
                                     <Camera size={32} />
@@ -201,7 +256,7 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
                             onScanSuccess={handleScanSuccess}
                             onClose={closeScanner}
                             valStatus={status}
-                            currentService={serviceType}
+                            currentService={selectedServices.join(', ')}
                         />
                     )}
 
@@ -211,18 +266,22 @@ const Validator: React.FC<{ scriptUrl: string; vouchers: VoucherData[] }> = ({ s
                                 <CheckCircle size={32} className="text-green-600" />
                             </div>
                             <div className="text-green-800 font-bold uppercase tracking-widest text-xs mb-2">
-                                Service Logged Successfully
+                                Services Logged Successfully
                             </div>
                             <p className="text-sm text-gray-600 mb-2 font-medium">
                                 <strong>{code}</strong> redeemed for:
                             </p>
-                            <p className="text-xl text-green-700 mb-6 font-serif">
-                                {serviceType}
-                            </p>
+                            <div className="mb-6 space-y-1">
+                                {selectedServices.map(s => (
+                                    <div key={s} className="text-green-700 font-bold font-serif text-lg leading-tight">
+                                        {s}
+                                    </div>
+                                ))}
+                            </div>
                             <button
                                 onClick={() => {
                                     setCode('');
-                                    setServiceType('');
+                                    setSelectedServices([]);
                                     setStatus('idle');
                                 }}
                                 className="px-6 py-2 bg-white border border-green-200 rounded-lg text-xs font-bold uppercase tracking-widest text-green-700 hover:bg-green-100 transition-colors"

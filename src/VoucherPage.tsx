@@ -563,7 +563,7 @@ const VoucherPage: React.FC = () => {
                 {/* VALIDATE TAB */}
                 {activeTab === 'validate' && (
                     <div className="animate-fade-in">
-                        <Validator scriptUrl={APPS_SCRIPT_URL} vouchers={recentVouchers} />
+                        <Validator vouchers={recentVouchers} />
                     </div>
                 )}
                 {/* ISSUED TAB */}
