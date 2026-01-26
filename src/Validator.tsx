@@ -114,7 +114,8 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                                 </optgroup>
 
                                 <optgroup label="Fitness & Wellness">
-                                    <option value="Yoga Class">Yoga Class</option>
+                                    <option value="1x Free Yoga Class">1x Free Yoga Class</option>
+                                    <option value="Yoga Class">Regular Yoga Class</option>
                                     <option value="Reformer Pilates">Reformer Pilates</option>
                                     <option value="Pilates + GUIDED Recovery">Pilates + Guided Recovery</option>
                                     <option value="Kickboxing">Kickboxing / Muay Thai</option>
@@ -123,7 +124,8 @@ const Validator: React.FC<{ scriptUrl: string }> = ({ scriptUrl }) => {
                                 </optgroup>
 
                                 <optgroup label="Other">
-                                    <option value="Food & Beverage">Food & Beverage</option>
+                                    <option value="15% off F&B No.1 Wellness">15% off F&B No.1 Wellness</option>
+                                    <option value="Food & Beverage">Standard Food & Beverage</option>
                                     <option value="Day Pass">Day Pass (Facilities Only)</option>
                                     <option value="Event Access">Event Access</option>
                                 </optgroup>

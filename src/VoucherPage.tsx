@@ -32,11 +32,11 @@ interface RedemptionData {
 const SERVICES_LIST = [
     "15% off T Store Shopping",
     "15% off TS Salon Services",
-    "No.1 Wellness Club Access",
+    "15% off F&B No.1 Wellness",
     "Complimentary Breakfast",
     "Late Check-out (2pm)",
     "Welcome Drink",
-    "Personal Training Session"
+    "1x Free Yoga Class"
 ];
 
 const VoucherPage: React.FC = () => {
