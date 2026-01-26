@@ -285,18 +285,12 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
                 <div className="flex-1 flex flex-col justify-center">
                     {status === 'idle' && !showScanner && (
                         <div className="text-center py-10 mt-4">
-                            {selectedServices.length === 0 && (
-                                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Select services to unlock scanner</p>
+                            {!code && (
+                                <p className="text-[#c5a572] text-[10px] font-bold uppercase tracking-widest mb-4 animate-pulse">Scan Voucher to View Services</p>
                             )}
                             <button
-                                onClick={() => {
-                                    if (selectedServices.length === 0) {
-                                        alert("Please select at least one service type first");
-                                        return;
-                                    }
-                                    setShowScanner(true);
-                                }}
-                                className={`group relative ${selectedServices.length === 0 ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}
+                                onClick={() => setShowScanner(true)}
+                                className="group relative"
                             >
                                 <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 group-hover:bg-[#c5a572]/10 group-hover:text-[#c5a572] transition-all">
                                     <Camera size={32} />
