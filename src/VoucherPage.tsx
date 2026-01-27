@@ -39,7 +39,8 @@ const SERVICES_LIST = [
     "Complimentary Breakfast",
     "Late Check-out (2pm)",
     "Welcome Drink",
-    "1x Free Yoga Class"
+    "1x Free Yoga Class",
+    "Facility Access (Sauna, Hot & Cold Bath)"
 ];
 
 const VoucherPage: React.FC = () => {

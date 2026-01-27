@@ -198,15 +198,9 @@ const GuestPass: React.FC = () => {
                 {/* VIP DISCOUNT BANNER */}
                 {status === 'valid' && data.services?.some((s: string) => s.includes('15%')) && (
                     <div className="px-6 -mt-6 relative z-10">
-                        <div className="bg-[#c5a572] p-6 rounded-[2rem] text-white shadow-xl text-center border-4 border-white">
+                        <div className="bg-[#c5a572] p-8 rounded-[2rem] text-white shadow-xl text-center border-4 border-white">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-90">VIP Benefit Activated</p>
                             <h2 className="text-3xl font-serif font-bold leading-tight">15% SAVINGS</h2>
-                            <div className="mt-4 pt-4 border-t border-white/20">
-                                <p className="text-[9px] uppercase font-bold tracking-widest opacity-80 mb-2">Use Promo Code At Checkout</p>
-                                <div className="bg-black/20 py-2 px-4 rounded-xl inline-block font-mono text-lg font-bold tracking-widest">
-                                    NO1VIP
-                                </div>
-                            </div>
                         </div>
                     </div>
                 )}
