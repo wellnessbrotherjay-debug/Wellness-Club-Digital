@@ -176,20 +176,32 @@ const GuestPass: React.FC = () => {
                 {/* Header */}
                 <div className="p-8 pb-4 text-center">
                     <div className="inline-block px-3 py-1 bg-[#1a1a1a] text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-full mb-4">
-                        No.1 Wellness
+                        No.1 Wellness Club
                     </div>
                     <h1 className="text-2xl font-serif text-[#1a1a1a] italic mb-1">Guest Access Pass</h1>
-                    <div className={`flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest mt-2 ${status === 'redeemed' ? 'text-red-500' : 'text-green-600'}`}>
-                        {status === 'redeemed' ? (
-                            <>
-                                <AlertTriangle size={12} />
-                                Voucher Expired
-                            </>
-                        ) : (
-                            <>
-                                <CheckCircle size={12} />
-                                Active
-                            </>
+
+                    <div className="flex flex-col items-center gap-2 mt-4">
+                        <div className={`flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-[0.15em] px-4 py-1.5 rounded-full ${status === 'redeemed' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                            {status === 'redeemed' ? (
+                                <>
+                                    <AlertTriangle size={12} />
+                                    Voucher Expired
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle size={12} strokeWidth={3} />
+                                    Active Pass
+                                </>
+                            )}
+                        </div>
+
+                        {/* 15% OFF VIP BANNER */}
+                        {status === 'valid' && data.services?.some((s: string) => s.includes('15%')) && (
+                            <div className="mt-4 w-full bg-[#c5a572] p-4 rounded-2xl text-white shadow-lg animate-pulse">
+                                <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">VIP Benefit Revealed</p>
+                                <h2 className="text-2xl font-serif font-bold leading-tight">15% SAVINGS ACTIVE</h2>
+                                <p className="text-[10px] mt-2 font-medium bg-black/10 py-1 rounded-lg">Applied to all Wellness treatments & Dining</p>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -213,35 +225,33 @@ const GuestPass: React.FC = () => {
                     </div>
                 )}
 
-                {/* Action Button - Excluded from download if you want, but html2canvas captures visible DOM. 
-                    Links won't click in an image, so it's fine. */}
+                {/* Action Button */}
                 <div className="px-8 pb-2">
                     <a
                         href={discountLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg"
-                        data-html2canvas-ignore // Use this if you don't want the button in the image, but users might want the visual "click here" cue even in a saved image? 
-                    // Actually, better to keep it so it looks like the pass.
+                        className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-black transition-all shadow-lg border border-white/10"
                     >
-                        Book with 15% Off
+                        {data.services?.some((s: string) => s.includes('15%')) ? 'Redeem 15% Off Now' : 'Visit Website'}
                         <ExternalLink size={14} />
                     </a>
                 </div>
 
                 {/* Staff Redemption QR Section - ALWAYS show for multi-use */}
                 <div className="p-8 pt-0 flex flex-col items-center justify-center border-t border-dashed border-gray-100 mt-4 pt-8 animate-fade-in">
-                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Use Only: Scan to Redeem</p>
-                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-50">
+                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Scan to Redeem Treatments</p>
+                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 relative group">
                         <QRCode
                             value={JSON.stringify({ type: 'voucher-redemption', id: id })}
                             size={140}
                             style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                             viewBox={`0 0 256 256`}
                         />
+                        <div className="absolute inset-0 border-2 border-[#c5a572]/0 group-hover:border-[#c5a572]/20 rounded-2xl transition-all"></div>
                     </div>
-                    <p className="mt-3 text-[10px] font-mono text-gray-200 uppercase tracking-widest">
-                        Pass ID: {id}
+                    <p className="mt-3 text-[10px] font-mono text-gray-300 uppercase tracking-widest">
+                        Ref: {id}
                     </p>
                     {redemptions.length > 0 && (
                         <div className="mt-6 w-full bg-green-500/5 rounded-2xl p-4 border border-green-500/10">
@@ -263,32 +273,39 @@ const GuestPass: React.FC = () => {
                 {/* Details */}
                 <div className="p-8 pt-0 space-y-6">
                     <div className="text-center">
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Guest Name</p>
-                        <p className="text-xl font-serif text-[#1a1a1a]">{data.guestName}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pass Holder</p>
+                        <p className="text-xl font-serif text-[#1a1a1a] font-bold italic">{data.guestName}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-[#fafafa] rounded-lg">
+                        <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
                             <Key size={16} className="text-[#c5a572] mx-auto mb-2" />
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Room</p>
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Room</p>
                             <p className="font-bold text-[#1a1a1a]">{data.roomNumber}</p>
                         </div>
-                        <div className="text-center p-3 bg-[#fafafa] rounded-lg">
+                        <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
                             <Calendar size={16} className="text-[#c5a572] mx-auto mb-2" />
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Valid Until</p>
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Expiry</p>
                             <p className="font-bold text-[#1a1a1a]">{data.checkOut}</p>
                         </div>
                     </div>
 
                     <div className="border-t border-dashed border-gray-200 pt-6">
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-3">Included Services</p>
-                        <div className="space-y-2">
-                            {data.services && data.services.map((s: string) => (
-                                <div key={s} className="flex items-center gap-2 text-sm text-[#1a1a1a]">
-                                    <CheckCircle size={14} className="text-[#c5a572]" />
-                                    {s}
-                                </div>
-                            ))}
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4">Included Benefits</p>
+                        <div className="space-y-3">
+                            {data.services && data.services.map((s: string) => {
+                                const isDiscount = s.includes('15%');
+                                return (
+                                    <div key={s} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isDiscount ? 'bg-[#c5a572]/10 border border-[#c5a572]/20' : 'bg-gray-50 border border-gray-100'}`}>
+                                        <div className={`p-1 rounded-full ${isDiscount ? 'bg-[#c5a572] text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                            <CheckCircle size={10} strokeWidth={4} />
+                                        </div>
+                                        <span className={`text-xs font-bold uppercase tracking-tight ${isDiscount ? 'text-[#c5a572]' : 'text-[#1a1a1a]'}`}>
+                                            {s}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
