@@ -5,7 +5,6 @@ import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2 }
 import { Helmet } from 'react-helmet-async';
 
 // Mock main site URL - replace with actual deployed URL later
-const MAIN_SITE_URL = 'https://www.no1wellness.com';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
 
 const GuestPass: React.FC = () => {
@@ -158,8 +157,8 @@ const GuestPass: React.FC = () => {
         );
     }
 
-    // Pass the ENCODED data to the main site so it can validate expiration
-    const discountLink = `${MAIN_SITE_URL}?promo=${searchParams.get('d')}`;
+    // Link to our internal luxury schedule page which handles the discount
+    const discountLink = `/schedule?d=${searchParams.get('d')}`;
 
     return (
         <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-4 relative">
