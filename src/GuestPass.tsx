@@ -171,16 +171,16 @@ const GuestPass: React.FC = () => {
             {/* Pass Container */}
             <div ref={passRef} className="w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl relative border border-white/10">
                 {/* Header - Styled like your website */}
-                <div className="bg-[#1a1a1a] p-10 pb-8 text-center relative">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-[#c5a572]"></div>
-                    <div className="mb-6">
-                        <h2 className="text-[#c5a572] font-serif tracking-[0.3em] font-light text-[10px] uppercase mb-1">No. 1</h2>
-                        <h1 className="text-white font-serif tracking-[0.1em] text-xl font-bold uppercase leading-none">Wellness Club</h1>
+                <div className="bg-[#1a1a1a] p-12 pb-10 text-center relative">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-[#c5a572]"></div>
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="text-[#c5a572] font-serif text-5xl leading-none mb-2 font-light">Nº1</div>
+                        <div className="text-white font-serif tracking-[0.4em] text-[10px] uppercase font-bold opacity-80 border-t border-white/10 pt-2 px-4">Wellness Club</div>
                     </div>
 
                     <div className="flex flex-col items-center gap-2">
-                        <div className={`flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border ${status === 'redeemed' ? 'border-red-500/30 text-red-400' : 'border-[#c5a572]/30 text-[#c5a572]'}`}>
-                            {status === 'redeemed' ? 'Pass Expired' : 'Active Guest Access'}
+                        <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full">
+                            <span className="text-white/60 text-[9px] font-black uppercase tracking-[0.2em]">Guest Digital Access</span>
                         </div>
                     </div>
                 </div>
