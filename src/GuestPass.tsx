@@ -159,7 +159,17 @@ const GuestPass: React.FC = () => {
     }
 
     // Pass the ENCODED data to the main site so it can validate expiration
-    const discountLink = `${MAIN_SITE_URL}?promo=${encodeURIComponent(searchParams.get('d') || '')}`;
+    // If we land via short URL (no ?d=), we re-encode the data for the main site
+    const promoToken = searchParams.get('d') || (data ? btoa(JSON.stringify({
+        id: id,
+        guestName: data.guestName,
+        roomNumber: data.roomNumber,
+        checkIn: data.checkIn || '',
+        checkOut: data.checkOut,
+        services: data.services
+    })) : '');
+
+    const discountLink = `${MAIN_SITE_URL}?promo=${encodeURIComponent(promoToken)}`;
 
     return (
         <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-4 relative">
