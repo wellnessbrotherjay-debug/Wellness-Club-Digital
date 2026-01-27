@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 
 // Mock main site URL - replace with actual deployed URL later
@@ -169,42 +169,37 @@ const GuestPass: React.FC = () => {
 
 
             {/* Pass Container */}
-            <div ref={passRef} className="w-full max-w-sm bg-white rounded-[2rem] overflow-hidden shadow-2xl relative">
-                {/* Gold Status Bar */}
-                <div className="bg-[#c5a572] h-2"></div>
-
-                {/* Header */}
-                <div className="p-8 pb-4 text-center">
-                    <div className="inline-block px-3 py-1 bg-[#1a1a1a] text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-full mb-4">
-                        No.1 Wellness Club
+            <div ref={passRef} className="w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl relative border border-white/10">
+                {/* Header - Styled like your website */}
+                <div className="bg-[#1a1a1a] p-10 pb-8 text-center relative">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-[#c5a572]"></div>
+                    <div className="mb-6">
+                        <h2 className="text-[#c5a572] font-serif tracking-[0.3em] font-light text-[10px] uppercase mb-1">No. 1</h2>
+                        <h1 className="text-white font-serif tracking-[0.1em] text-xl font-bold uppercase leading-none">Wellness Club</h1>
                     </div>
-                    <h1 className="text-2xl font-serif text-[#1a1a1a] italic mb-1">Guest Access Pass</h1>
 
-                    <div className="flex flex-col items-center gap-2 mt-4">
-                        <div className={`flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-[0.15em] px-4 py-1.5 rounded-full ${status === 'redeemed' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
-                            {status === 'redeemed' ? (
-                                <>
-                                    <AlertTriangle size={12} />
-                                    Voucher Expired
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle size={12} strokeWidth={3} />
-                                    Active Pass
-                                </>
-                            )}
+                    <div className="flex flex-col items-center gap-2">
+                        <div className={`flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border ${status === 'redeemed' ? 'border-red-500/30 text-red-400' : 'border-[#c5a572]/30 text-[#c5a572]'}`}>
+                            {status === 'redeemed' ? 'Pass Expired' : 'Active Guest Access'}
                         </div>
-
-                        {/* 15% OFF VIP BANNER */}
-                        {status === 'valid' && data.services?.some((s: string) => s.includes('15%')) && (
-                            <div className="mt-4 w-full bg-[#c5a572] p-4 rounded-2xl text-white shadow-lg animate-pulse">
-                                <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">VIP Benefit Revealed</p>
-                                <h2 className="text-2xl font-serif font-bold leading-tight">15% SAVINGS ACTIVE</h2>
-                                <p className="text-[10px] mt-2 font-medium bg-black/10 py-1 rounded-lg">Applied to all Wellness treatments & Dining</p>
-                            </div>
-                        )}
                     </div>
                 </div>
+
+                {/* VIP DISCOUNT BANNER */}
+                {status === 'valid' && data.services?.some((s: string) => s.includes('15%')) && (
+                    <div className="px-6 -mt-6 relative z-10">
+                        <div className="bg-[#c5a572] p-6 rounded-[2rem] text-white shadow-xl text-center border-4 border-white">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-90">VIP Benefit Activated</p>
+                            <h2 className="text-3xl font-serif font-bold leading-tight">15% SAVINGS</h2>
+                            <div className="mt-4 pt-4 border-t border-white/20">
+                                <p className="text-[9px] uppercase font-bold tracking-widest opacity-80 mb-2">Use Promo Code At Checkout</p>
+                                <div className="bg-black/20 py-2 px-4 rounded-xl inline-block font-mono text-lg font-bold tracking-widest">
+                                    NO1VIP
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Optional Image */}
                 {data.imageUrl && (
@@ -226,15 +221,18 @@ const GuestPass: React.FC = () => {
                 )}
 
                 {/* Action Button */}
-                <div className="px-8 pb-2">
+                <div className="px-8 pt-6 pb-2">
                     <a
                         href={discountLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-black transition-all shadow-lg border border-white/10"
+                        className="w-full flex flex-col items-center justify-center gap-1 bg-[#1a1a1a] text-white py-5 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-black transition-all shadow-xl border border-white/10 group"
                     >
-                        {data.services?.some((s: string) => s.includes('15%')) ? 'Redeem 15% Off Now' : 'Visit Website'}
-                        <ExternalLink size={14} />
+                        <span className="flex items-center gap-2">
+                            {data.services?.some((s: string) => s.includes('15%')) ? 'Book with 15% Savings' : 'Visit Club Website'}
+                            <ExternalLink size={14} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                        </span>
+                        <span className="text-[8px] opacity-40 font-normal">Opens in new window</span>
                     </a>
                 </div>
 
