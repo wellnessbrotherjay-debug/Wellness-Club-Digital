@@ -1,6 +1,7 @@
 import React, { useState, useCallback, memo } from 'react';
 import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera, AlertTriangle } from 'lucide-react';
 import QRScanner from './QRScanner';
+import { APPS_SCRIPT_URL } from './constants/config';
 import type { VoucherData } from './VoucherPage';
 
 // MAPPING: defines which 'Creation Service' unlocks which 'Redeemable Service'
@@ -67,7 +68,7 @@ const SERVICE_GROUPS = [
     }
 ];
 
-const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
+const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> = ({ vouchers, onRefresh }) => {
     const [code, setCode] = useState('');
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [status, setStatus] = useState<'idle' | 'searching' | 'valid' | 'invalid' | 'error' | 'expired'>('idle');
@@ -75,11 +76,29 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
     const [expireDate, setExpireDate] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+    const [isSyncing, setIsSyncing] = useState(false);
+
     // Reset selection when code changes (either via scan or typing)
     // This prevents "stale" services from one voucher leaking into the next
     React.useEffect(() => {
         setSelectedServices([]);
+        setIsSyncing(false);
     }, [code]);
+
+    // Auto-sync if scanned code is not found
+    React.useEffect(() => {
+        if (!code) return;
+        const exists = vouchers.find(v => v.id === code.trim().toUpperCase());
+        if (!exists && onRefresh && !isSyncing) {
+            setIsSyncing(true);
+            onRefresh();
+            // Timeout to stop syncing state if not found after 5s
+            const timer = setTimeout(() => setIsSyncing(false), 5000);
+            return () => clearTimeout(timer);
+        } else if (exists) {
+            setIsSyncing(false);
+        }
+    }, [code, vouchers, onRefresh]);
 
     // Derived state: Filter groups based on the current voucher's entitlements
     const getFilteredGroups = useCallback(() => {
@@ -132,14 +151,16 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
         const serviceType = selectedServices.join(', ');
 
         try {
-            await fetch('/api/redeem-voucher', {
+            await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({
                     action: 'redeem',
                     voucherCode: targetCode,
                     serviceType: serviceType,
-                    redeemedAt: new Date().toLocaleString('sv-SE').replace('T', ' ') // Clean format override
+                    // Use a simple timestamp format that the sheet expects, or ISO
+                    redeemedAt: new Date().toISOString()
                 })
             });
 
@@ -227,7 +248,14 @@ const Validator: React.FC<{ vouchers: VoucherData[] }> = ({ vouchers }) => {
                                         </div>
                                     ) : filteredServiceGroups.length === 0 ? (
                                         <div className="p-4 text-center text-xs text-red-400">
-                                            No applicable services found for this voucher.
+                                            {isSyncing ? (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Loader2 className="animate-spin" size={16} />
+                                                    <span>Syncing with database...</span>
+                                                </div>
+                                            ) : (
+                                                "No verifiable services found (or voucher not in database)"
+                                            )}
                                         </div>
                                     ) : (
                                         filteredServiceGroups.map((group) => (

@@ -297,12 +297,23 @@ const GuestPass: React.FC = () => {
                         <div className="space-y-3">
                             {data.services && data.services.map((s: string) => {
                                 const isDiscount = s.includes('15%');
+                                const isFacility = s.includes('Sauna') || s.includes('Facility');
+
                                 return (
-                                    <div key={s} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isDiscount ? 'bg-[#c5a572]/10 border border-[#c5a572]/20' : 'bg-gray-50 border border-gray-100'}`}>
-                                        <div className={`p-1 rounded-full ${isDiscount ? 'bg-[#c5a572] text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                    <div key={s} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isDiscount ? 'bg-[#c5a572]/10 border border-[#c5a572]/20' :
+                                            isFacility ? 'bg-blue-500/5 border border-blue-500/10' :
+                                                'bg-gray-50 border border-gray-100'
+                                        }`}>
+                                        <div className={`p-1 rounded-full ${isDiscount ? 'bg-[#c5a572] text-white' :
+                                                isFacility ? 'bg-blue-500 text-white' :
+                                                    'bg-gray-200 text-gray-400'
+                                            }`}>
                                             <CheckCircle size={10} strokeWidth={4} />
                                         </div>
-                                        <span className={`text-xs font-bold uppercase tracking-tight ${isDiscount ? 'text-[#c5a572]' : 'text-[#1a1a1a]'}`}>
+                                        <span className={`text-xs font-bold uppercase tracking-tight ${isDiscount ? 'text-[#c5a572]' :
+                                                isFacility ? 'text-blue-600' :
+                                                    'text-[#1a1a1a]'
+                                            }`}>
                                             {s}
                                         </span>
                                     </div>

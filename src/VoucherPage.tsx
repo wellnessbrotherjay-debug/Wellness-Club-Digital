@@ -9,6 +9,7 @@ import QRCode from 'react-qr-code';
 import Validator from './Validator';
 import CountrySelector from './components/CountrySelector';
 
+import { APPS_SCRIPT_URL } from './constants/config';
 import { LoginScreen } from './components/LoginScreen';
 
 export interface VoucherData {
@@ -101,7 +102,6 @@ const VoucherPage: React.FC = () => {
         setActiveTab('create');
     };
 
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
     const WA_WEBHOOK_URL = '/api/send-whatsapp';
 
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
@@ -626,7 +626,10 @@ const VoucherPage: React.FC = () => {
                 {/* VALIDATE TAB */}
                 {activeTab === 'validate' && (
                     <div className="animate-fade-in">
-                        <Validator vouchers={recentVouchers} />
+                        <Validator
+                            vouchers={recentVouchers}
+                            onRefresh={() => fetchData(true)}
+                        />
                     </div>
                 )}
                 {/* ISSUED TAB */}
