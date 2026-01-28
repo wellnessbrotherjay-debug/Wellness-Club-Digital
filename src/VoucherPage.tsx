@@ -53,6 +53,7 @@ const VoucherPage: React.FC = () => {
         checkIn: new Date().toISOString().split('T')[0],
         checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
         imageUrl: '',
+        email: '',
     });
 
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -235,6 +236,7 @@ const VoucherPage: React.FC = () => {
 
             setCurrentVoucher(newVoucher);
             setRecentVouchers(prev => [newVoucher, ...prev]);
+            setEmail(formData.email); // Pre-fill email for sending
             setStatus('success');
 
         } catch (error) {
@@ -250,6 +252,7 @@ const VoucherPage: React.FC = () => {
             checkIn: new Date().toISOString().split('T')[0],
             checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
             imageUrl: '',
+            email: '',
         });
         setSelectedServices([]);
         setCurrentVoucher(null);
@@ -433,10 +436,19 @@ const VoucherPage: React.FC = () => {
                                             />
                                         </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Email (Optional)</label>
+                                        <input
+                                            type="email"
+                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                            placeholder="guest@example.com"
+                                            value={formData.email}
+                                            onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Check In</label>
                                     <div className="relative">
@@ -670,13 +682,12 @@ const VoucherPage: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                <button onClick={resetForm} className="mt-8 text-gray-400 hover:text-gray-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                                    <RefreshCw size={14} /> Create Next Voucher
-                                </button>
                             </div>
                         )}
-                        {/* This extra closing brace was removed as it was syntactically incorrect */}
+
+                        <button onClick={resetForm} className="mt-8 text-gray-400 hover:text-gray-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                            <RefreshCw size={14} /> Create Next Voucher
+                        </button>
                     </div>
                 )}
 
@@ -689,161 +700,142 @@ const VoucherPage: React.FC = () => {
                         />
                     </div>
                 )}
+
                 {/* ISSUED TAB */}
-                {
-                    activeTab === 'issued' && (
-                        <div className="animate-fade-in space-y-6">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-                                <div className="relative flex-1 w-full">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search by name, ID or room..."
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-[#c5a572] outline-none transition-all"
-                                        value={searchQuery}
-                                        onChange={e => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                                <button
-                                    onClick={clearHistory}
-                                    className="flex items-center gap-2 px-6 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold"
-                                >
-                                    <Trash2 size={18} /> <span>Clear History</span>
-                                </button>
+                {activeTab === 'issued' && (
+                    <div className="animate-fade-in space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center">
+                            <div className="relative flex-1 w-full">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, ID or room..."
+                                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-[#c5a572] outline-none transition-all"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                />
                             </div>
+                            <button
+                                onClick={clearHistory}
+                                className="flex items-center gap-2 px-6 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold"
+                            >
+                                <Trash2 size={18} /> <span>Clear History</span>
+                            </button>
+                        </div>
 
-                            <div className="grid gap-4">
-                                {isFetchingHistory && !hasInitialLoaded && (
-                                    <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
-                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#c5a572]">
-                                            <Loader2 size={32} className="animate-spin" />
-                                        </div>
-                                        <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Loading History...</p>
+                        <div className="grid gap-4">
+                            {isFetchingHistory && !hasInitialLoaded && (
+                                <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#c5a572]">
+                                        <Loader2 size={32} className="animate-spin" />
                                     </div>
-                                )}
+                                    <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Loading History...</p>
+                                </div>
+                            )}
 
-                                {(!isFetchingHistory || hasInitialLoaded) && fetchError && (
-                                    <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100">
-                                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-red-400">
-                                            <XCircle size={32} />
-                                        </div>
-                                        <p className="text-red-800 font-bold uppercase tracking-widest text-xs mb-2">Connection Error</p>
-                                        <p className="text-gray-500 text-xs mb-6 max-w-xs mx-auto">Could not fetch data from Google Sheets.</p>
-                                        <button
-                                            onClick={() => fetchData()}
-                                            className="mt-6 px-8 py-3 bg-white text-red-600 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm border border-red-100 hover:bg-red-50 transition-colors"
-                                        >
-                                            Try Again
-                                        </button>
+                            {(!isFetchingHistory || hasInitialLoaded) && fetchError && (
+                                <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100">
+                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-red-400">
+                                        <XCircle size={32} />
                                     </div>
-                                )}
+                                    <p className="text-red-800 font-bold uppercase tracking-widest text-xs mb-2">Connection Error</p>
+                                    <p className="text-gray-500 text-xs mb-6 max-w-xs mx-auto">Could not fetch data from Google Sheets.</p>
+                                    <button
+                                        onClick={() => fetchData()}
+                                        className="mt-6 px-8 py-3 bg-white text-red-600 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm border border-red-100 hover:bg-red-50 transition-colors"
+                                    >
+                                        Try Again
+                                    </button>
+                                </div>
+                            )}
 
-                                {(!isFetchingHistory || hasInitialLoaded) && !fetchError && filteredVouchers.length === 0 ? (
-                                    <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
-                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                                            <History size={32} />
-                                        </div>
-                                        <p className="text-gray-400">No vouchers found in local history.</p>
+                            {(!isFetchingHistory || hasInitialLoaded) && !fetchError && filteredVouchers.length === 0 ? (
+                                <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                                        <History size={32} />
                                     </div>
-                                ) : (
-                                    !isFetchingHistory && !fetchError && filteredVouchers.map(voucher => (
-                                        <div key={voucher.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-[#c5a572]/40 transition-all flex flex-col md:flex-row justify-between items-center gap-6 group">
-                                            <div className="flex gap-4 items-center w-full md:w-auto">
-                                                <div className="w-12 h-12 bg-[#fcfcfc] border border-gray-100 rounded-lg flex items-center justify-center p-2 group-hover:scale-110 transition-transform">
-                                                    <QRCode value={voucherUrl(voucher)} size={48} />
+                                    <p className="text-gray-400">No vouchers found in local history.</p>
+                                </div>
+                            ) : (
+                                !isFetchingHistory && !fetchError && filteredVouchers.map(voucher => (
+                                    <div key={voucher.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-[#c5a572]/40 transition-all flex flex-col md:flex-row justify-between items-center gap-6 group">
+                                        <div className="flex gap-4 items-center w-full md:w-auto">
+                                            <div className="w-12 h-12 bg-[#fcfcfc] border border-gray-100 rounded-lg flex items-center justify-center p-2 group-hover:scale-110 transition-transform">
+                                                <QRCode value={voucherUrl(voucher)} size={48} />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-bold text-lg">{voucher.guestName}</h3>
+                                                    <span className="px-2 py-0.5 bg-[#f0ede6] text-[#2c2420] text-[9px] font-bold rounded uppercase">Room {voucher.roomNumber}</span>
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="font-bold text-lg">{voucher.guestName}</h3>
-                                                        <span className="px-2 py-0.5 bg-[#f0ede6] text-[#2c2420] text-[9px] font-bold rounded uppercase">Room {voucher.roomNumber}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
-                                                        <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
-                                                            Issued: {(() => {
-                                                                if (!voucher.created_at) return 'N/A';
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
+                                                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
+                                                        Issued: {(() => {
+                                                            if (!voucher.created_at) return 'N/A';
+                                                            try {
+                                                                return new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                                                            } catch (e) {
+                                                                return 'Invalid Date';
+                                                            }
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* REDEMPTION HISTORY IN LIST */}
+                                            <div className="mt-2 space-y-1">
+                                                {Array.isArray(redemptions) && redemptions.filter(r => r && r.voucherCode === voucher.id).map((redeem, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-green-600 bg-green-50 px-2 py-0.5 rounded-md self-start w-fit">
+                                                        <CheckCircle size={10} />
+                                                        <span className="text-[9px] font-bold uppercase">
+                                                            {redeem.serviceType} • {(() => {
                                                                 try {
-                                                                    return new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                                                                    return new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                                                 } catch (e) {
-                                                                    return 'Invalid Date';
+                                                                    return '';
                                                                 }
                                                             })()}
                                                         </span>
                                                     </div>
-
-                                                    {/* REDEMPTION HISTORY IN LIST */}
-                                                    <div className="mt-2 space-y-1">
-                                                        {Array.isArray(redemptions) && redemptions.filter(r => r && r.voucherCode === voucher.id).map((redeem, idx) => (
-                                                            <div key={idx} className="flex items-center gap-2 text-green-600 bg-green-50 px-2 py-0.5 rounded-md self-start w-fit">
-                                                                <CheckCircle size={10} />
-                                                                <span className="text-[9px] font-bold uppercase">
-                                                                    {redeem.serviceType} • {(() => {
-                                                                        try {
-                                                                            return new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                                                        } catch (e) {
-                                                                            return '';
-                                                                        }
-                                                                    })()}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex gap-2 w-full md:w-auto">
-                                                <button
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(voucherUrl(voucher));
-                                                        alert("Link copied");
-                                                    }}
-                                                    className="flex-1 md:flex-none p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 hover:text-[#2c2420] transition-colors"
-                                                    title="Copy Link"
-                                                >
-                                                    <Copy size={18} />
-                                                </button>
-                                                <a
-                                                    href={voucherUrl(voucher)}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="flex-1 md:flex-none p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 hover:text-[#2c2420] transition-colors"
-                                                    title="View"
-                                                >
-                                                    <ExternalLink size={18} />
-                                                </a>
-                                                <button
-                                                    onClick={() => {
-                                                        setCurrentVoucher(voucher);
-                                                        setActiveTab('create');
-                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                    }}
-                                                    className="flex-[2] md:flex-none px-6 py-3 bg-[#f0ede6] text-[#2c2420] rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#c5a572] hover:text-white transition-all shadow-sm"
-                                                >
-                                                    Show QR
-                                                </button>
+                                                ))}
                                             </div>
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )
-                }
-            </main>
 
-            {/* QUICK INFO (Bottom Bar) */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 py-3 px-6 z-30">
-                <div className="max-w-7xl mx-auto flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                    <div>No.1 Wellness Club • Reception Dashboard</div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                        <span>Systems Online</span>
+                                        <div className="flex gap-2">
+                                            {voucher.status === 'Redeemed' && (
+                                                <span className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold uppercase rounded-lg">
+                                                    Redeemed
+                                                </span>
+                                            )}
+
+                                            <button
+                                                onClick={() => {
+                                                    const width = 375;
+                                                    const height = 800;
+                                                    const left = (window.screen.width - width) / 2;
+                                                    const top = (window.screen.height - height) / 2;
+
+                                                    window.open(
+                                                        `${window.location.origin}/v/${voucher.id}`,
+                                                        'GuestPassPopup',
+                                                        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+                                                    );
+                                                }}
+                                                className="px-4 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                                            >
+                                                View
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
-                </div>
-            </div>
+                )}
+            </main>
         </div>
     );
 };
 
 export default VoucherPage;
-

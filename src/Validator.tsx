@@ -50,9 +50,13 @@ const SERVICE_GROUPS = [
         label: 'Fitness & Wellness',
         items: [
             { value: '1x Free Yoga Class', label: '1x Free Yoga Class', requiredEntitlement: "1x Free Yoga Class" },
-            { value: 'Yoga Class', label: 'Regular Yoga Class', requiredEntitlement: "1x Free Yoga Class" }, // Or specific yoga entitlement
-            { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" }, // Assuming Wellness covers this?
+            { value: 'Yoga Class', label: 'Regular Yoga Class', requiredEntitlement: "1x Free Yoga Class" },
+            { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Pilates', label: 'Mat Pilates', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Zumba', label: 'Zumba Class', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
             { value: 'Kickboxing', label: 'Kickboxing / Muay Thai', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Stretching', label: 'Stretching Class', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Sensual Flow', label: 'Sensual Flow', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
             { value: 'Private Session', label: 'Private Fitness Session', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
         ]
     },
