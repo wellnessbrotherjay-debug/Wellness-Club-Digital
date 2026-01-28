@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import {
     CheckCircle, Loader2, Copy, ExternalLink,
     RefreshCw, Calendar, PlusCircle, Scan,
-    List, History, Search, Trash2, XCircle, AlertCircle
+    List, History, Search, Trash2, XCircle, AlertCircle, Mail
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
@@ -36,7 +36,7 @@ interface RedemptionData {
 const SERVICES_LIST = [
     "15% off T Store Shopping",
     "15% off TS Salon Services",
-    "15% off F&B No.1 Wellness",
+    "15% off All Services @ No.1 (F&B, Classes, Massage, etc)",
     "Complimentary Breakfast",
     "Late Check-out (2pm)",
     "Welcome Drink",
@@ -65,6 +65,9 @@ const VoucherPage: React.FC = () => {
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [countryCode, setCountryCode] = useState('+62');
     const [waStatus, setWaStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+    const [email, setEmail] = useState('');
+    const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
     // Auth Persistence & Magic Links
     useEffect(() => {
@@ -255,6 +258,8 @@ const VoucherPage: React.FC = () => {
         // User workflow: New voucher -> New Number.
         setWhatsappNumber('');
         setWaStatus('idle');
+        setEmail('');
+        setEmailStatus('idle');
     };
 
     const sendToWhatsApp = async () => {
@@ -280,6 +285,25 @@ const VoucherPage: React.FC = () => {
             console.error(e);
             setWaStatus('error');
         }
+    };
+
+    const handleSendEmail = () => {
+        if (!currentVoucher || !email) return;
+
+        setEmailStatus('sending');
+
+        const subject = `Your No.1 Wellness Club Digital Pass`;
+        const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${window.location.origin}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
+
+        const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+        window.location.href = mailtoLink;
+
+        // Simulate success since we handed off to the mail client
+        setTimeout(() => {
+            setEmailStatus('sent');
+            setTimeout(() => setEmailStatus('idle'), 3000);
+        }, 1000);
     };
 
     const clearHistory = () => {
@@ -612,6 +636,39 @@ const VoucherPage: React.FC = () => {
                                         </div>
                                     </div>
 
+                                    {/* EMAIL SENDER */}
+                                    <div className="mt-4 w-full max-w-sm pt-4 border-t border-dashed border-gray-200 mx-auto">
+                                        <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 block text-left">Send via Email</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="email"
+                                                placeholder="guest@example.com"
+                                                value={email}
+                                                onChange={e => setEmail(e.target.value)}
+                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm font-medium focus:outline-none focus:border-blue-500 transition-colors"
+                                            />
+                                            <button
+                                                onClick={handleSendEmail}
+                                                disabled={!email || emailStatus === 'sending' || emailStatus === 'sent'}
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all ${emailStatus === 'sent'
+                                                    ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
+                                            >
+                                                {emailStatus === 'sending' ? (
+                                                    <Loader2 className="animate-spin" size={14} />
+                                                ) : emailStatus === 'sent' ? (
+                                                    <>
+                                                        <CheckCircle size={14} /> Sent!
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Mail size={14} /> Send
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <button onClick={resetForm} className="mt-8 text-gray-400 hover:text-gray-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">

@@ -14,19 +14,19 @@ const SERVICE_GROUPS = [
             // User said: "all massage and fnb is linked to no1 wellness"
             // So we link these to "15% off F&B No.1 Wellness" (assuming this is the main Wellness entitlement key)
             // Or "15% off TS Salon Services" ? No, presumably F&B/Wellness are shared.
-            { value: 'Signature Massage', label: 'No.1 Signature Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'Slimming Massage', label: 'No.1 Slimming Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Signature Massage', label: 'No.1 Signature Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Slimming Massage', label: 'No.1 Slimming Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
         ]
     },
     {
         label: 'IV Therapy',
         items: [
-            { value: 'IV Immune Booster', label: 'IV Immune Booster', requiredEntitlement: "15% off F&B No.1 Wellness" }, // Assuming linked to Wellness
-            { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'IV Hangover Cure', label: 'IV Hangover Cure', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'IV Bali Belly', label: 'IV Bali Belly Infusion', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'IV Immune Booster', label: 'IV Immune Booster', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" }, // Assuming linked to Wellness
+            { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'IV Hangover Cure', label: 'IV Hangover Cure', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'IV Bali Belly', label: 'IV Bali Belly Infusion', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
         ]
     },
     {
@@ -51,19 +51,19 @@ const SERVICE_GROUPS = [
         items: [
             { value: '1x Free Yoga Class', label: '1x Free Yoga Class', requiredEntitlement: "1x Free Yoga Class" },
             { value: 'Yoga Class', label: 'Regular Yoga Class', requiredEntitlement: "1x Free Yoga Class" }, // Or specific yoga entitlement
-            { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: "15% off F&B No.1 Wellness" }, // Assuming Wellness covers this?
-            { value: 'Kickboxing', label: 'Kickboxing / Muay Thai', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'Private Session', label: 'Private Fitness Session', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" }, // Assuming Wellness covers this?
+            { value: 'Kickboxing', label: 'Kickboxing / Muay Thai', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Private Session', label: 'Private Fitness Session', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
         ]
     },
     {
         label: 'Other',
         items: [
-            { value: '15% off F&B No.1 Wellness', label: '15% off F&B No.1 Wellness', requiredEntitlement: "15% off F&B No.1 Wellness" },
-            { value: 'Food & Beverage', label: 'Standard Food & Beverage', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: '15% off All Services @ No.1 (F&B, Classes, Massage, etc)', label: '15% off All Services @ No.1 (F&B, Classes, Massage, etc)', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
+            { value: 'Food & Beverage', label: 'Standard Food & Beverage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
             { value: 'Complimentary Breakfast', label: 'Complimentary Breakfast', requiredEntitlement: "Complimentary Breakfast" },
             { value: 'Welcome Drink', label: 'Welcome Drink', requiredEntitlement: "Welcome Drink" },
-            { value: 'Day Pass', label: 'Day Pass (Facilities Only)', requiredEntitlement: "15% off F&B No.1 Wellness" },
+            { value: 'Day Pass', label: 'Day Pass (Facilities Only)', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
         ]
     }
 ];
@@ -109,14 +109,29 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
 
         if (!voucher) return []; // If code invalid, show no options (forces them to enter/scan valid code first)
 
+        // CONSTANTS
+        const NEW_WELLNESS = "15% off All Services @ No.1 (F&B, Classes, Massage, etc)";
+        const OLD_WELLNESS = "15% off F&B No.1 Wellness";
+
         // Filter items
         return SERVICE_GROUPS.map(group => ({
             ...group,
             items: group.items.filter(item => {
                 // If the item doesn't require specific entitlement, show it? (Safe default: hide)
                 if (!item.requiredEntitlement) return false;
+
                 // Check if voucher has the required service string
-                return voucher.services && voucher.services.includes(item.requiredEntitlement);
+                if (voucher.services && voucher.services.includes(item.requiredEntitlement)) {
+                    return true;
+                }
+
+                // BACKWARD COMPATIBILITY:
+                // If the item requires the NEW string, but the voucher has the OLD string, allow it.
+                if (item.requiredEntitlement === NEW_WELLNESS && voucher.services && voucher.services.includes(OLD_WELLNESS)) {
+                    return true;
+                }
+
+                return false;
             })
         })).filter(group => group.items.length > 0); // Remove empty groups
     }, [code, vouchers]);
