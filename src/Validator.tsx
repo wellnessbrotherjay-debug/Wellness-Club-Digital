@@ -129,10 +129,16 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                     return true;
                 }
 
-                // BACKWARD COMPATIBILITY:
-                // If the item requires the NEW string, but the voucher has the OLD string, allow it.
-                if (item.requiredEntitlement === NEW_WELLNESS && voucher.services && voucher.services.includes(OLD_WELLNESS)) {
-                    return true;
+                // BACKWARD COMPATIBILITY & PARTIAL MATCH:
+                // If the item requires the NEW string, but the voucher has the OLD string OR contains "No.1", allow it.
+                // This acts as a catch-all for any "No.1 Wellness" related discount.
+                if (item.requiredEntitlement === NEW_WELLNESS) {
+                    if (voucher.services && (
+                        voucher.services.includes(OLD_WELLNESS) ||
+                        voucher.services.some(s => s.includes("No.1") && s.includes("15%"))
+                    )) {
+                        return true;
+                    }
                 }
 
                 return false;
