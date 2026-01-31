@@ -24,6 +24,8 @@ export interface VoucherData {
     created_at?: string;
     redeemed_at?: string;
     redemptions?: RedemptionData[];
+    pax?: number;
+    secondGuestName?: string;
 }
 
 interface RedemptionData {
@@ -33,16 +35,9 @@ interface RedemptionData {
     serviceType: string;
 }
 
-const SERVICES_LIST = [
-    "15% off T Store Shopping",
-    "15% off TS Salon Services",
-    "15% off All Services @ No.1 (F&B, Classes, Massage, etc)",
-    "Complimentary Breakfast",
-    "Late Check-out (2pm)",
-    "Welcome Drink",
-    "1x Free Yoga Class",
-    "Facility Access (Sauna, Hot & Cold Bath)"
-];
+import { SERVICES_LIST } from './constants/services';
+
+import { useVoucherData } from './hooks/useVoucherData';
 
 const VoucherPage: React.FC = () => {
     const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null);
@@ -54,14 +49,14 @@ const VoucherPage: React.FC = () => {
         checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
         imageUrl: '',
         email: '',
+        pax: 1,
+        additionalGuests: [] as string[],
     });
 
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
     const [currentVoucher, setCurrentVoucher] = useState<VoucherData | null>(null);
-    const [recentVouchers, setRecentVouchers] = useState<VoucherData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [redemptions, setRedemptions] = useState<RedemptionData[]>([]);
 
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [countryCode, setCountryCode] = useState('+62');
@@ -69,6 +64,17 @@ const VoucherPage: React.FC = () => {
 
     const [email, setEmail] = useState('');
     const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+    // Use custom hook for data fetching
+    const {
+        vouchers: recentVouchers,
+        setVouchers: setRecentVouchers,
+        redemptions, // Added missing redemptions from hook
+        isFetching: isFetchingHistory,
+        hasLoaded: hasInitialLoaded,
+        error: fetchError,
+        refresh: fetchData
+    } = useVoucherData();
 
     // Auth Persistence & Magic Links
     useEffect(() => {
@@ -106,81 +112,6 @@ const VoucherPage: React.FC = () => {
         setActiveTab('create');
     };
 
-    const WA_WEBHOOK_URL = '/api/send-whatsapp';
-
-    const [isFetchingHistory, setIsFetchingHistory] = useState(false);
-    const [fetchError, setFetchError] = useState(false);
-    const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
-
-    // Extend window to support JSONP callbacks
-    useEffect(() => {
-        (window as any).loadVouchers = (data: any[]) => {
-            setIsFetchingHistory(false);
-            setFetchError(false);
-            const mapped = data.map(item => {
-                const safeDate = (dateStr: any) => {
-                    if (!dateStr) return '';
-                    const d = new Date(dateStr);
-                    return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
-                };
-
-                return {
-                    id: item.code,
-                    guestName: item.guestName,
-                    roomNumber: item.roomNumber || '',
-                    checkIn: safeDate(item.checkIn),
-                    checkOut: safeDate(item.checkOut),
-                    status: item.status,
-                    created_at: item.created_at || item.timestamp,
-                    redeemed_at: item.redeemed_at,
-                    imageUrl: item.imageUrl || '',
-                    services: item.services ? item.services.split(', ') : [],
-                    redemptions: [] // Will be populated after mapping
-                };
-            }).reverse();
-
-            setRecentVouchers(mapped);
-            setHasInitialLoaded(true);
-        };
-
-        (window as any).loadRedemptions = (data: any[]) => {
-            setRedemptions(data || []);
-        };
-    }, []);
-
-    const fetchData = (isSilent: boolean = false) => {
-        if (!isSilent) setIsFetchingHistory(true);
-        setFetchError(false);
-
-        // Fetch Vouchers
-        const vScript = document.createElement('script');
-        vScript.src = `${APPS_SCRIPT_URL}?callback=loadVouchers&sheet=Vouchers&t=${Date.now()}`;
-        document.body.appendChild(vScript);
-        vScript.onload = () => document.body.removeChild(vScript);
-
-        // Fetch Redemptions
-        const rScript = document.createElement('script');
-        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
-        document.body.appendChild(rScript);
-        rScript.onload = () => document.body.removeChild(rScript);
-
-        rScript.onerror = vScript.onerror = () => {
-            setIsFetchingHistory(false);
-            setFetchError(true);
-        };
-    };
-
-    // Consolidated load effect
-    useEffect(() => {
-        fetchData(); // Initial load
-
-        const pollInterval = setInterval(() => {
-            fetchData(true);
-        }, 5000);
-
-        return () => clearInterval(pollInterval);
-    }, []);
-
     // Removed localStorage logic as we now fetch from Sheets
 
     const toggleService = (service: string) => {
@@ -202,9 +133,11 @@ const VoucherPage: React.FC = () => {
         setStatus('generating');
         const voucherId = generateVoucherId();
 
+        const allGuestNames = [formData.guestName, ...formData.additionalGuests].filter(Boolean).join(' & ');
+
         const payload = JSON.stringify({
             voucherCode: voucherId,
-            userName: formData.guestName,
+            userName: allGuestNames,
             status: 'Created',
             roomNumber: formData.roomNumber,
             checkIn: formData.checkIn,
@@ -213,6 +146,8 @@ const VoucherPage: React.FC = () => {
             services: selectedServices.join(', '),
             createdAt: new Date().toLocaleString('sv-SE').replace('T', ' '), // Clean format: YYYY-MM-DD HH:mm:ss
             // details field is removed
+            pax: formData.pax,
+            secondGuestName: formData.additionalGuests[0] || '' // Fallback for existing sheet column
         });
 
         try {
@@ -225,13 +160,15 @@ const VoucherPage: React.FC = () => {
 
             const newVoucher: VoucherData = {
                 id: voucherId,
-                guestName: formData.guestName,
+                guestName: allGuestNames,
                 roomNumber: formData.roomNumber,
                 checkIn: formData.checkIn,
                 checkOut: formData.checkOut,
                 imageUrl: formData.imageUrl,
                 services: selectedServices,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                pax: formData.pax,
+                secondGuestName: formData.additionalGuests[0] || ''
             };
 
             setCurrentVoucher(newVoucher);
@@ -253,6 +190,8 @@ const VoucherPage: React.FC = () => {
             checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
             imageUrl: '',
             email: '',
+            pax: 1,
+            additionalGuests: [],
         });
         setSelectedServices([]);
         setCurrentVoucher(null);
@@ -269,25 +208,23 @@ const VoucherPage: React.FC = () => {
         if (!currentVoucher || !whatsappNumber) return;
 
         setWaStatus('sending');
-        try {
-            await fetch(WA_WEBHOOK_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    whatsapp: `${countryCode}${whatsappNumber.replace(/^0+/, '')}`,
-                    // Use short URL (GuestPass will hydrate data from ID)
-                    link: `${window.location.origin}/v/${currentVoucher.id}`
-                })
-            });
 
+        // Use client-side wa.me link instead of backend webhook
+        const cleanNumber = whatsappNumber.replace(/^0+/, '').replace(/\D/g, '');
+        const fullNumber = `${countryCode.replace('+', '')}${cleanNumber}`;
+        const link = `${window.location.origin}/v/${currentVoucher.id}`;
+
+        const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to redeem your services.\n\nEnjoy your stay!`;
+
+        const waLink = `https://wa.me/${fullNumber}?text=${encodeURIComponent(message)}`;
+
+        window.open(waLink, '_blank');
+
+        // Simulate success
+        setTimeout(() => {
             setWaStatus('sent');
             setTimeout(() => setWaStatus('idle'), 3000);
-        } catch (e) {
-            console.error(e);
-            setWaStatus('error');
-        }
+        }, 1000);
     };
 
     const handleSendEmail = () => {
@@ -316,7 +253,7 @@ const VoucherPage: React.FC = () => {
         }
     };
 
-    const filteredVouchers = recentVouchers.filter(v =>
+    const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter(v =>
         v.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.roomNumber.includes(searchQuery)
@@ -411,6 +348,56 @@ const VoucherPage: React.FC = () => {
                                             value={formData.guestName}
                                             onChange={e => setFormData({ ...formData, guestName: e.target.value })}
                                         />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pax (Guests)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                            value={formData.pax}
+                                            onChange={e => setFormData({ ...formData, pax: parseInt(e.target.value) || 1 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-4 md:col-span-1">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Additional Guests</label>
+                                            <button
+                                                onClick={() => setFormData({ ...formData, additionalGuests: [...formData.additionalGuests, ''] })}
+                                                className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors font-bold uppercase"
+                                            >
+                                                + Add
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {formData.additionalGuests.map((name, idx) => (
+                                                <div key={idx} className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-[#c5a572] transition-all text-sm font-medium"
+                                                        placeholder={`Guest ${idx + 2} Name`}
+                                                        value={name}
+                                                        onChange={e => {
+                                                            const newGuests = [...formData.additionalGuests];
+                                                            newGuests[idx] = e.target.value;
+                                                            setFormData({ ...formData, additionalGuests: newGuests });
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={() => {
+                                                            const newGuests = formData.additionalGuests.filter((_, i) => i !== idx);
+                                                            setFormData({ ...formData, additionalGuests: newGuests });
+                                                        }}
+                                                        className="text-red-400 hover:text-red-600 transition-colors p-2"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {formData.additionalGuests.length === 0 && (
+                                                <p className="text-[10px] text-gray-300 italic">No additional guests added.</p>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Room Number</label>
@@ -576,7 +563,21 @@ const VoucherPage: React.FC = () => {
                                         )}
                                     </div>
                                     <h3 className="text-3xl font-serif text-[#2c2420] mb-1 font-bold">{currentVoucher.id}</h3>
-                                    <p className="text-gray-500 text-sm mb-8">{currentVoucher.guestName} • Room {currentVoucher.roomNumber}</p>
+                                    <p className="text-gray-500 text-sm mb-2">{currentVoucher.guestName} • Room {currentVoucher.roomNumber}</p>
+
+                                    <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572] mb-8">
+                                        <span>{currentVoucher.pax || 1} Pax</span>
+                                        {currentVoucher.guestName.includes('&') && (
+                                            <>
+                                                <span>•</span>
+                                                <div className="flex flex-col gap-1">
+                                                    {currentVoucher.guestName.split(' & ').slice(1).map((name, i) => (
+                                                        <span key={i}>+ {name}</span>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
 
                                     <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
                                         <button
@@ -785,8 +786,8 @@ const VoucherPage: React.FC = () => {
 
                                             {/* REDEMPTION HISTORY IN LIST */}
                                             <div className="mt-2 space-y-1">
-                                                {Array.isArray(redemptions) && redemptions.filter(r => r && r.voucherCode === voucher.id).map((redeem, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 text-green-600 bg-green-50 px-2 py-0.5 rounded-md self-start w-fit">
+                                                {Array.isArray(redemptions) && redemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
+                                                    <div key={`red-${idx}`} className="text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 flex justify-between items-center">
                                                         <CheckCircle size={10} />
                                                         <span className="text-[9px] font-bold uppercase">
                                                             {redeem.serviceType} • {(() => {

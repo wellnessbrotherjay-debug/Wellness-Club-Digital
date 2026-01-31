@@ -7,70 +7,7 @@ import type { VoucherData } from './VoucherPage';
 // MAPPING: defines which 'Creation Service' unlocks which 'Redeemable Service'
 // "requiredEntitlement" corresponds to the string in VoucherPage.tsx -> SERVICES_LIST
 
-const SERVICE_GROUPS = [
-    {
-        label: 'Massage & Spa (No.1 Wellness)',
-        items: [
-            // User said: "all massage and fnb is linked to no1 wellness"
-            // So we link these to "15% off F&B No.1 Wellness" (assuming this is the main Wellness entitlement key)
-            // Or "15% off TS Salon Services" ? No, presumably F&B/Wellness are shared.
-            { value: 'Signature Massage', label: 'No.1 Signature Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Slimming Massage', label: 'No.1 Slimming Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-        ]
-    },
-    {
-        label: 'IV Therapy',
-        items: [
-            { value: 'IV Immune Booster', label: 'IV Immune Booster', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" }, // Assuming linked to Wellness
-            { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'IV Hangover Cure', label: 'IV Hangover Cure', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'IV Bali Belly', label: 'IV Bali Belly Infusion', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-        ]
-    },
-    {
-        label: 'TS Salon Services',
-        items: [
-            { value: 'Hair Cut', label: 'Hair Cut / Styling', requiredEntitlement: "15% off TS Salon Services" },
-            { value: 'Manicure/Pedicure', label: 'Manicure / Pedicure', requiredEntitlement: "15% off TS Salon Services" },
-            { value: 'Facial', label: 'Facial Treatment', requiredEntitlement: "15% off TS Salon Services" },
-            { value: 'Salon General', label: 'General Salon Service', requiredEntitlement: "15% off TS Salon Services" },
-        ]
-    },
-    {
-        label: 'T Store Shopping',
-        items: [
-            { value: 'Apparel', label: 'Apparel / Clothing', requiredEntitlement: "15% off T Store Shopping" },
-            { value: 'Accessories', label: 'Accessories', requiredEntitlement: "15% off T Store Shopping" },
-            { value: 'T Store General', label: 'General Store Purchase', requiredEntitlement: "15% off T Store Shopping" },
-        ]
-    },
-    {
-        label: 'Fitness & Wellness',
-        items: [
-            { value: '1x Free Yoga Class', label: '1x Free Yoga Class', requiredEntitlement: "1x Free Yoga Class" },
-            { value: 'Yoga Class', label: 'Regular Yoga Class', requiredEntitlement: "1x Free Yoga Class" },
-            { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Pilates', label: 'Mat Pilates', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Zumba', label: 'Zumba Class', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Kickboxing', label: 'Kickboxing / Muay Thai', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Stretching', label: 'Stretching Class', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Sensual Flow', label: 'Sensual Flow', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Private Session', label: 'Private Fitness Session', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-        ]
-    },
-    {
-        label: 'Other',
-        items: [
-            { value: '15% off All Services @ No.1 (F&B, Classes, Massage, etc)', label: '15% off All Services @ No.1 (F&B, Classes, Massage, etc)', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Food & Beverage', label: 'Standard Food & Beverage', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-            { value: 'Complimentary Breakfast', label: 'Complimentary Breakfast', requiredEntitlement: "Complimentary Breakfast" },
-            { value: 'Welcome Drink', label: 'Welcome Drink', requiredEntitlement: "Welcome Drink" },
-            { value: 'Day Pass', label: 'Day Pass (Facilities Only)', requiredEntitlement: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)" },
-        ]
-    }
-];
+import { SERVICE_GROUPS, ENTITLEMENTS } from './constants/services';
 
 const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> = ({ vouchers, onRefresh }) => {
     const [code, setCode] = useState('');
@@ -113,10 +50,6 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
 
         if (!voucher) return []; // If code invalid, show no options (forces them to enter/scan valid code first)
 
-        // CONSTANTS
-        const NEW_WELLNESS = "15% off All Services @ No.1 (F&B, Classes, Massage, etc)";
-        const OLD_WELLNESS = "15% off F&B No.1 Wellness";
-
         // Filter items
         return SERVICE_GROUPS.map(group => ({
             ...group,
@@ -132,9 +65,9 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 // BACKWARD COMPATIBILITY & PARTIAL MATCH:
                 // If the item requires the NEW string, but the voucher has the OLD string OR contains "No.1", allow it.
                 // This acts as a catch-all for any "No.1 Wellness" related discount.
-                if (item.requiredEntitlement === NEW_WELLNESS) {
+                if (item.requiredEntitlement === ENTITLEMENTS.WELLNESS_ALL) {
                     if (voucher.services && (
-                        voucher.services.includes(OLD_WELLNESS) ||
+                        voucher.services.includes(ENTITLEMENTS.OLD_WELLNESS) ||
                         voucher.services.some(s => s.includes("No.1") && s.includes("15%"))
                     )) {
                         return true;
@@ -248,6 +181,20 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                                 className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-mono tracking-widest font-bold"
                             />
                         </div>
+                        {vouchers.find(v => v.id === code.trim().toUpperCase()) && (
+                            <div className="mt-3 bg-[#c5a572]/10 border border-[#c5a572]/20 rounded-lg p-3 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572] animate-fade-in">
+                                <span className="flex items-center gap-1">
+                                    <span className="text-sm">👥</span>
+                                    {vouchers.find(v => v.id === code.trim().toUpperCase())?.pax || 1} Pax
+                                </span>
+                                {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName && (
+                                    <span className="flex items-center gap-1 border-l border-[#c5a572]/20 pl-4">
+                                        <span className="text-sm">👤</span>
+                                        {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div>

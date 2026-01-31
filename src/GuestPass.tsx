@@ -42,7 +42,12 @@ const GuestPass: React.FC = () => {
         // Define a unique callback name 
         const callbackName = `checkItems_${Date.now()}`;
 
-        (window as any)[callbackName] = (items: any[]) => {
+        (window as any)[callbackName] = (items: any) => {
+            if (!Array.isArray(items)) {
+                setStatus('error');
+                setStatusMessage('System error: Invalid data format');
+                return;
+            }
             const currentItem = items.find((i: any) => i.code === voucherId);
 
             if (!currentItem) {
@@ -102,7 +107,8 @@ const GuestPass: React.FC = () => {
             // 1. Poll Vouchers
             const vScript = document.createElement('script');
             const vCallback = `v_poll_${Date.now()}`;
-            (window as any)[vCallback] = (items: any[]) => {
+            (window as any)[vCallback] = (items: any) => {
+                if (!Array.isArray(items)) return;
                 const currentItem = items.find((i: any) => i.code === id);
 
                 // MULTI-USE Logic: Only switch to 'redeemed' (Expired) if DATE has passed.
@@ -123,8 +129,10 @@ const GuestPass: React.FC = () => {
             // 2. Poll Redemptions
             const rScript = document.createElement('script');
             const rCallback = `r_poll_${Date.now()}`;
-            (window as any)[rCallback] = (items: any[]) => {
-                setRedemptions(items.filter(i => i.voucherCode === id));
+            (window as any)[rCallback] = (items: any) => {
+                if (Array.isArray(items)) {
+                    setRedemptions(items.filter(i => i.voucherCode === id));
+                }
                 delete (window as any)[rCallback];
                 document.body.removeChild(rScript);
             };
@@ -275,8 +283,12 @@ const GuestPass: React.FC = () => {
                 {/* Details */}
                 <div className="p-8 pt-0 space-y-6">
                     <div className="text-center">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pass Holder</p>
-                        <p className="text-xl font-serif text-[#1a1a1a] font-bold italic">{data.guestName}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pass Holder(s)</p>
+                        <div className="space-y-1">
+                            {data.guestName.split(' & ').map((name: string, i: number) => (
+                                <p key={i} className="text-xl font-serif text-[#1a1a1a] font-bold italic">{name}</p>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -301,18 +313,18 @@ const GuestPass: React.FC = () => {
 
                                 return (
                                     <div key={s} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isDiscount ? 'bg-[#c5a572]/10 border border-[#c5a572]/20' :
-                                            isFacility ? 'bg-blue-500/5 border border-blue-500/10' :
-                                                'bg-gray-50 border border-gray-100'
+                                        isFacility ? 'bg-blue-500/5 border border-blue-500/10' :
+                                            'bg-gray-50 border border-gray-100'
                                         }`}>
                                         <div className={`p-1 rounded-full ${isDiscount ? 'bg-[#c5a572] text-white' :
-                                                isFacility ? 'bg-blue-500 text-white' :
-                                                    'bg-gray-200 text-gray-400'
+                                            isFacility ? 'bg-blue-500 text-white' :
+                                                'bg-gray-200 text-gray-400'
                                             }`}>
                                             <CheckCircle size={10} strokeWidth={4} />
                                         </div>
                                         <span className={`text-xs font-bold uppercase tracking-tight ${isDiscount ? 'text-[#c5a572]' :
-                                                isFacility ? 'text-blue-600' :
-                                                    'text-[#1a1a1a]'
+                                            isFacility ? 'text-blue-600' :
+                                                'text-[#1a1a1a]'
                                             }`}>
                                             {s}
                                         </span>

@@ -3,7 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { X, ChevronLeft, Clock, Users, Phone } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../constants';
 import { COUNTRIES } from '../constants/countries';
-import CountrySelect from './CountrySelect';
+import CountrySelector from './CountrySelector';
 import { trackBooking, trackOutboundLink } from '../utils/analytics';
 import { useVoucher } from '../contexts/VoucherContext';
 import { submitBooking } from '../utils/sheetData';
@@ -328,7 +328,7 @@ Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
                                                 <label className="block text-[10px] uppercase tracking-widest text-[#2c2420]/60 font-bold">WhatsApp Number <span className="text-red-500">*</span></label>
                                                 <div className="flex gap-2">
                                                     <div className="w-[100px] flex-shrink-0">
-                                                        <CountrySelect value={mainBooker.countryIso} onChange={(code) => setMainBooker({ ...mainBooker, countryIso: code })} />
+                                                        <CountrySelector value={mainBooker.countryIso} onChange={(code: string) => setMainBooker({ ...mainBooker, countryIso: code })} />
                                                     </div>
                                                     <input
                                                         type="tel"
@@ -389,9 +389,9 @@ Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
                                                                 />
                                                                 <div className="flex gap-2 relative">
                                                                     <div className="w-[100px] flex-shrink-0">
-                                                                        <CountrySelect
+                                                                        <CountrySelector
                                                                             value={guestDetails[idx].countryIso}
-                                                                            onChange={(code) => {
+                                                                            onChange={(code: string) => {
                                                                                 const newDetails = [...guestDetails];
                                                                                 newDetails[idx] = { ...newDetails[idx], countryIso: code };
                                                                                 setGuestDetails(newDetails);
