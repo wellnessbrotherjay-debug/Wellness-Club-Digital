@@ -6,7 +6,6 @@ export const ENTITLEMENTS = {
     LATE_CHECKOUT: "Late Check-out (2pm)",
     WELCOME_DRINK: "Welcome Drink",
     FREE_YOGA: "1x Free Yoga Class",
-    FACILITY_ACCESS: "Facility Access (Sauna, Hot & Cold Bath)",
     // Legacy mapping for backward compatibility
     OLD_WELLNESS: "15% off F&B No.1 Wellness",
 } as const;
@@ -18,8 +17,7 @@ export const SERVICES_LIST = [
     ENTITLEMENTS.BREAKFAST,
     ENTITLEMENTS.LATE_CHECKOUT,
     ENTITLEMENTS.WELCOME_DRINK,
-    ENTITLEMENTS.FREE_YOGA,
-    ENTITLEMENTS.FACILITY_ACCESS
+    ENTITLEMENTS.FREE_YOGA
 ];
 
 export const SERVICE_GROUPS = [
@@ -79,7 +77,7 @@ export const SERVICE_GROUPS = [
             { value: 'Food & Beverage', label: 'Standard Food & Beverage', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
             { value: 'Complimentary Breakfast', label: 'Complimentary Breakfast', requiredEntitlement: ENTITLEMENTS.BREAKFAST },
             { value: 'Welcome Drink', label: 'Welcome Drink', requiredEntitlement: ENTITLEMENTS.WELCOME_DRINK },
-            { value: 'Day Pass', label: 'Day Pass (Facilities Only)', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
+            { value: 'Day Pass', label: 'Day Pass', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
         ]
     }
 ];

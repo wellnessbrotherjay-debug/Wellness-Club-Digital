@@ -204,7 +204,7 @@ Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
                             <div className="mt-8 p-6 bg-[#c5a572]/10 rounded-2xl border border-[#c5a572]/20">
                                 <div className="flex flex-col items-center gap-1">
                                     <span className="text-[#c5a572] font-bold text-lg uppercase tracking-widest">Additional Recovery</span>
-                                    <p className="text-[#2c2420]/70 text-sm font-sans text-center">Includes a recovery session in our Sauna, Cold Bath & Hot Bath after class.</p>
+                                    <p className="text-[#2c2420]/70 text-sm font-sans text-center">Includes a recovery session in our Hot & Cold Bath after class.</p>
                                 </div>
                             </div>
                         </>
@@ -296,7 +296,7 @@ Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
 
                                         <div className="mt-4 p-3 bg-[#c5a572]/10 rounded-lg border border-[#c5a572]/20 inline-block">
                                             <p className="text-[#2c2420]/80 text-xs font-bold">
-                                                Includes Access to Sauna, Cold Bath & Hot Bath
+                                                Includes Access to Hot & Cold Bath
                                             </p>
                                         </div>
                                     </div>
