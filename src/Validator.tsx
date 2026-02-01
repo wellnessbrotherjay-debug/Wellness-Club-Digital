@@ -97,12 +97,12 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         // Client-side Expiration Check
         const voucher = vouchers.find(v => v.id === targetCode);
         if (voucher) {
-            const today = new Date().toISOString().split('T')[0];
-            if (voucher.checkOut < today) {
-                setExpireDate(voucher.checkOut);
-                setStatus('expired');
-                return;
-            }
+            // const today = new Date().toISOString().split('T')[0];
+            // if (voucher.checkOut < today) {
+            //     setExpireDate(voucher.checkOut);
+            //     setStatus('expired');
+            //     return;
+            // }
         }
 
         setStatus('searching');
