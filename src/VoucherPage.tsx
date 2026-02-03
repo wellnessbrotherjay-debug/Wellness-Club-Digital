@@ -291,6 +291,12 @@ const VoucherPage: React.FC = () => {
                             <span className="text-[10px] text-gray-400 uppercase">Live Dashboard</span>
                         </div>
                         <button
+                            onClick={() => window.location.href = '/help'}
+                            className="text-xs font-bold uppercase tracking-widest text-[#c5a572] hover:text-[#2c2420] border border-[#c5a572]/20 px-4 py-2 rounded-lg transition-all hover:bg-[#c5a572]/10"
+                        >
+                            Help
+                        </button>
+                        <button
                             onClick={handleLogout}
                             className="text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-600 border border-red-200 px-4 py-2 rounded-lg transition-all hover:bg-red-50"
                         >
