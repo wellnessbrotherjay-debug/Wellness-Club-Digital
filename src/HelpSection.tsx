@@ -141,6 +141,36 @@ const HelpSection: React.FC = () => {
                     </div>
                 </section>
 
+                {/* SECTION 5: MANAGING & REDEEMING */}
+                <section id="manage-vouchers" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden scroll-mt-24">
+                    <div className="bg-[#fcfcfc] border-b border-gray-100 px-8 py-6 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#c5a572]/10 flex items-center justify-center text-[#c5a572]">
+                            <CheckCircle size={20} />
+                        </div>
+                        <h3 className="text-xl font-bold font-serif">Managing & Redeeming</h3>
+                    </div>
+                    <div className="p-8 space-y-12">
+                        <Step
+                            number={1}
+                            title="Guest Check-In / Download"
+                            description="Guests can scan the QR code on your screen to download their Digital Pass immediately onto their phone."
+                            icon={<Scan size={16} />}
+                        />
+                        <Step
+                            number={2}
+                            title="Full Search"
+                            description="Go to the 'Issued' tab to search all vouchers by Guest Name, Room, or ID."
+                            icon={<Users size={16} />}
+                        />
+                        <Step
+                            number={3}
+                            title="Redeem Services"
+                            description="Use the 'Validate' tab to scan the Guest's pass. Select the service they are using (e.g. 'Gym') and click Redeem."
+                            icon={<CheckCircle size={16} />}
+                        />
+                    </div>
+                </section>
+
             </main>
         </div>
     );
