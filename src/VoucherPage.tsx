@@ -35,7 +35,7 @@ interface RedemptionData {
     serviceType: string;
 }
 
-import { SERVICES_LIST } from './constants/services';
+import { ENTITLEMENTS } from './constants/services';
 
 import { useVoucherData } from './hooks/useVoucherData';
 
@@ -53,7 +53,7 @@ const VoucherPage: React.FC = () => {
         additionalGuests: [] as string[],
     });
 
-    const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
     const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
     const [currentVoucher, setCurrentVoucher] = useState<VoucherData | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -114,11 +114,7 @@ const VoucherPage: React.FC = () => {
 
     // Removed localStorage logic as we now fetch from Sheets
 
-    const toggleService = (service: string) => {
-        setSelectedServices(prev =>
-            prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service]
-        );
-    };
+
 
     const generateVoucherId = () => {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -133,6 +129,12 @@ const VoucherPage: React.FC = () => {
         setStatus('generating');
         const voucherId = generateVoucherId();
 
+        const services = [
+            ENTITLEMENTS.TS_SHOPPING,
+            ENTITLEMENTS.TS_SALON,
+            ENTITLEMENTS.WELLNESS_ALL
+        ];
+
         const allGuestNames = [formData.guestName, ...formData.additionalGuests].filter(Boolean).join(' & ');
 
         const payload = JSON.stringify({
@@ -143,7 +145,7 @@ const VoucherPage: React.FC = () => {
             checkIn: formData.checkIn,
             checkOut: formData.checkOut,
             imageUrl: formData.imageUrl,
-            services: selectedServices.join(', '),
+            services: services.join(', '),
             createdAt: new Date().toLocaleString('sv-SE').replace('T', ' '), // Clean format: YYYY-MM-DD HH:mm:ss
             // details field is removed
             pax: formData.pax,
@@ -165,7 +167,7 @@ const VoucherPage: React.FC = () => {
                 checkIn: formData.checkIn,
                 checkOut: formData.checkOut,
                 imageUrl: formData.imageUrl,
-                services: selectedServices,
+                services: services,
                 created_at: new Date().toISOString(),
                 pax: formData.pax,
                 secondGuestName: formData.additionalGuests[0] || ''
@@ -193,7 +195,7 @@ const VoucherPage: React.FC = () => {
             pax: 1,
             additionalGuests: [],
         });
-        setSelectedServices([]);
+
         setCurrentVoucher(null);
         setStatus('idle');
         // Keep whatsapp number if we want to retain it, or clear it. 
@@ -505,29 +507,7 @@ const VoucherPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Includes Services</label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {SERVICES_LIST.map(service => (
-                                        <button
-                                            key={service}
-                                            onClick={() => toggleService(service)}
-                                            className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${selectedServices.includes(service)
-                                                ? 'bg-[#c5a572]/5 border-[#c5a572] shadow-sm'
-                                                : 'bg-white border-gray-100 hover:border-gray-300 text-gray-500'
-                                                }`}
-                                        >
-                                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedServices.includes(service)
-                                                ? 'bg-[#c5a572] border-[#c5a572]'
-                                                : 'bg-gray-100 border-gray-200'
-                                                }`}>
-                                                {selectedServices.includes(service) && <CheckCircle size={12} className="text-white" />}
-                                            </div>
-                                            <span className="text-sm font-medium">{service}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+
 
                             <button
                                 onClick={handleGenerate}
