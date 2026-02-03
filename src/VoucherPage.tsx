@@ -822,20 +822,13 @@ const VoucherPage: React.FC = () => {
 
                                             <button
                                                 onClick={() => {
-                                                    const width = 375;
-                                                    const height = 800;
-                                                    const left = (window.screen.width - width) / 2;
-                                                    const top = (window.screen.height - height) / 2;
-
-                                                    window.open(
-                                                        `${window.location.origin}/v/${voucher.id}`,
-                                                        'GuestPassPopup',
-                                                        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
-                                                    );
+                                                    setCurrentVoucher(voucher);
+                                                    setActiveTab('create');
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
                                                 className="px-4 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
                                             >
-                                                View
+                                                Open
                                             </button>
                                         </div>
                                     </div>
