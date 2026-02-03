@@ -78,23 +78,25 @@ const HelpSection: React.FC = () => {
                         </div>
                         <h3 className="text-xl font-bold font-serif">How to Create Bookings</h3>
                     </div>
-                    <div className="p-8 space-y-8">
+                    <div className="p-8 space-y-12">
                         <Step
                             number={1}
                             title="Open the Schedule"
-                            description="Go to the Schedule page (`/schedule`) or click 'View Live Schedule' from the main screen."
+                            description="Go to the Schedule page (`/schedule`) or click 'View Live Schedule' from the main screen dashboard."
                             icon={<Calendar size={16} />}
+                            image="/tutorial/schedule_view_step.png"
                         />
                         <Step
                             number={2}
                             title="Select Class & Time"
-                            description="Click on the desired class (e.g., 'Pilates') to open the booking modal. Choose an available time slot."
+                            description="Click on any class card (e.g., 'Pilates') to open the booking options. Available time slots will be shown."
                             icon={<ChevronRight size={16} />}
+                            image="/tutorial/booking_modal_step.png"
                         />
                         <Step
                             number={3}
                             title="Enter Guest Details"
-                            description="Fill in the Guest Name, Email, and WhatsApp number. Select the number of Pax."
+                            description="Fill in the Guest Name, Email, and WhatsApp number. Select the number of Pax to ensure the team knows how many people are coming."
                             icon={<Users size={16} />}
                         />
                         <Step
@@ -117,7 +119,7 @@ const HelpSection: React.FC = () => {
                     <div className="p-8 space-y-6">
                         <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3 text-amber-800 text-sm mb-4">
                             <span className="font-bold">Note:</span>
-                            Bookings cannot be cancelled directly inside the App interface yet. Use the following method.
+                            Bookings cannot be cancelled directly inside the App interface yet. Use the Google Sheet.
                         </div>
 
                         <Step
@@ -128,7 +130,7 @@ const HelpSection: React.FC = () => {
                         />
                         <Step
                             number={2}
-                            title="Locate Booking"
+                            title="Locate Highlighted Row"
                             description="Find the booking row using the Guest Name or Booking ID."
                             icon={<Search size={16} />}
                         />
@@ -149,29 +151,30 @@ const HelpSection: React.FC = () => {
                         </div>
                         <h3 className="text-xl font-bold font-serif">How to Scan & Redeem Vouchers</h3>
                     </div>
-                    <div className="p-8 space-y-8">
+                    <div className="p-8 space-y-12">
                         <Step
                             number={1}
                             title="Go to Validate Tab"
-                            description="On the Reception Hub (`/`), click the 'Validate' tab in the top navigation."
+                            description="On the Reception Hub (`/`), click the 'Validate' tab in the top navigation bar."
                             actionButton={<div className="text-[#c5a572] border-b-2 border-[#c5a572] px-2 py-1 text-xs font-bold inline-flex items-center gap-1 uppercase tracking-widest"><Scan size={12} /> Validate</div>}
+                            image="/tutorial/validate_voucher_step.png"
                         />
                         <Step
                             number={2}
-                            title="Open Scanner"
-                            description="Click the big Camera icon or enter the Voucher ID (e.g. NW-1234) manually."
+                            title="Open Scanner / Enter ID"
+                            description="Click the big Camera icon to scan a QR code, or type the Voucher ID (e.g. NW-1234) manually in the input box."
                             icon={<Camera size={16} />}
                         />
                         <Step
                             number={3}
                             title="Select Service"
-                            description="Once the code is recognized, click the dropdown to select the service to redeem (e.g. 'Morning Yoga')."
+                            description="Once the code is recognized, click the dropdown to select which service the guest is using (e.g. 'Morning Yoga' or 'Gym Access')."
                             icon={<ChevronRight size={16} />}
                         />
                         <Step
                             number={4}
                             title="Redeem"
-                            description="Click 'Validate & Redeem'. Wait for the success message."
+                            description="Click 'Validate & Redeem'. Wait for the green success message."
                             actionButton={<div className="bg-[#2c2420] text-white px-3 py-1 rounded text-xs font-bold inline-flex items-center gap-1"><CheckCircle size={12} /> Validate & Redeem</div>}
                         />
                     </div>
@@ -185,35 +188,36 @@ const HelpSection: React.FC = () => {
                         </div>
                         <h3 className="text-xl font-bold font-serif">How to Create Vouchers</h3>
                     </div>
-                    <div className="p-8 space-y-8">
+                    <div className="p-8 space-y-12">
                         <Step
                             number={1}
                             title="Go to Create Tab"
-                            description="On the Reception Hub (`/`), ensure you are on the 'Create' tab."
+                            description="On the Reception Hub (`/`), ensure you are on the 'Create' tab (default view)."
                             actionButton={<div className="text-[#c5a572] border-b-2 border-[#c5a572] px-2 py-1 text-xs font-bold inline-flex items-center gap-1 uppercase tracking-widest"><PlusCircle size={12} /> Create</div>}
+                            image="/tutorial/create_voucher_step.png"
                         />
                         <Step
                             number={2}
-                            title="Fill Guest Info"
-                            description="Enter Guest Name, Pax, Room Number, and WhatsApp Number."
+                            title="Fill Guest Details"
+                            description="Enter Guest Name, Pax, Room Number, & WhatsApp Number. IMPORTANT: Ensure WhatsApp number is correct for digital delivery."
                             icon={<Users size={16} />}
                         />
                         <Step
                             number={3}
                             title="Select Entitlements"
-                            description="Click the services to include in this voucher (e.g. Wellness Pass, Gym Access)."
+                            description="Click the services to include in this voucher (e.g. Wellness Pass, Gym Access). A checkmark will appear."
                             icon={<CheckCircle size={16} />}
                         />
                         <Step
                             number={4}
                             title="Issue Voucher"
-                            description="Click 'Issue Digital Voucher'. The QR code will be generated."
+                            description="Click 'Issue Digital Voucher'. The QR code will be generated instantly."
                             actionButton={<div className="bg-[#2c2420] text-white px-3 py-1 rounded text-xs font-bold inline-flex items-center gap-1"><PlusCircle size={12} /> Issue Digital Voucher</div>}
                         />
                         <Step
                             number={5}
                             title="Share with Guest"
-                            description="Click 'Send' (WhatsApp) or 'Copy Link' to deliver the pass to the guest."
+                            description="Click 'Send' (WhatsApp) or 'Copy Link' to deliver the pass to the guest immediately."
                             icon={<LinkIcon size={16} />}
                         />
                     </div>
@@ -225,19 +229,30 @@ const HelpSection: React.FC = () => {
 };
 
 // Helper Component for Steps
-const Step: React.FC<{ number: number; title: string; description: string; icon?: React.ReactNode; actionButton?: React.ReactNode }> = ({ number, title, description, icon, actionButton }) => (
+const Step: React.FC<{ number: number; title: string; description: string; icon?: React.ReactNode; actionButton?: React.ReactNode; image?: string }> = ({ number, title, description, icon, actionButton, image }) => (
     <div className="flex gap-4 group">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#2c2420] text-white flex items-center justify-center font-bold font-serif shadow-lg group-hover:bg-[#c5a572] transition-colors">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#2c2420] text-white flex items-center justify-center font-bold font-serif shadow-lg group-hover:bg-[#c5a572] transition-colors relative z-10">
             {number}
         </div>
-        <div className="flex-1 pt-1">
-            <h4 className="font-bold text-lg mb-1 flex items-center gap-2">
-                {title}
-                {icon && <span className="text-gray-300 group-hover:text-[#c5a572] transition-colors">{icon}</span>}
-            </h4>
-            <p className="text-gray-500 text-sm leading-relaxed mb-3">{description}</p>
+        <div className="flex-1 pt-1 space-y-4">
+            <div>
+                <h4 className="font-bold text-lg mb-1 flex items-center gap-2">
+                    {title}
+                    {icon && <span className="text-gray-300 group-hover:text-[#c5a572] transition-colors">{icon}</span>}
+                </h4>
+                <p className="text-gray-500 text-sm leading-relaxed">{description}</p>
+            </div>
+
+            {image && (
+                <div className="relative rounded-xl overflow-hidden border border-gray-100 shadow-md group-hover:shadow-xl transition-all">
+                    <img src={image} alt={`Step ${number} - ${title}`} className="w-full h-auto object-cover" />
+                </div>
+            )}
+
             {actionButton && <div>{actionButton}</div>}
         </div>
+        {/* Connecting Line (Visual Only - Optional) */}
+        {!image && <div className="absolute left-4 top-10 bottom-0 w-px bg-gray-100 -z-0 ml-[15px] hidden md:block opacity-50 last:hidden" />}
     </div>
 );
 
