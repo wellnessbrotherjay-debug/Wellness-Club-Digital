@@ -136,8 +136,26 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
     }, [code, selectedServices, vouchers]);
 
     const handleScanSuccess = useCallback((scannedCode: string) => {
-        setCode(scannedCode);
-        setSelectedServices([]); // RESET SELECTION ON NEW SCAN
+        let cleanCode = scannedCode;
+
+        // 1. Try JSON (Guest Pass QR)
+        try {
+            const parsed = JSON.parse(scannedCode);
+            if (parsed.id) cleanCode = parsed.id;
+        } catch (e) {
+            // Not JSON
+        }
+
+        // 2. Try URL (Dashboard Link)
+        if (cleanCode.includes('/v/')) {
+            const parts = cleanCode.split('/v/');
+            if (parts[1]) {
+                cleanCode = parts[1].split('?')[0];
+            }
+        }
+
+        setCode(cleanCode);
+        setSelectedServices([]);
     }, []);
 
     const closeScanner = useCallback(() => {

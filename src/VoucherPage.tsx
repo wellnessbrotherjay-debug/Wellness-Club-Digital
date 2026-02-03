@@ -553,8 +553,9 @@ const VoucherPage: React.FC = () => {
                             <div className="bg-[#f0fdf4] border border-green-100 p-8 rounded-2xl animate-fade-in flex flex-col items-center gap-6 shadow-sm relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 translate-x-16 -translate-y-16 rounded-full" />
 
-                                <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 relative z-10">
+                                <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 relative z-10 flex flex-col items-center">
                                     <QRCode value={voucherUrl(currentVoucher)} size={200} />
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-4">Guest Scan to Download</p>
                                 </div>
 
                                 <div className="text-center relative z-10 w-full">
