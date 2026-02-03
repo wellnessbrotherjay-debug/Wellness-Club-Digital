@@ -12,6 +12,7 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "framer-motion": "^12.29.0",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.0.0",

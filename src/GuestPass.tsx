@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import { Helmet } from 'react-helmet-async';
 
 // Mock main site URL - replace with actual deployed URL later
@@ -177,6 +178,21 @@ const GuestPass: React.FC = () => {
         services: data.services
     })) : '');
 
+    const handleSavePass = async () => {
+        if (passRef.current === null) return;
+
+        try {
+            const dataUrl = await toPng(passRef.current, { cacheBust: true });
+            const link = document.createElement('a');
+            link.download = `Wellness-Pass-${data.guestName.replace(/\s+/g, '-')}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error(err);
+            alert('Could not save image. You can take a screenshot manually.');
+        }
+    };
+
     const discountLink = `${MAIN_SITE_URL}?promo=${encodeURIComponent(promoToken)}`;
 
     return (
@@ -234,6 +250,13 @@ const GuestPass: React.FC = () => {
 
                 {/* Action Button */}
                 <div className="px-8 pt-6 pb-2">
+                    <button
+                        onClick={handleSavePass}
+                        className="w-full mb-3 flex items-center justify-center gap-2 bg-[#c5a572] text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-[#b08d55] transition-all shadow-lg border border-[#c5a572]/50"
+                    >
+                        <Download size={16} />
+                        Save Pass to Photos
+                    </button>
                     <a
                         href={discountLink}
                         target="_blank"
