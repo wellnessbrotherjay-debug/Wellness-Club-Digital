@@ -36,16 +36,16 @@ export const useVoucherData = () => {
                 };
 
                 return {
-                    id: item.code || '',
-                    guestName: item.guestName || '',
-                    roomNumber: item.roomNumber || '',
+                    id: item.code ? String(item.code) : '',
+                    guestName: item.guestName ? String(item.guestName) : '',
+                    roomNumber: item.roomNumber ? String(item.roomNumber) : '',
                     checkIn: safeDate(item.checkIn),
                     checkOut: safeDate(item.checkOut),
-                    status: item.status || '',
+                    status: item.status ? String(item.status) : '',
                     created_at: item.created_at || item.timestamp || '',
                     redeemed_at: item.redeemed_at || '',
                     imageUrl: item.imageUrl || '',
-                    services: item.services ? item.services.split(', ') : [],
+                    services: item.services ? String(item.services).split(', ') : [],
                     redemptions: [],
                     pax: item.pax ? parseInt(item.pax as any) : 1,
                     secondGuestName: item.secondGuestName || ''

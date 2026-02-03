@@ -256,9 +256,9 @@ const VoucherPage: React.FC = () => {
     const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter(v => {
         const query = searchQuery.toLowerCase();
         return (
-            (v.guestName || '').toLowerCase().includes(query) ||
-            (v.id || '').toLowerCase().includes(query) ||
-            (v.roomNumber || '').toLowerCase().includes(query)
+            String(v.guestName || '').toLowerCase().includes(query) ||
+            String(v.id || '').toLowerCase().includes(query) ||
+            String(v.roomNumber || '').toLowerCase().includes(query)
         );
     });
 
