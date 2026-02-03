@@ -297,12 +297,6 @@ const VoucherPage: React.FC = () => {
                             Help
                         </button>
                         <button
-                            onClick={() => window.open('/schedule', '_blank')}
-                            className="text-xs font-bold uppercase tracking-widest text-[#2c2420] hover:text-[#c5a572] border border-[#2c2420]/10 px-4 py-2 rounded-lg transition-all hover:bg-[#2c2420]/5"
-                        >
-                            Schedule
-                        </button>
-                        <button
                             onClick={handleLogout}
                             className="text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-600 border border-red-200 px-4 py-2 rounded-lg transition-all hover:bg-red-50"
                         >

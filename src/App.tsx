@@ -5,7 +5,6 @@ import { HelmetProvider } from 'react-helmet-async';
 import VoucherPage from './VoucherPage';
 import GuestPass from './GuestPass';
 import HelpSection from './HelpSection';
-import SchedulePage from './SchedulePage';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { VoucherProvider } from './contexts/VoucherContext';
 
@@ -17,7 +16,6 @@ function App() {
           <Router>
             <Routes>
               <Route path="/" element={<VoucherPage />} />
-              <Route path="/schedule" element={<SchedulePage />} />
               <Route path="/v/:id" element={<GuestPass />} />
               <Route path="/help" element={<HelpSection />} />
               <Route path="*" element={<Navigate to="/" replace />} />
