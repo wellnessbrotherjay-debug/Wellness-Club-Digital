@@ -82,22 +82,23 @@ const HelpSection: React.FC = () => {
                         <Step
                             number={1}
                             title="Open the Schedule"
-                            description="Go to the Schedule page (`/schedule`) or click 'View Live Schedule' from the main screen dashboard."
+                            description="From the main dashboard, click the 'SCHEDULE' button in the top right navigation bar."
                             icon={<Calendar size={16} />}
-                            image="/tutorial/schedule_view_step.png"
+                            image="/tutorial/dashboard_with_schedule.png"
                         />
                         <Step
                             number={2}
                             title="Select Class & Time"
                             description="Click on any class card (e.g., 'Pilates') to open the booking options. Available time slots will be shown."
                             icon={<ChevronRight size={16} />}
-                            image="/tutorial/booking_modal_step.png"
+                            image="/tutorial/schedule_modal_view.png"
                         />
                         <Step
                             number={3}
                             title="Enter Guest Details"
                             description="Fill in the Guest Name, Email, and WhatsApp number. Select the number of Pax to ensure the team knows how many people are coming."
                             icon={<Users size={16} />}
+                            image="/tutorial/booking_modal_step.png"
                         />
                         <Step
                             number={4}
