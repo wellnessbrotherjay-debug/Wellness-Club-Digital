@@ -253,11 +253,14 @@ const VoucherPage: React.FC = () => {
         }
     };
 
-    const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter(v =>
-        v.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.roomNumber.includes(searchQuery)
-    );
+    const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter(v => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (v.guestName || '').toLowerCase().includes(query) ||
+            (v.id || '').toLowerCase().includes(query) ||
+            (v.roomNumber || '').toLowerCase().includes(query)
+        );
+    });
 
     const voucherUrl = (voucher: VoucherData) =>
         `${window.location.origin}/v/${voucher.id}?d=${btoa(JSON.stringify(voucher))}`;
