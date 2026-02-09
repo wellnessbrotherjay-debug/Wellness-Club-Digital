@@ -13,22 +13,52 @@ const AnalyticsDashboard: React.FC = () => {
         // hasLoaded
     } = useVoucherData();
 
-    const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all'>('launch');
+    const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all'>('all');
 
     // --- Analytics Logic ---
     const stats = useMemo(() => {
         const now = new Date();
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const launchDate = new Date('2026-02-04T00:00:00'); // Wednesday last week
+        // Launch Date: Jan 1, 2026 (Local Time)
+        // Note: Month is 0-indexed (0=Jan, 1=Feb)
+        const launchDate = new Date(2026, 0, 1);
 
-        let filteredRedemptions = redemptions;
+        // Derive redemptions directly from vouchers to ensure consistency
+        // (This acts as a fallback if the hook's redemptions state is empty or out of sync)
+        const effectiveRedemptions = redemptions.length > 0 ? redemptions : vouchers
+            .filter(v => v.status === 'Redeemed')
+            .map(v => ({
+                timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
+                voucherCode: v.id,
+                guestName: v.guestName,
+                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
+            }));
+
+        let filteredRedemptions = effectiveRedemptions;
+
+        const parseDate = (dateStr: string) => {
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
         if (timeRange === 'week') {
-            filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= oneWeekAgo);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= oneWeekAgo;
+            });
         } else if (timeRange === 'month') {
-            filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= oneMonthAgo);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= oneMonthAgo;
+            });
         } else if (timeRange === 'launch') {
-            filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= launchDate);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                // If invalid date, maybe include it? better exclude to avoid garbage.
+                // But let's log if we have issues.
+                return d && d >= launchDate;
+            });
         }
 
         // Service Breakdown

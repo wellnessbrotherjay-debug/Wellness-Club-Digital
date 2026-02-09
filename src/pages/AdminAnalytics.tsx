@@ -12,7 +12,7 @@ const AdminAnalytics: React.FC = () => {
         redemptions
     } = useVoucherData();
 
-    const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');
+    const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('all');
 
     // --- Analytics Logic ---
     const stats = useMemo(() => {
@@ -20,11 +20,21 @@ const AdminAnalytics: React.FC = () => {
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        let filteredRedemptions = redemptions;
+        // Derive redemptions directly from vouchers if the hook state is empty/sync issue
+        const effectiveRedemptions = redemptions.length > 0 ? redemptions : vouchers
+            .filter(v => v.status === 'Redeemed')
+            .map(v => ({
+                timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
+                voucherCode: v.id,
+                guestName: v.guestName,
+                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
+            }));
+
+        let filteredRedemptions = effectiveRedemptions;
         if (timeRange === 'week') {
-            filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= oneWeekAgo);
+            filteredRedemptions = effectiveRedemptions.filter(r => new Date(r.timestamp) >= oneWeekAgo);
         } else if (timeRange === 'month') {
-            filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= oneMonthAgo);
+            filteredRedemptions = effectiveRedemptions.filter(r => new Date(r.timestamp) >= oneMonthAgo);
         }
 
         // Service Breakdown

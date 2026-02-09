@@ -24,6 +24,7 @@ export const useVoucherData = () => {
 
             if (!Array.isArray(data)) {
                 setRecentVouchers([]);
+                setRedemptions([]);
                 setHasInitialLoaded(true);
                 return;
             }
@@ -53,11 +54,19 @@ export const useVoucherData = () => {
             }).reverse();
 
             setRecentVouchers(mapped);
-            setHasInitialLoaded(true);
-        };
 
-        (window as any).loadRedemptions = (data: any) => {
-            setRedemptions(Array.isArray(data) ? data : []);
+            // Derive redemptions from vouchers
+            const derivedRedemptions: RedemptionData[] = mapped
+                .filter(v => v.status === 'Redeemed')
+                .map(v => ({
+                    timestamp: v.redeemed_at || v.created_at, // Fallback to created_at if redeemed_at is missing
+                    voucherCode: v.id,
+                    guestName: v.guestName,
+                    serviceType: v.services && v.services.length > 0 ? v.services[0] : 'General Admission'
+                }));
+
+            setRedemptions(derivedRedemptions);
+            setHasInitialLoaded(true);
         };
     }, []);
 
@@ -71,13 +80,7 @@ export const useVoucherData = () => {
         document.body.appendChild(vScript);
         vScript.onload = () => document.body.removeChild(vScript);
 
-        // Fetch Redemptions
-        const rScript = document.createElement('script');
-        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
-        document.body.appendChild(rScript);
-        rScript.onload = () => document.body.removeChild(rScript);
-
-        rScript.onerror = vScript.onerror = () => {
+        vScript.onerror = () => {
             setIsFetchingHistory(false);
             setFetchError(true);
         };

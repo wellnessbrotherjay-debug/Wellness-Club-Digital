@@ -77,6 +77,16 @@ const VoucherPage: React.FC = () => {
         refresh: fetchData
     } = useVoucherData();
 
+    // Robust fallback for redemptions
+    const effectiveRedemptions = redemptions.length > 0 ? redemptions : recentVouchers
+        .filter(v => v.status === 'Redeemed')
+        .map(v => ({
+            timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
+            voucherCode: v.id,
+            guestName: v.guestName,
+            serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
+        }));
+
     // Auth Persistence & Magic Links
     useEffect(() => {
         // Check URL for magic PIN
@@ -777,7 +787,7 @@ const VoucherPage: React.FC = () => {
 
                                             {/* REDEMPTION HISTORY IN LIST */}
                                             <div className="mt-2 space-y-1">
-                                                {Array.isArray(redemptions) && redemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
+                                                {Array.isArray(effectiveRedemptions) && effectiveRedemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
                                                     <div key={`red-${idx}`} className="text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 flex justify-between items-center">
                                                         <CheckCircle size={10} />
                                                         <span className="text-[9px] font-bold uppercase">
