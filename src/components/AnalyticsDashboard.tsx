@@ -13,19 +13,22 @@ const AnalyticsDashboard: React.FC = () => {
         // hasLoaded
     } = useVoucherData();
 
-    const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');
+    const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all'>('launch');
 
     // --- Analytics Logic ---
     const stats = useMemo(() => {
         const now = new Date();
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const launchDate = new Date('2026-02-04T00:00:00'); // Wednesday last week
 
         let filteredRedemptions = redemptions;
         if (timeRange === 'week') {
             filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= oneWeekAgo);
         } else if (timeRange === 'month') {
             filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= oneMonthAgo);
+        } else if (timeRange === 'launch') {
+            filteredRedemptions = redemptions.filter(r => new Date(r.timestamp) >= launchDate);
         }
 
         // Service Breakdown
@@ -69,16 +72,16 @@ const AnalyticsDashboard: React.FC = () => {
                     <span className="text-xs font-bold uppercase tracking-widest">Performance Config</span>
                 </div>
                 <div className="flex bg-gray-50 p-1 rounded-lg">
-                    {(['week', 'month', 'all'] as const).map((range) => (
+                    {(['launch', 'week', 'month', 'all'] as const).map((range) => (
                         <button
                             key={range}
                             onClick={() => setTimeRange(range)}
                             className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all ${timeRange === range
-                                    ? 'bg-white text-[#c5a572] shadow-sm'
-                                    : 'text-gray-400 hover:text-gray-600'
+                                ? 'bg-white text-[#c5a572] shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600'
                                 }`}
                         >
-                            {range === 'all' ? 'All Time' : `This ${range}`}
+                            {range === 'all' ? 'All Time' : range === 'launch' ? 'Since Launch' : `This ${range}`}
                         </button>
                     ))}
                 </div>
