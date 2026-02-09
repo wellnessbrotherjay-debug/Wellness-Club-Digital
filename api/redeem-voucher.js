@@ -1,3 +1,5 @@
+import { Resend } from 'resend';
+
 export default async function handler(req, res) {
     // Enable CORS for all origins (or restrict to your domain) to allow mobile browser access
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -37,6 +39,36 @@ export default async function handler(req, res) {
         // Try to parse JSON response from Google Script if possible
         try {
             const jsonData = JSON.parse(data);
+
+            // Send notification email if redemption was successful
+            if (jsonData.status === 'success' && process.env.RESEND_API_KEY) {
+                try {
+                    const resend = new Resend(process.env.RESEND_API_KEY);
+                    const { voucherCode, serviceType, guestName } = req.body;
+
+                    await resend.emails.send({
+                        from: 'No.1 Wellness <notifications@resend.dev>', // Update this if you have a custom domain
+                        to: ['wellnessbrotherjay@gmail.com'],
+                        subject: `Voucher Redeemed: ${guestName} (${voucherCode})`,
+                        html: `
+                            <div style="font-family: sans-serif; color: #2c2420;">
+                                <h1>New Voucher Redemption</h1>
+                                <p><strong>Guest Name:</strong> ${guestName || 'Unknown'}</p>
+                                <p><strong>Voucher Code:</strong> ${voucherCode}</p>
+                                <p><strong>Service Redeemed:</strong> ${serviceType || 'General Use'}</p>
+                                <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })}</p>
+                                <hr />
+                                <p><a href="https://wellness-club-digital.vercel.app/admin/analytics">View Analytics Board</a></p>
+                            </div>
+                        `
+                    });
+                    console.log('Notification email sent for voucher:', voucherCode);
+                } catch (emailError) {
+                    console.error('Failed to send email notification:', emailError);
+                    // Don't fail the request if email fails, just log it
+                }
+            }
+
             return res.status(200).json(jsonData);
         } catch (e) {
             return res.status(200).json({ success: true, raw: data });

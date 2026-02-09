@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, Download } from 'lucide-react';
+import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, Download, Share2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { Helmet } from 'react-helmet-async';
 
-// Mock main site URL - replace with actual deployed URL later
-const MAIN_SITE_URL = 'https://www.no1wellness.com';
+// Main site URL - dynamic for local development
+const MAIN_SITE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://www.no1wellness.com';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
 
 const GuestPass: React.FC = () => {
@@ -17,6 +19,7 @@ const GuestPass: React.FC = () => {
     const [status, setStatus] = useState<'loading' | 'valid' | 'redeemed' | 'error'>('loading');
     const [statusMessage, setStatusMessage] = useState('');
     const [redemptions, setRedemptions] = useState<any[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const encodedData = searchParams.get('d');
@@ -169,27 +172,109 @@ const GuestPass: React.FC = () => {
 
     // Pass the ENCODED data to the main site so it can validate expiration
     // If we land via short URL (no ?d=), we re-encode the data for the main site
-    const promoToken = searchParams.get('d') || (data ? btoa(JSON.stringify({
-        id: id,
-        guestName: data.guestName,
-        roomNumber: data.roomNumber,
-        checkIn: data.checkIn || '',
-        checkOut: data.checkOut,
-        services: data.services
-    })) : '');
+    const promoToken = searchParams.get('d') || (data ? (() => {
+        const payload = JSON.stringify({
+            id: id,
+            guestName: data.guestName,
+            roomNumber: data.roomNumber,
+            checkIn: data.checkIn || '',
+            checkOut: data.checkOut,
+            services: data.services
+        });
+        const bytes = new TextEncoder().encode(payload);
+        let binary = '';
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    })() : '');
 
     const handleSavePass = async () => {
         if (passRef.current === null) return;
 
+        setIsSaving(true);
+
         try {
-            const dataUrl = await toPng(passRef.current, { cacheBust: true });
+            // Higher quality settings for better mobile display
+            const dataUrl = await toPng(passRef.current, {
+                cacheBust: true,
+                quality: 1,
+                pixelRatio: 2, // Higher resolution for retina displays
+                backgroundColor: '#2c2420'
+            });
+
+            // Create download link
             const link = document.createElement('a');
-            link.download = `Wellness-Pass-${data.guestName.replace(/\s+/g, '-')}.png`;
+            const fileName = `No1-Wellness-Pass-${data.guestName.replace(/\s+/g, '-')}.png`;
+            link.download = fileName;
             link.href = dataUrl;
+
+            // Trigger download
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
+
+            // Show success feedback
+            alert('✓ Pass saved! Check your Downloads folder or Photos app.');
+
         } catch (err) {
-            console.error(err);
-            alert('Could not save image. You can take a screenshot manually.');
+            console.error('Save error:', err);
+
+            // More helpful error message for mobile users
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                alert('💡 Tip: Take a screenshot instead!\n\niPhone: Press Side + Volume Up\nAndroid: Press Power + Volume Down\n\nOr use your browser\'s "Save as Image" feature.');
+            } else {
+                alert('Could not save image. Please try:\n1. Taking a screenshot\n2. Right-click and "Save image as..."\n3. Using a different browser');
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSharePass = async () => {
+        if (passRef.current === null) return;
+
+        setIsSaving(true);
+
+        try {
+            // Generate the image
+            const dataUrl = await toPng(passRef.current, {
+                cacheBust: true,
+                quality: 1,
+                pixelRatio: 2,
+                backgroundColor: '#2c2420'
+            });
+
+            // Convert data URL to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+
+            // Create file from blob
+            const file = new File([blob], `No1-Wellness-Pass-${data.guestName.replace(/\s+/g, '-')}.png`, { type: 'image/png' });
+
+            // Check if Web Share API is available and supports files
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'No.1 Wellness Club Pass',
+                    text: `Digital wellness pass for ${data.guestName}`
+                });
+            } else {
+                // Fallback to download if share not available
+                handleSavePass();
+            }
+
+        } catch (err: any) {
+            // User cancelled share or error occurred
+            if (err.name !== 'AbortError') {
+                console.error('Share error:', err);
+                // Fallback to download
+                handleSavePass();
+            }
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -250,13 +335,31 @@ const GuestPass: React.FC = () => {
 
                 {/* Action Button */}
                 <div className="px-8 pt-6 pb-2">
-                    <button
-                        onClick={handleSavePass}
-                        className="w-full mb-3 flex items-center justify-center gap-2 bg-[#c5a572] text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-[#b08d55] transition-all shadow-lg border border-[#c5a572]/50"
-                    >
-                        <Download size={16} />
-                        Save Pass to Photos
-                    </button>
+                    {(() => {
+                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                        const hasShareAPI = typeof navigator.share !== 'undefined';
+                        const useShare = isMobile && hasShareAPI;
+
+                        return (
+                            <button
+                                onClick={useShare ? handleSharePass : handleSavePass}
+                                disabled={isSaving}
+                                className="w-full mb-3 flex items-center justify-center gap-2 bg-[#c5a572] text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-[#b08d55] transition-all shadow-lg border border-[#c5a572]/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        Preparing Image...
+                                    </>
+                                ) : (
+                                    <>
+                                        {useShare ? <Share2 size={16} /> : <Download size={16} />}
+                                        {useShare ? 'Save & Share Pass' : 'Save Pass to Photos'}
+                                    </>
+                                )}
+                            </button>
+                        );
+                    })()}
                     <a
                         href={discountLink}
                         target="_blank"

@@ -3,10 +3,11 @@ import { Helmet } from 'react-helmet-async';
 import {
     CheckCircle, Loader2, Copy, ExternalLink,
     RefreshCw, Calendar, PlusCircle, Scan,
-    List, History, Search, Trash2, XCircle, AlertCircle, Mail
+    List, History, Search, Trash2, XCircle, AlertCircle, Mail, BarChart
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
 
 import { APPS_SCRIPT_URL } from './constants/config';
@@ -41,7 +42,7 @@ import { useVoucherData } from './hooks/useVoucherData';
 
 const VoucherPage: React.FC = () => {
     const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null);
-    const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued'>('create');
+    const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued' | 'analytics'>('create');
     const [formData, setFormData] = useState({
         guestName: '',
         roomNumber: '',
@@ -298,12 +299,6 @@ const VoucherPage: React.FC = () => {
                         >
                             Help
                         </button>
-                        <button
-                            onClick={handleLogout}
-                            className="text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-600 border border-red-200 px-4 py-2 rounded-lg transition-all hover:bg-red-50"
-                        >
-                            Logout
-                        </button>
                     </div>
                 </div>
 
@@ -311,12 +306,14 @@ const VoucherPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-6 overflow-x-auto">
                     <div className="flex border-t border-gray-50">
                         {userRole === 'admin' && (
-                            <button
-                                onClick={() => setActiveTab('create')}
-                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'create' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <PlusCircle size={16} /> Create
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => setActiveTab('create')}
+                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'create' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <PlusCircle size={16} /> Create
+                                </button>
+                            </>
                         )}
                         <button
                             onClick={() => setActiveTab('validate')}
@@ -325,13 +322,21 @@ const VoucherPage: React.FC = () => {
                             <Scan size={16} /> Validate
                         </button>
                         {userRole === 'admin' && (
-                            <button
-                                onClick={() => setActiveTab('issued')}
-                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <List size={16} /> Issued
-                                <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => setActiveTab('issued')}
+                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <List size={16} /> Issued
+                                    <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('analytics')}
+                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'analytics' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <BarChart size={16} /> Analytics
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>

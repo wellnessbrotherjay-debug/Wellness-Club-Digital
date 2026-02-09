@@ -1,7 +1,6 @@
 import React, { useState, useCallback, memo } from 'react';
 import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera, AlertTriangle } from 'lucide-react';
 import QRScanner from './QRScanner';
-import { APPS_SCRIPT_URL } from './constants/config';
 import type { VoucherData } from './VoucherPage';
 
 // MAPPING: defines which 'Creation Service' unlocks which 'Redeemable Service'
@@ -109,25 +108,32 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         const serviceType = selectedServices.join(', ');
 
         try {
-            await fetch(APPS_SCRIPT_URL, {
+            // Find voucher to get guest name for email notification
+            const voucher = vouchers.find(v => v.id === targetCode);
+
+            // Use our own API proxy to handle Email Notifications + Google Sheet Update
+            const response = await fetch('/api/redeem-voucher', {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'redeem',
                     voucherCode: targetCode,
                     serviceType: serviceType,
-                    // Use a simple timestamp format that the sheet expects, or ISO
+                    guestName: voucher?.guestName || 'Unknown Guest',
                     redeemedAt: new Date().toISOString()
                 })
             });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
 
             // Artificial delay so the user can see the "Redeeming" status on mobile
             setTimeout(() => {
                 setStatus('valid');
                 setSelectedServices([]); // RESET SELECTION
                 if (!manualCode) setCode('');
-            }, 1500);
+            }, 1000);
 
         } catch (e) {
             console.error("Redemption failed:", e);
