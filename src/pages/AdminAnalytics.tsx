@@ -9,9 +9,7 @@ import { useVoucherData } from '../hooks/useVoucherData';
 const AdminAnalytics: React.FC = () => {
     const {
         vouchers,
-        redemptions,
-        isFetching,
-        hasLoaded
+        redemptions
     } = useVoucherData();
 
     const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');

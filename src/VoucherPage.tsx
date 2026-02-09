@@ -107,11 +107,7 @@ const VoucherPage: React.FC = () => {
         if (role === 'staff') setActiveTab('validate');
     };
 
-    const handleLogout = () => {
-        setUserRole(null);
-        localStorage.removeItem('wellness_session');
-        setActiveTab('create');
-    };
+
 
     // Removed localStorage logic as we now fetch from Sheets
 
@@ -822,6 +818,11 @@ const VoucherPage: React.FC = () => {
                         </div>
                     </div>
                 )}
+                {/* ANALYTICS TAB */}
+                {activeTab === 'analytics' && (
+                    <AnalyticsDashboard />
+                )}
+
             </main>
         </div>
     );
