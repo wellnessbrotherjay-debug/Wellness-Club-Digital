@@ -181,6 +181,9 @@ const AnalyticsDashboard: React.FC = () => {
 
     return (
         <div className="animate-fade-in space-y-8">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center font-bold">
+                🚀 VERSION UPDATE: POS TOOLS ACTIVE (v2) - IF YOU SEE THIS, THE UPDATE WORKED!
+            </div>
             <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2 text-gray-400">
                     <BarChart size={20} />
