@@ -16,6 +16,8 @@ const AnalyticsDashboard: React.FC = () => {
     } = useVoucherData();
 
     const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all'>('all');
+    const [posCount, setPosCount] = useState<number | ''>('');
+
     const [showManualInput, setShowManualInput] = useState(false);
     const [manualForm, setManualForm] = useState({
         store: 'No.1 Wellness',
@@ -242,7 +244,7 @@ const AnalyticsDashboard: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <h3 className="font-serif font-bold text-lg flex items-center gap-2 text-purple-900">
                             <CheckCircle size={18} className="text-purple-600" />
-                            Manual Hotel Vouchers (TSS)
+                            POS Reconciliation & Manual Entry
                         </h3>
                         <button
                             onClick={() => setShowManualInput(true)}
@@ -251,26 +253,38 @@ const AnalyticsDashboard: React.FC = () => {
                             <PlusCircle size={12} /> Log Manual Entry
                         </button>
                     </div>
-                    {stats.manualRedemptions > 0 && (
-                        <div className="flex gap-2">
-                            {['No.1 Wellness', 'T Store', 'Hair & Salon'].map(store => {
-                                const count = stats.recentActivity
-                                    .filter(r => r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
-                                    .filter(r => {
-                                        const s = r.serviceType || '';
-                                        if (store === 'T Store') return s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories');
-                                        if (store === 'Hair & Salon') return s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial');
-                                        return !(s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories') || s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial'));
-                                    }).length;
-                                return (
-                                    <div key={store} className="bg-purple-50 px-3 py-1 rounded-lg border border-purple-100">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 block">{store}</span>
-                                        <span className="text-lg font-bold text-purple-800">{count}</span>
-                                    </div>
-                                );
-                            })}
+
+                    <div className="flex items-center gap-4 bg-purple-50 p-2 rounded-xl border border-purple-100">
+                        <div className="text-right">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">System Recorded</p>
+                            <p className="text-xl font-bold text-purple-900 leading-none">{stats.manualRedemptions}</p>
                         </div>
-                    )}
+                        <div className="h-8 w-px bg-purple-200"></div>
+                        <div className="text-right">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Actual POS Count</p>
+                            <input
+                                type="number"
+                                className="w-16 bg-white border border-purple-200 rounded px-1 py-0.5 text-right font-bold text-purple-900 text-lg leading-none focus:outline-none focus:border-purple-400"
+                                value={posCount}
+                                onChange={(e) => setPosCount(e.target.value === '' ? '' : parseInt(e.target.value))}
+                            />
+                        </div>
+
+                        {posCount !== '' && (
+                            <>
+                                <div className="h-8 w-px bg-purple-200"></div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Status</p>
+                                    {(() => {
+                                        const diff = (posCount as number) - stats.manualRedemptions;
+                                        if (diff > 0) return <p className="text-sm font-bold text-red-500 leading-none">Missing {diff}</p>;
+                                        if (diff < 0) return <p className="text-sm font-bold text-orange-500 leading-none">Excess {Math.abs(diff)}</p>;
+                                        return <p className="text-sm font-bold text-green-500 leading-none">Synced</p>;
+                                    })()}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {stats.manualRedemptions > 0 ? (
