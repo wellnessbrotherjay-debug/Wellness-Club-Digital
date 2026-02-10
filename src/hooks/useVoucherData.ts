@@ -7,6 +7,7 @@ interface RedemptionData {
     voucherCode: string;
     guestName: string;
     serviceType: string;
+    roomNumber: string;
 }
 
 export const useVoucherData = () => {
@@ -62,7 +63,8 @@ export const useVoucherData = () => {
                     timestamp: v.redeemed_at || v.created_at, // Fallback to created_at if redeemed_at is missing
                     voucherCode: v.id,
                     guestName: v.guestName,
-                    serviceType: v.services && v.services.length > 0 ? v.services[0] : 'General Admission'
+                    serviceType: v.services && v.services.length > 0 ? v.services[0] : 'General Admission',
+                    roomNumber: v.roomNumber || ''
                 }));
 
             setRedemptions(derivedRedemptions);

@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
     BarChart, TrendingUp, Users,
-    Activity, CheckCircle, Clock
+    Activity, CheckCircle, Clock, PlusCircle, X, Save
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
+import { APPS_SCRIPT_URL } from '../constants/config';
+import { SERVICE_GROUPS } from '../constants/services';
 
 const AnalyticsDashboard: React.FC = () => {
     const {
@@ -14,6 +16,80 @@ const AnalyticsDashboard: React.FC = () => {
     } = useVoucherData();
 
     const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all'>('all');
+    const [showManualInput, setShowManualInput] = useState(false);
+    const [manualForm, setManualForm] = useState({
+        store: 'No.1 Wellness',
+        service: '',
+        roomNumber: '',
+        guestName: '',
+        date: new Date().toISOString().split('T')[0]
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleManualSubmit = async () => {
+        setIsSubmitting(true);
+        // Tag room with TSS# if not present
+        const roomTag = manualForm.roomNumber.toLowerCase().includes('tss')
+            ? manualForm.roomNumber
+            : `TSS #${manualForm.roomNumber}`;
+
+        const payload = JSON.stringify({
+            voucherCode: `MANUAL-${Math.floor(Math.random() * 10000)}`,
+            userName: manualForm.guestName,
+            status: 'Redeemed',
+            roomNumber: roomTag,
+            checkIn: manualForm.date,
+            checkOut: manualForm.date,
+            services: manualForm.service,
+            created_at: new Date(manualForm.date).toISOString(),
+            redeemed_at: new Date(manualForm.date).toISOString(),
+            pax: 1
+        });
+
+        try {
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: payload,
+            });
+
+            // Close and reset
+            setShowManualInput(false);
+            setManualForm({
+                store: 'No.1 Wellness',
+                service: '',
+                roomNumber: '',
+                guestName: '',
+                date: new Date().toISOString().split('T')[0]
+            });
+            // Trigger refresh via window reload or hook if possible, 
+            // but hook polling will pick it up eventually. 
+            // For now, let's just alert or let polling handle it.
+            alert('Manual entry logged. It may take a few moments to appear.');
+
+        } catch (error) {
+            console.error("Error logging manual entry:", error);
+            alert('Failed to log entry.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Filter services based on selected store
+    const availableServices = useMemo(() => {
+        const storeMap: Record<string, string[]> = {
+            'No.1 Wellness': ['Massage & Spa (No.1 Wellness)', 'IV Therapy', 'Fitness & Wellness', 'Other'],
+            'T Store': ['T Store Shopping'],
+            'Hair & Salon': ['TS Salon Services']
+        };
+
+        const relevantGroups = storeMap[manualForm.store] || [];
+
+        return SERVICE_GROUPS
+            .filter(g => relevantGroups.includes(g.label))
+            .flatMap(g => g.items) as { value: string; label: string }[];
+    }, [manualForm.store]);
 
     // --- Analytics Logic ---
     const stats = useMemo(() => {
@@ -32,7 +108,8 @@ const AnalyticsDashboard: React.FC = () => {
                 timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
                 voucherCode: v.id,
                 guestName: v.guestName,
-                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
+                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission',
+                roomNumber: v.roomNumber || ''
             }));
 
         let filteredRedemptions = effectiveRedemptions;
@@ -83,8 +160,14 @@ const AnalyticsDashboard: React.FC = () => {
             }
         });
 
+        const manualRedemptions = filteredRedemptions.filter(r =>
+            (r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
+        ).length;
+
         return {
             totalRedemptions: filteredRedemptions.length,
+            manualRedemptions,
+            systemRedemptions: filteredRedemptions.length - manualRedemptions,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
             dailyCounts: Object.entries(dailyCounts).reverse(), // Oldest to newest
@@ -118,13 +201,22 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
                     <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
                         <TrendingUp size={24} />
                     </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Redemptions ({timeRange})</p>
                     <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                    <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600">
+                        <CheckCircle size={24} />
+                    </div>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Manual Input</p>
+                    <h3 className="text-4xl font-serif font-bold">{stats.manualRedemptions}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">vs {stats.systemRedemptions} System</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
@@ -142,6 +234,91 @@ const AnalyticsDashboard: React.FC = () => {
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Vouchers</p>
                     <h3 className="text-4xl font-serif font-bold">{activeVouchersCount}</h3>
                 </div>
+            </div>
+
+            {/* Manual Vouchers Section */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-100">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div className="flex items-center gap-4">
+                        <h3 className="font-serif font-bold text-lg flex items-center gap-2 text-purple-900">
+                            <CheckCircle size={18} className="text-purple-600" />
+                            Manual Hotel Vouchers (TSS)
+                        </h3>
+                        <button
+                            onClick={() => setShowManualInput(true)}
+                            className="px-3 py-1 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-widest rounded hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                            <PlusCircle size={12} /> Log Manual Entry
+                        </button>
+                    </div>
+                    {stats.manualRedemptions > 0 && (
+                        <div className="flex gap-2">
+                            {['No.1 Wellness', 'T Store', 'Hair & Salon'].map(store => {
+                                const count = stats.recentActivity
+                                    .filter(r => r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
+                                    .filter(r => {
+                                        const s = r.serviceType || '';
+                                        if (store === 'T Store') return s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories');
+                                        if (store === 'Hair & Salon') return s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial');
+                                        return !(s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories') || s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial'));
+                                    }).length;
+                                return (
+                                    <div key={store} className="bg-purple-50 px-3 py-1 rounded-lg border border-purple-100">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 block">{store}</span>
+                                        <span className="text-lg font-bold text-purple-800">{count}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {stats.manualRedemptions > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {['No.1 Wellness', 'T Store', 'Hair & Salon'].map((store) => (
+                            <div key={store} className="bg-purple-50/30 rounded-xl p-4 border border-purple-50">
+                                <h4 className="font-bold text-sm text-purple-900 mb-3 uppercase tracking-wide border-b border-purple-100 pb-2">{store}</h4>
+                                <div className="space-y-3">
+                                    {stats.recentActivity
+                                        .filter(r => r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
+                                        .filter(r => {
+                                            const s = r.serviceType || '';
+                                            if (store === 'T Store') return s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories');
+                                            if (store === 'Hair & Salon') return s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial');
+                                            return !(s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories') || s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial'));
+                                        })
+                                        .map((r, idx) => (
+                                            <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-purple-50 flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-bold text-xs text-purple-900">{r.guestName}</div>
+                                                    <div className="text-[10px] text-gray-500 font-mono mt-0.5">{new Date(r.timestamp).toLocaleDateString()}</div>
+                                                    <div className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded inline-block mt-1 font-bold uppercase">{r.roomNumber}</div>
+                                                </div>
+                                                <div className="text-[10px] bg-gray-50 px-2 py-1 rounded border border-gray-100 max-w-[80px] text-right font-medium truncate">
+                                                    {r.serviceType}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    {stats.recentActivity
+                                        .filter(r => r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
+                                        .filter(r => {
+                                            const s = r.serviceType || '';
+                                            if (store === 'T Store') return s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories');
+                                            if (store === 'Hair & Salon') return s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial');
+                                            return !(s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories') || s.includes('Salon') || s.includes('Hair') || s.includes('Manicure') || s.includes('Facial'));
+                                        }).length === 0 && (
+                                            <p className="text-[10px] text-gray-400 italic text-center py-4">No data.</p>
+                                        )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 bg-purple-50/20 rounded-xl border border-dashed border-purple-100">
+                        <p className="text-sm text-purple-800 font-medium">No manual POS vouchers logged yet.</p>
+                        <p className="text-xs text-gray-400 mt-1">Use the button above to add entries from the POS manually.</p>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -208,13 +385,24 @@ const AnalyticsDashboard: React.FC = () => {
                                                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                                             })}
                                         </td>
-                                        <td className="py-4 font-bold">{r.guestName}</td>
+                                        <td className="py-4 font-bold">
+                                            {r.guestName}
+                                            {r.roomNumber && r.roomNumber.toLowerCase().includes('tss') && (
+                                                <div className="text-[10px] text-purple-600 font-bold uppercase tracking-wider mt-1">
+                                                    #Manual Input (No System)
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="py-4">
                                             <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-green-100">
                                                 {r.serviceType}
                                             </span>
                                         </td>
-                                        <td className="py-4 font-mono text-xs text-gray-400">{r.voucherCode}</td>
+                                        <td className="py-4">
+                                            <span className={`font-mono text-xs ${r.roomNumber && r.roomNumber.toLowerCase().includes('tss') ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
+                                                {r.voucherCode}
+                                            </span>
+                                        </td>
                                     </tr>
                                 ))}
                                 {stats.recentActivity.length === 0 && (
@@ -229,6 +417,106 @@ const AnalyticsDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {/* Manual Entry Modal */}
+            {showManualInput && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                        <div className="bg-purple-50 p-6 border-b border-purple-100 flex justify-between items-center">
+                            <h3 className="font-serif font-bold text-lg text-purple-900 flex items-center gap-2">
+                                <PlusCircle size={20} className="text-purple-600" />
+                                Log Manual POS Voucher
+                            </h3>
+                            <button
+                                onClick={() => setShowManualInput(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Store / Department</label>
+                                <div className="flex bg-gray-50 p-1 rounded-lg">
+                                    {['No.1 Wellness', 'T Store', 'Hair & Salon'].map(store => (
+                                        <button
+                                            key={store}
+                                            onClick={() => setManualForm({ ...manualForm, store, service: '' })}
+                                            className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${manualForm.store === store
+                                                ? 'bg-white text-purple-600 shadow-sm'
+                                                : 'text-gray-400 hover:text-gray-600'
+                                                }`}
+                                        >
+                                            {store}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Date</label>
+                                    <input
+                                        type="date"
+                                        className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-purple-300 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                                        value={manualForm.date}
+                                        onChange={e => setManualForm({ ...manualForm, date: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">POS Room #</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 101"
+                                        className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-purple-300 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                                        value={manualForm.roomNumber}
+                                        onChange={e => setManualForm({ ...manualForm, roomNumber: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Name (Optional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Guest Name"
+                                    className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-purple-300 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                                    value={manualForm.guestName}
+                                    onChange={e => setManualForm({ ...manualForm, guestName: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Service Redeemed</label>
+                                <select
+                                    className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-purple-300 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                                    value={manualForm.service}
+                                    onChange={e => setManualForm({ ...manualForm, service: e.target.value })}
+                                >
+                                    <option value="">Select Service...</option>
+                                    {availableServices.map((item, idx) => (
+                                        <option key={idx} value={item.value}>{item.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button
+                                onClick={handleManualSubmit}
+                                disabled={isSubmitting || !manualForm.roomNumber || !manualForm.service}
+                                className="w-full bg-purple-600 text-white font-bold uppercase tracking-widest text-xs py-4 rounded-xl mt-4 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? (
+                                    <span>Saving...</span>
+                                ) : (
+                                    <>
+                                        <Save size={16} /> Save Record
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
