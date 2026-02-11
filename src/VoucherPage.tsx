@@ -42,7 +42,7 @@ import { useVoucherData } from './hooks/useVoucherData';
 
 const VoucherPage: React.FC = () => {
     const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null);
-    const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued' | 'analytics'>('create');
+    const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued' | 'analytics' | 'declined'>('create');
     const [formData, setFormData] = useState({
         guestName: '',
         roomNumber: '',
@@ -67,6 +67,14 @@ const VoucherPage: React.FC = () => {
     const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const [nonIssuanceForm, setNonIssuanceForm] = useState({
+        roomNumber: '',
+        duration: '',
+        reason: '' as 'No WhatsApp' | 'Busy' | 'Not Interested' | 'Custom' | '',
+        customReason: ''
+    });
+    const [isLogging, setIsLogging] = useState(false);
 
     // Use custom hook for data fetching
     const {
@@ -255,6 +263,46 @@ const VoucherPage: React.FC = () => {
             setEmailStatus('sent');
             setTimeout(() => setEmailStatus('idle'), 3000);
         }, 1000);
+    };
+
+    const handleLogNonIssuance = async () => {
+        const { roomNumber, duration, reason, customReason } = nonIssuanceForm;
+        if (!roomNumber || !reason) {
+            alert("Please provide at least a room number and a reason.");
+            return;
+        }
+
+        setIsLogging(true);
+        const finalReason = reason === 'Custom' ? customReason : reason;
+
+        try {
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'log_non_issuance',
+                    roomNumber: roomNumber,
+                    duration: duration,
+                    reason: finalReason,
+                    timestamp: new Date().toISOString()
+                }),
+            });
+
+            alert("Insight logged successfully. Thank you!");
+            setNonIssuanceForm({
+                roomNumber: '',
+                duration: '',
+                reason: '',
+                customReason: ''
+            });
+            setActiveTab('create');
+        } catch (error) {
+            console.error("Error logging insight:", error);
+            alert("Failed to log insight. Please try again.");
+        } finally {
+            setIsLogging(false);
+        }
     };
 
     const clearHistory = () => {
@@ -953,6 +1001,90 @@ const VoucherPage: React.FC = () => {
                     <AnalyticsDashboard />
                 )}
 
+                {/* DECLINED TAB */}
+                {activeTab === 'declined' && (
+                    <div className="animate-fade-in max-w-2xl mx-auto">
+                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                            <div className="mb-8">
+                                <h3 className="text-2xl font-serif font-bold mb-1 italic text-amber-900">Non-Issuance Log</h3>
+                                <p className="text-sm text-gray-400 font-medium">Why was a voucher not issued to this guest?</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Room Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. 101"
+                                            className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-amber-200 rounded-xl px-4 py-3 text-sm outline-none transition-all font-mono"
+                                            value={nonIssuanceForm.roomNumber}
+                                            onChange={e => setNonIssuanceForm({ ...nonIssuanceForm, roomNumber: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Stay Duration (Nights)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="e.g. 3"
+                                            className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-amber-200 rounded-xl px-4 py-3 text-sm outline-none transition-all font-mono"
+                                            value={nonIssuanceForm.duration}
+                                            onChange={e => setNonIssuanceForm({ ...nonIssuanceForm, duration: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Main Reason</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {['No WhatsApp', 'Busy', 'Not Interested', 'Custom'].map(r => (
+                                            <button
+                                                key={r}
+                                                onClick={() => setNonIssuanceForm({ ...nonIssuanceForm, reason: r as any })}
+                                                className={`px-4 py-4 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all ${nonIssuanceForm.reason === r
+                                                        ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-sm'
+                                                        : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'
+                                                    }`}
+                                            >
+                                                {r}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {nonIssuanceForm.reason === 'Custom' && (
+                                    <div className="space-y-2 animate-scale-in">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Describe Reason</label>
+                                        <textarea
+                                            placeholder="Briefly describe why..."
+                                            className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-amber-200 rounded-xl px-4 py-3 text-sm outline-none transition-all min-h-[100px]"
+                                            value={nonIssuanceForm.customReason}
+                                            onChange={e => setNonIssuanceForm({ ...nonIssuanceForm, customReason: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleLogNonIssuance}
+                                    disabled={isLogging || !nonIssuanceForm.roomNumber || !nonIssuanceForm.reason}
+                                    className="w-full bg-[#2c2420] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-bold text-sm uppercase tracking-widest"
+                                >
+                                    {isLogging ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={18} />
+                                            <span>Logging...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <PlusCircle size={18} />
+                                            <span>Submit Log</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );
