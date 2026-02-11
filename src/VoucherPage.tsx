@@ -65,6 +65,7 @@ const VoucherPage: React.FC = () => {
 
     const [email, setEmail] = useState('');
     const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Use custom hook for data fetching
     const {
@@ -262,12 +263,19 @@ const VoucherPage: React.FC = () => {
         }
     };
 
-    const handleDeleteVoucher = async (voucherId: string) => {
-        if (!window.confirm(`Are you sure you want to permanently delete voucher ${voucherId}?\n\nThis will remove it from the Google Sheet and cannot be undone.`)) return;
+    const handleDeleteVoucher = async (ids: string | string[]) => {
+        const idList = Array.isArray(ids) ? ids : [ids];
+        const isBulk = idList.length > 1;
+        const confirmMsg = isBulk
+            ? `Are you sure you want to permanently delete ${idList.length} vouchers?\n\nThis will remove them from the Google Sheet and cannot be undone.`
+            : `Are you sure you want to permanently delete voucher ${idList[0]}?\n\nThis will remove it from the Google Sheet and cannot be undone.`;
+
+        if (!window.confirm(confirmMsg)) return;
 
         try {
             // Optimistic update
-            setRecentVouchers(prev => prev.filter(v => v.id !== voucherId));
+            setRecentVouchers(prev => prev.filter(v => !idList.includes(v.id)));
+            if (isBulk) setSelectedIds([]);
 
             await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
@@ -275,13 +283,27 @@ const VoucherPage: React.FC = () => {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({
                     action: 'delete',
-                    voucherCode: voucherId
+                    voucherCode: isBulk ? idList : idList[0]
                 }),
             });
         } catch (error) {
-            console.error("Error deleting voucher:", error);
-            alert("Failed to delete voucher. Please refetch data.");
+            console.error("Error deleting vouchers:", error);
+            alert("Failed to delete. Please refetch data.");
             fetchData(true);
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredVouchers.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredVouchers.map(v => v.id));
         }
     };
 
@@ -729,23 +751,49 @@ const VoucherPage: React.FC = () => {
                 {/* ISSUED TAB */}
                 {activeTab === 'issued' && (
                     <div className="animate-fade-in space-y-6">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-                            <div className="relative flex-1 w-full">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                <input
-                                    type="text"
-                                    placeholder="Search by name, ID or room..."
-                                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-[#c5a572] outline-none transition-all"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                />
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
+                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                <button
+                                    onClick={toggleSelectAll}
+                                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all text-xs font-bold uppercase tracking-widest ${selectedIds.length > 0 && selectedIds.length === filteredVouchers.length
+                                        ? 'bg-[#c5a572] text-white border-[#c5a572]'
+                                        : 'bg-white text-gray-400 border-gray-200 hover:border-[#c5a572]'
+                                        }`}
+                                >
+                                    {selectedIds.length > 0 && selectedIds.length === filteredVouchers.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                                <div className="relative flex-1 min-w-[200px]">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name, ID or room..."
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-[#c5a572] outline-none transition-all"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
                             </div>
-                            <button
-                                onClick={clearHistory}
-                                className="flex items-center gap-2 px-6 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold"
-                            >
-                                <Trash2 size={18} /> <span>Clear History</span>
-                            </button>
+
+                            {selectedIds.length > 0 ? (
+                                <div className="flex items-center gap-4 w-full md:w-auto animate-scale-in">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                        {selectedIds.length} Selected
+                                    </span>
+                                    <button
+                                        onClick={() => handleDeleteVoucher(selectedIds)}
+                                        className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-red-200 hover:bg-red-600 active:scale-95"
+                                    >
+                                        <Trash2 size={18} /> <span>Delete Selected</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={clearHistory}
+                                    className="flex items-center gap-2 px-6 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold"
+                                >
+                                    <Trash2 size={18} /> <span>Clear History</span>
+                                </button>
+                            )}
                         </div>
 
                         <div className="grid gap-4">
@@ -783,8 +831,23 @@ const VoucherPage: React.FC = () => {
                                 </div>
                             ) : (
                                 !isFetchingHistory && !fetchError && filteredVouchers.map(voucher => (
-                                    <div key={voucher.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-[#c5a572]/40 transition-all flex flex-col md:flex-row justify-between items-center gap-6 group">
+                                    <div
+                                        key={voucher.id}
+                                        className={`bg-white p-6 rounded-2xl shadow-sm border transition-all flex flex-col md:flex-row justify-between items-center gap-6 group relative overflow-hidden ${selectedIds.includes(voucher.id) ? 'border-[#c5a572] bg-[#fcfaf7]' : 'border-gray-100 hover:border-[#c5a572]/40'
+                                            }`}
+                                    >
                                         <div className="flex gap-4 items-center w-full md:w-auto">
+                                            {/* Selection Checkbox */}
+                                            <button
+                                                onClick={() => toggleSelect(voucher.id)}
+                                                className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${selectedIds.includes(voucher.id)
+                                                        ? 'bg-[#c5a572] border-[#c5a572] text-white'
+                                                        : 'border-gray-200 hover:border-[#c5a572] text-transparent'
+                                                    }`}
+                                            >
+                                                <CheckCircle size={14} className={selectedIds.includes(voucher.id) ? 'opacity-100' : 'opacity-0'} />
+                                            </button>
+
                                             <div className="w-12 h-12 bg-[#fcfcfc] border border-gray-100 rounded-lg flex items-center justify-center p-2 group-hover:scale-110 transition-transform">
                                                 <QRCode value={voucherUrl(voucher)} size={48} />
                                             </div>
