@@ -350,7 +350,7 @@ const VoucherPage: React.FC = () => {
                 body: body,
             });
 
-            console.log("Delete request sent successfully (no-cors mode)");
+            console.log("Delete request sent:", response.type);
             alert(isBulk ? `${idList.length} vouchers deleted successfully.` : `Voucher deleted successfully.`);
 
         } catch (error) {
@@ -440,6 +440,12 @@ const VoucherPage: React.FC = () => {
                             className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'validate' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                         >
                             <Scan size={16} /> Validate
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('declined')}
+                            className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'declined' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <AlertCircle size={16} /> Insights
                         </button>
                         {userRole === 'admin' && (
                             <>
@@ -1042,8 +1048,8 @@ const VoucherPage: React.FC = () => {
                                                 key={r}
                                                 onClick={() => setNonIssuanceForm({ ...nonIssuanceForm, reason: r as any })}
                                                 className={`px-4 py-4 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all ${nonIssuanceForm.reason === r
-                                                        ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-sm'
-                                                        : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'
+                                                    ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-sm'
+                                                    : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'
                                                     }`}
                                             >
                                                 {r}
