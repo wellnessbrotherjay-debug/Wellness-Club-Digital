@@ -66,6 +66,7 @@ const VoucherPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Use custom hook for data fetching
     const {
@@ -265,10 +266,12 @@ const VoucherPage: React.FC = () => {
 
     const handleDeleteVoucher = async (ids: string | string[]) => {
         const idList = Array.isArray(ids) ? ids : [ids];
+        if (idList.length === 0) return;
+
         const isBulk = idList.length > 1;
         const confirmMsg = isBulk
-            ? `Are you sure you want to permanently delete ${idList.length} vouchers?\n\nThis will remove them from the Google Sheet and cannot be undone.`
-            : `Are you sure you want to permanently delete voucher ${idList[0]}?\n\nThis will remove it from the Google Sheet and cannot be undone.`;
+            ? `Are you sure you want to permanently delete these ${idList.length} vouchers?`
+            : `Are you sure you want to permanently delete voucher ${idList[0]}?`;
 
         if (!window.confirm(confirmMsg)) return;
 
@@ -278,24 +281,36 @@ const VoucherPage: React.FC = () => {
             return;
         }
 
+        setIsDeleting(true);
+        console.log("Starting deletion for ids:", idList);
+
         try {
+            const body = JSON.stringify({
+                action: 'delete',
+                voucherCode: isBulk ? idList : idList[0]
+            });
+            console.log("Sending delete request with body:", body);
+
             // Optimistic update
             setRecentVouchers(prev => prev.filter(v => !idList.includes(v.id)));
             if (isBulk) setSelectedIds([]);
 
-            await fetch(APPS_SCRIPT_URL, {
+            const response = await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'delete',
-                    voucherCode: isBulk ? idList : idList[0]
-                }),
+                body: body,
             });
+
+            console.log("Delete request sent successfully (no-cors mode)");
+            alert(isBulk ? `${idList.length} vouchers deleted successfully.` : `Voucher deleted successfully.`);
+
         } catch (error) {
             console.error("Error deleting vouchers:", error);
-            alert("Failed to delete. Please refetch data.");
+            alert("Failed to delete. Please check your connection and refresh.");
             fetchData(true);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -787,9 +802,11 @@ const VoucherPage: React.FC = () => {
                                     </span>
                                     <button
                                         onClick={() => handleDeleteVoucher(selectedIds)}
-                                        className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-red-200 hover:bg-red-600 active:scale-95"
+                                        disabled={isDeleting}
+                                        className={`flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-red-200 hover:bg-red-600 active:scale-95 ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
-                                        <Trash2 size={18} /> <span>Delete Selected</span>
+                                        <Trash2 size={18} className={isDeleting ? 'animate-pulse' : ''} />
+                                        <span>{isDeleting ? 'Deleting...' : 'Delete Selected'}</span>
                                     </button>
                                 </div>
                             ) : (
@@ -916,7 +933,8 @@ const VoucherPage: React.FC = () => {
 
                                             <button
                                                 onClick={() => handleDeleteVoucher(voucher.id)}
-                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                disabled={isDeleting}
+                                                className={`p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 title="Delete Voucher"
                                             >
                                                 <Trash2 size={18} />
