@@ -99,14 +99,16 @@ const AnalyticsDashboard: React.FC = () => {
     // --- Analytics Logic ---
     const stats = useMemo(() => {
         const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        // Launch Date: Jan 1, 2026 (Local Time)
-        // Note: Month is 0-indexed (0=Jan, 1=Feb)
-        const launchDate = new Date(2026, 0, 1);
+        const launchDate = new Date(2026, 0, 1); // Jan 1, 2026
 
-        // Derive redemptions directly from vouchers to ensure consistency
-        // (This acts as a fallback if the hook's redemptions state is empty or out of sync)
+        // Helper to map service string to category
+        const getServiceCategory = (service: string): string => {
+            const s = service.toLowerCase();
+            if (s.includes('shopping') || s.includes('t store')) return 'fashion';
+            if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani')) return 'hair';
+            return 'wellness';
+        };
+
         const effectiveRedemptions = redemptions.length > 0 ? redemptions : vouchers
             .filter(v => v.status === 'Redeemed')
             .map(v => ({
@@ -117,12 +119,14 @@ const AnalyticsDashboard: React.FC = () => {
                 roomNumber: v.roomNumber || ''
             }));
 
-        let filteredRedemptions = effectiveRedemptions;
-
         const parseDate = (dateStr: string) => {
             const d = new Date(dateStr);
             return isNaN(d.getTime()) ? null : d;
         };
+
+        let filteredRedemptions = effectiveRedemptions;
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
         if (timeRange === 'week') {
             filteredRedemptions = effectiveRedemptions.filter(r => {
@@ -137,8 +141,6 @@ const AnalyticsDashboard: React.FC = () => {
         } else if (timeRange === 'launch') {
             filteredRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
-                // If invalid date, maybe include it? better exclude to avoid garbage.
-                // But let's log if we have issues.
                 return d && d >= launchDate;
             });
         } else if (timeRange === 'custom') {
@@ -152,33 +154,27 @@ const AnalyticsDashboard: React.FC = () => {
             });
         }
 
-        // Service Breakdown
-        const serviceCounts: Record<string, number> = {};
-        filteredRedemptions.forEach(r => {
-            const service = r.serviceType || 'Unknown';
-            serviceCounts[service] = (serviceCounts[service] || 0) + 1;
-        });
-
-        // Daily Activity (Last 7 days for chart simulation)
-        const dailyCounts: Record<string, number> = {};
-        for (let i = 0; i < 7; i++) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const key = d.toISOString().split('T')[0];
-            dailyCounts[key] = 0;
+        // Apply Category Filter
+        if (serviceCategory !== 'all') {
+            filteredRedemptions = filteredRedemptions.filter(r =>
+                getServiceCategory(r.serviceType) === serviceCategory
+            );
         }
+
+        const serviceCounts: Record<string, number> = {};
+        const dailyCounts: Record<string, number> = {};
+
         filteredRedemptions.forEach(r => {
-            const dateKey = new Date(r.timestamp).toISOString().split('T')[0];
-            if (dailyCounts[dateKey] !== undefined) {
-                dailyCounts[dateKey]++;
-            }
+            serviceCounts[r.serviceType] = (serviceCounts[r.serviceType] || 0) + 1;
+            const date = r.timestamp.split('T')[0];
+            dailyCounts[date] = (dailyCounts[date] || 0) + 1;
         });
 
         const manualRedemptions = filteredRedemptions.filter(r =>
             (r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
         ).length;
 
-        // Calculate Redeemed Pax (Join redemptions with vouchers)
+        // Calculate Redeemed Pax
         const redeemedPax = filteredRedemptions.reduce((sum, r) => {
             const voucher = vouchers.find(v => v.id === r.voucherCode);
             return sum + (voucher?.pax || 1);
@@ -191,11 +187,11 @@ const AnalyticsDashboard: React.FC = () => {
             systemRedemptions: filteredRedemptions.length - manualRedemptions,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
-            dailyCounts: Object.entries(dailyCounts).reverse(), // Oldest to newest
+            dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
             allFilteredRedemptions: filteredRedemptions // Added for export
         };
-    }, [redemptions, timeRange, startDate, endDate]);
+    }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory]);
 
     const activeVouchersCount = vouchers.filter(v => !v.status || v.status !== 'Redeemed').length;
 
