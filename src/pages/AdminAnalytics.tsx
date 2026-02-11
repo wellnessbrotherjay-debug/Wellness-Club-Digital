@@ -92,17 +92,17 @@ const AdminAnalytics: React.FC = () => {
         let filteredIssued = vouchers;
         if (timeRange === 'week') {
             filteredIssued = vouchers.filter(v => {
-                const d = parseDate(v.created_at);
+                const d = parseDate(v.created_at || '');
                 return d && d >= oneWeekAgo;
             });
         } else if (timeRange === 'month') {
             filteredIssued = vouchers.filter(v => {
-                const d = parseDate(v.created_at);
+                const d = parseDate(v.created_at || '');
                 return d && d >= oneMonthAgo;
             });
         } else if (timeRange === 'launch') {
             filteredIssued = vouchers.filter(v => {
-                const d = parseDate(v.created_at);
+                const d = parseDate(v.created_at || '');
                 return d && d >= launchDate;
             });
         } else if (timeRange === 'custom') {
@@ -111,7 +111,7 @@ const AdminAnalytics: React.FC = () => {
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
             filteredIssued = vouchers.filter(v => {
-                const d = parseDate(v.created_at);
+                const d = parseDate(v.created_at || '');
                 return d && d >= start && d <= end;
             });
         }
