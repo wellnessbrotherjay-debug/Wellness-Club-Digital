@@ -18,6 +18,7 @@ const AnalyticsDashboard: React.FC = () => {
     const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all' | 'custom'>('all');
     const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Default to last 7 days
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
     const [posCount, setPosCount] = useState<number | ''>('');
 
     const [showManualInput, setShowManualInput] = useState(false);
@@ -276,6 +277,21 @@ const AnalyticsDashboard: React.FC = () => {
                                     }`}
                             >
                                 {range === 'all' ? 'All Time' : range === 'launch' ? 'Since Launch' : range === 'custom' ? 'Custom Date' : `This ${range}`}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex bg-gray-50 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
+                        {(['all', 'fashion', 'hair', 'wellness'] as const).map((cat) => (
+                            <button
+                                key={cat}
+                                onClick={() => setServiceCategory(cat)}
+                                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${serviceCategory === cat
+                                    ? 'bg-white text-[#c5a572] shadow-sm'
+                                    : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
+                                {cat === 'all' ? 'All Units' : cat.charAt(0).toUpperCase() + cat.slice(1)}
                             </button>
                         ))}
                     </div>

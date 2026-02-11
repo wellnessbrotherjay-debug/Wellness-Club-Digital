@@ -15,15 +15,23 @@ const AdminAnalytics: React.FC = () => {
     const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all' | 'custom'>('all');
     const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
 
     // --- Analytics Logic ---
     const stats = useMemo(() => {
         const now = new Date();
-        const launchDate = new Date('2026-02-04T00:00:00'); // User requested Feb 4th as launch
+        const launchDate = new Date('2026-01-01'); // Adjusted to Jan 1 to ensure all data is caught
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        // Derive redemptions directly from vouchers if the hook state is empty/sync issue
+        // Helper to map service string to category
+        const getServiceCategory = (service: string): string => {
+            const s = service.toLowerCase();
+            if (s.includes('shopping') || s.includes('t store')) return 'fashion';
+            if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani')) return 'hair';
+            return 'wellness'; // Default to wellness (massage, yoga, f&b)
+        };
+
         const effectiveRedemptions = redemptions.length > 0 ? redemptions : vouchers
             .filter(v => v.status === 'Redeemed')
             .map(v => ({
@@ -66,6 +74,13 @@ const AdminAnalytics: React.FC = () => {
             });
         }
 
+        // Apply Category Filter to Redemptions
+        if (serviceCategory !== 'all') {
+            filteredRedemptions = filteredRedemptions.filter(r =>
+                getServiceCategory(r.serviceType) === serviceCategory
+            );
+        }
+
         // Service Breakdown
         const serviceCounts: Record<string, number> = {};
         filteredRedemptions.forEach(r => {
@@ -73,22 +88,17 @@ const AdminAnalytics: React.FC = () => {
             serviceCounts[service] = (serviceCounts[service] || 0) + 1;
         });
 
-        // Daily Activity (Last 7 days for chart simulation)
+        // Daily Activity
         const dailyCounts: Record<string, number> = {};
-        for (let i = 0; i < 7; i++) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const key = d.toISOString().split('T')[0];
-            dailyCounts[key] = 0;
-        }
         filteredRedemptions.forEach(r => {
-            const dateKey = new Date(r.timestamp).toISOString().split('T')[0];
-            if (dailyCounts[dateKey] !== undefined) {
-                dailyCounts[dateKey]++;
+            const d = parseDate(r.timestamp);
+            if (d) {
+                const key = d.toISOString().split('T')[0];
+                dailyCounts[key] = (dailyCounts[key] || 0) + 1;
             }
         });
 
-        // Calculate Issued Stats (vouchers created in range)
+        // Calculate Issued Stats
         let filteredIssued = vouchers;
         if (timeRange === 'week') {
             filteredIssued = vouchers.filter(v => {
@@ -116,10 +126,16 @@ const AdminAnalytics: React.FC = () => {
             });
         }
 
+        // Apply Category Filter to Issued
+        if (serviceCategory !== 'all') {
+            filteredIssued = filteredIssued.filter(v =>
+                v.services && v.services.some(s => getServiceCategory(s) === serviceCategory)
+            );
+        }
+
         const statsIssuedVouchers = filteredIssued.length;
         const statsIssuedPax = filteredIssued.reduce((sum, v) => sum + (v.pax || 1), 0);
 
-        // Calculate Redeemed Pax (Join redemptions with vouchers)
         const redeemedPax = filteredRedemptions.reduce((sum, r) => {
             const voucher = vouchers.find(v => v.id === r.voucherCode);
             return sum + (voucher?.pax || 1);
@@ -132,11 +148,11 @@ const AdminAnalytics: React.FC = () => {
             totalIssuedPax: statsIssuedPax,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
-            dailyCounts: Object.entries(dailyCounts).reverse(), // Oldest to newest
+            dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
             allFilteredRedemptions: filteredRedemptions
         };
-    }, [redemptions, vouchers, timeRange, startDate, endDate]);
+    }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory]);
 
     const activeVouchersCount = vouchers.filter(v => !v.status || v.status !== 'Redeemed').length;
 
@@ -224,6 +240,21 @@ const AdminAnalytics: React.FC = () => {
                                         }`}
                                 >
                                     {range === 'all' ? 'All Time' : range === 'launch' ? 'Since Launch' : range === 'custom' ? 'Custom' : `This ${range}`}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                            {(['all', 'fashion', 'hair', 'wellness'] as const).map((cat) => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setServiceCategory(cat)}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${serviceCategory === cat
+                                        ? 'bg-white text-[#c5a572] shadow-sm'
+                                        : 'text-gray-400 hover:text-gray-600'
+                                        }`}
+                                >
+                                    {cat === 'all' ? 'All Units' : cat.charAt(0).toUpperCase() + cat.slice(1)}
                                 </button>
                             ))}
                         </div>
