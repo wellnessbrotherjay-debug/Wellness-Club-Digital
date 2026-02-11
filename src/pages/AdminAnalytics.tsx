@@ -43,23 +43,24 @@ const AdminAnalytics: React.FC = () => {
             }));
 
         const parseDate = (dateStr: string) => {
+            if (!dateStr) return null;
             const d = new Date(dateStr);
             return isNaN(d.getTime()) ? null : d;
         };
 
-        let filteredRedemptions = effectiveRedemptions;
+        let currentRedemptions = effectiveRedemptions;
         if (timeRange === 'week') {
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= oneWeekAgo;
             });
         } else if (timeRange === 'month') {
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= oneMonthAgo;
             });
         } else if (timeRange === 'launch') {
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= launchDate;
             });
@@ -68,18 +69,32 @@ const AdminAnalytics: React.FC = () => {
             start.setHours(0, 0, 0, 0);
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= start && d <= end;
             });
         }
 
-        // Apply Category Filter to Redemptions
+        // Apply Category Filter for the MAIN view
+        let filteredRedemptions = currentRedemptions;
         if (serviceCategory !== 'all') {
-            filteredRedemptions = filteredRedemptions.filter(r =>
+            filteredRedemptions = currentRedemptions.filter(r =>
                 getServiceCategory(r.serviceType) === serviceCategory
             );
         }
+
+        // Calculate specialized Shop Totals (Always based on current time range, ignoring main category toggle)
+        const shopTotals = {
+            fashion: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'fashion').length,
+            hair: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'hair').length,
+            wellness: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'wellness').length
+        };
+
+        const shopGuests = {
+            fashion: new Set(currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'fashion').map(r => r.guestName)).size,
+            hair: new Set(currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'hair').map(r => r.guestName)).size,
+            wellness: new Set(currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'wellness').map(r => r.guestName)).size
+        };
 
         // Service Breakdown
         const serviceCounts: Record<string, number> = {};
@@ -126,7 +141,6 @@ const AdminAnalytics: React.FC = () => {
             });
         }
 
-        // Apply Category Filter to Issued
         if (serviceCategory !== 'all') {
             filteredIssued = filteredIssued.filter(v =>
                 v.services && v.services.some(s => getServiceCategory(s) === serviceCategory)
@@ -148,6 +162,8 @@ const AdminAnalytics: React.FC = () => {
             totalIssuedPax: statsIssuedPax,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
+            shopTotals,
+            shopGuests,
             dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
             allFilteredRedemptions: filteredRedemptions
@@ -271,6 +287,63 @@ const AdminAnalytics: React.FC = () => {
             </div>
 
             <main className="max-w-7xl mx-auto px-6 py-8 animate-fade-in space-y-8">
+
+                {/* Shop Breakdown - Explicitly requested */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#c5a572]/20 relative overflow-hidden group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-[#c5a572]">T Store</h3>
+                                <p className="text-[10px] text-gray-400 font-medium">Fashion & Shopping</p>
+                            </div>
+                            <span className="text-2xl opacity-20 group-hover:scale-110 transition-transform">🛍️</span>
+                        </div>
+                        <div className="flex items-end gap-3 mt-4">
+                            <span className="text-4xl font-serif font-bold text-[#2c2420]">{stats.shopTotals.fashion}</span>
+                            <span className="text-xs text-gray-400 mb-2">Redemptions</span>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            <span>Unique Guests</span>
+                            <span className="text-[#2c2420]">{stats.shopGuests.fashion}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#c5a572]/20 relative overflow-hidden group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-[#c5a572]">No.1 Wellness</h3>
+                                <p className="text-[10px] text-gray-400 font-medium">Massage & Spa</p>
+                            </div>
+                            <span className="text-2xl opacity-20 group-hover:scale-110 transition-transform">💆</span>
+                        </div>
+                        <div className="flex items-end gap-3 mt-4">
+                            <span className="text-4xl font-serif font-bold text-[#2c2420]">{stats.shopTotals.wellness}</span>
+                            <span className="text-xs text-gray-400 mb-2">Redemptions</span>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            <span>Unique Guests</span>
+                            <span className="text-[#2c2420]">{stats.shopGuests.wellness}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#c5a572]/20 relative overflow-hidden group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-[#c5a572]">TS Hair Salon</h3>
+                                <p className="text-[10px] text-gray-400 font-medium">Hair & Beauty</p>
+                            </div>
+                            <span className="text-2xl opacity-20 group-hover:scale-110 transition-transform">✂️</span>
+                        </div>
+                        <div className="flex items-end gap-3 mt-4">
+                            <span className="text-4xl font-serif font-bold text-[#2c2420]">{stats.shopTotals.hair}</span>
+                            <span className="text-xs text-gray-400 mb-2">Redemptions</span>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            <span>Unique Guests</span>
+                            <span className="text-[#2c2420]">{stats.shopGuests.hair}</span>
+                        </div>
+                    </div>
+                </div>
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

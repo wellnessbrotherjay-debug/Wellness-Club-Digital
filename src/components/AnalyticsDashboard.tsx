@@ -120,26 +120,28 @@ const AnalyticsDashboard: React.FC = () => {
             }));
 
         const parseDate = (dateStr: string) => {
+            if (!dateStr) return null;
             const d = new Date(dateStr);
             return isNaN(d.getTime()) ? null : d;
         };
 
-        let filteredRedemptions = effectiveRedemptions;
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+        let currentRedemptions = effectiveRedemptions;
+
         if (timeRange === 'week') {
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= oneWeekAgo;
             });
         } else if (timeRange === 'month') {
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= oneMonthAgo;
             });
         } else if (timeRange === 'launch') {
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= launchDate;
             });
@@ -148,26 +150,43 @@ const AnalyticsDashboard: React.FC = () => {
             start.setHours(0, 0, 0, 0);
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
-            filteredRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = effectiveRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= start && d <= end;
             });
         }
 
-        // Apply Category Filter
+        // Apply Category Filter for the main list/stats
+        let filteredRedemptions = currentRedemptions;
         if (serviceCategory !== 'all') {
-            filteredRedemptions = filteredRedemptions.filter(r =>
+            filteredRedemptions = currentRedemptions.filter(r =>
                 getServiceCategory(r.serviceType) === serviceCategory
             );
         }
+
+        // Shop Breakdown Totals
+        const shopTotals = {
+            fashion: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'fashion').length,
+            hair: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'hair').length,
+            wellness: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'wellness').length
+        };
+
+        const shopGuests = {
+            fashion: new Set(currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'fashion').map(r => r.guestName)).size,
+            hair: new Set(currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'hair').map(r => r.guestName)).size,
+            wellness: new Set(currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'wellness').map(r => r.guestName)).size
+        };
 
         const serviceCounts: Record<string, number> = {};
         const dailyCounts: Record<string, number> = {};
 
         filteredRedemptions.forEach(r => {
             serviceCounts[r.serviceType] = (serviceCounts[r.serviceType] || 0) + 1;
-            const date = r.timestamp.split('T')[0];
-            dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+            const d = parseDate(r.timestamp);
+            if (d) {
+                const key = d.toISOString().split('T')[0];
+                dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+            }
         });
 
         const manualRedemptions = filteredRedemptions.filter(r =>
@@ -187,9 +206,11 @@ const AnalyticsDashboard: React.FC = () => {
             systemRedemptions: filteredRedemptions.length - manualRedemptions,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
+            shopTotals,
+            shopGuests,
             dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
-            allFilteredRedemptions: filteredRedemptions // Added for export
+            allFilteredRedemptions: filteredRedemptions
         };
     }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory]);
 
@@ -227,9 +248,6 @@ const AnalyticsDashboard: React.FC = () => {
 
     return (
         <div className="animate-fade-in space-y-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center font-bold">
-                🚀 VERSION UPDATE: POS TOOLS ACTIVE (v2) - IF YOU SEE THIS, THE UPDATE WORKED!
-            </div>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
                 <div className="flex flex-col gap-4 w-full md:w-auto">
                     <div className="flex items-center gap-2 text-gray-400">
@@ -299,6 +317,63 @@ const AnalyticsDashboard: React.FC = () => {
                         <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
                         Export Data
                     </button>
+                </div>
+            </div>
+
+            {/* Shop Breakdown - Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#c5a572]/20 relative group">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-[#c5a572] mb-1">T Store</h3>
+                            <p className="text-[10px] text-gray-400 font-medium">Fashion Redemptions</p>
+                        </div>
+                        <span className="text-xl">🛍️</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-4">
+                        <span className="text-4xl font-serif font-bold">{stats.shopTotals.fashion}</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">Total</span>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                        <span>Unique Guests</span>
+                        <span className="text-[#2c2420]">{stats.shopGuests.fashion}</span>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#c5a572]/20 relative group">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-[#c5a572] mb-1">No.1 Wellness</h3>
+                            <p className="text-[10px] text-gray-400 font-medium">Massage Redemptions</p>
+                        </div>
+                        <span className="text-xl">💆</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-4">
+                        <span className="text-4xl font-serif font-bold">{stats.shopTotals.wellness}</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">Total</span>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                        <span>Unique Guests</span>
+                        <span className="text-[#2c2420]">{stats.shopGuests.wellness}</span>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#c5a572]/20 relative group">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-[#c5a572] mb-1">TS Hair Salon</h3>
+                            <p className="text-[10px] text-gray-400 font-medium">Hair & Beauty</p>
+                        </div>
+                        <span className="text-xl">✂️</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-4">
+                        <span className="text-4xl font-serif font-bold">{stats.shopTotals.hair}</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">Total</span>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                        <span>Unique Guests</span>
+                        <span className="text-[#2c2420]">{stats.shopGuests.hair}</span>
+                    </div>
                 </div>
             </div>
 

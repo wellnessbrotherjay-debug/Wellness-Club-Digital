@@ -82,25 +82,24 @@ export const useVoucherData = () => {
         if (!isSilent) setIsFetchingHistory(true);
         setFetchError(false);
 
-        // Fetch Vouchers
-        const vScript = document.createElement('script');
-        vScript.src = `${APPS_SCRIPT_URL}?callback=loadVouchers&sheet=Vouchers&t=${Date.now()}`;
-        document.body.appendChild(vScript);
-        vScript.onload = () => document.body.removeChild(vScript);
-
-        // Fetch Redemptions
-        const rScript = document.createElement('script');
-        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
-        document.body.appendChild(rScript);
-        rScript.onload = () => document.body.removeChild(rScript);
-
         const handleError = () => {
             setIsFetchingHistory(false);
             setFetchError(true);
         };
 
+        // Fetch Vouchers
+        const vScript = document.createElement('script');
+        vScript.src = `${APPS_SCRIPT_URL}?callback=loadVouchers&sheet=Vouchers&t=${Date.now()}`;
         vScript.onerror = handleError;
+        vScript.onload = () => document.body.removeChild(vScript);
+        document.body.appendChild(vScript);
+
+        // Fetch Redemptions
+        const rScript = document.createElement('script');
+        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
         rScript.onerror = handleError;
+        rScript.onload = () => document.body.removeChild(rScript);
+        document.body.appendChild(rScript);
     }, []);
 
     // Polling setup
