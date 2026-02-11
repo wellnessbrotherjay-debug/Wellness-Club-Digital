@@ -9,7 +9,7 @@ import { Helmet } from 'react-helmet-async';
 const MAIN_SITE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3000'
     : 'https://www.no1wellness.com';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
+import { APPS_SCRIPT_URL } from './constants/config';
 
 const GuestPass: React.FC = () => {
     const { id } = useParams();
