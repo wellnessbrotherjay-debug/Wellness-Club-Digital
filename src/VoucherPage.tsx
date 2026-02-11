@@ -262,6 +262,29 @@ const VoucherPage: React.FC = () => {
         }
     };
 
+    const handleDeleteVoucher = async (voucherId: string) => {
+        if (!window.confirm(`Are you sure you want to permanently delete voucher ${voucherId}?\n\nThis will remove it from the Google Sheet and cannot be undone.`)) return;
+
+        try {
+            // Optimistic update
+            setRecentVouchers(prev => prev.filter(v => v.id !== voucherId));
+
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'delete',
+                    voucherCode: voucherId
+                }),
+            });
+        } catch (error) {
+            console.error("Error deleting voucher:", error);
+            alert("Failed to delete voucher. Please refetch data.");
+            fetchData(true);
+        }
+    };
+
     const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter(v => {
         const query = searchQuery.toLowerCase();
         return (
@@ -820,6 +843,14 @@ const VoucherPage: React.FC = () => {
                                                 className="px-4 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
                                             >
                                                 Open
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleDeleteVoucher(voucher.id)}
+                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Delete Voucher"
+                                            >
+                                                <Trash2 size={18} />
                                             </button>
                                         </div>
                                     </div>
