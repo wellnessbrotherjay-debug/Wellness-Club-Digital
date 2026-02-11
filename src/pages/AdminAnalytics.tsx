@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
     BarChart, TrendingUp, Users,
-    Activity, CheckCircle, Clock
+    Activity, CheckCircle, Clock, Download
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
 
@@ -12,11 +12,14 @@ const AdminAnalytics: React.FC = () => {
         redemptions
     } = useVoucherData();
 
-    const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('all');
+    const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all' | 'custom'>('all');
+    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
     // --- Analytics Logic ---
     const stats = useMemo(() => {
         const now = new Date();
+        const launchDate = new Date('2026-02-04T00:00:00'); // User requested Feb 4th as launch
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -27,14 +30,40 @@ const AdminAnalytics: React.FC = () => {
                 timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
                 voucherCode: v.id,
                 guestName: v.guestName,
-                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
+                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission',
+                roomNumber: v.roomNumber || ''
             }));
+
+        const parseDate = (dateStr: string) => {
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        };
 
         let filteredRedemptions = effectiveRedemptions;
         if (timeRange === 'week') {
-            filteredRedemptions = effectiveRedemptions.filter(r => new Date(r.timestamp) >= oneWeekAgo);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= oneWeekAgo;
+            });
         } else if (timeRange === 'month') {
-            filteredRedemptions = effectiveRedemptions.filter(r => new Date(r.timestamp) >= oneMonthAgo);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= oneMonthAgo;
+            });
+        } else if (timeRange === 'launch') {
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= launchDate;
+            });
+        } else if (timeRange === 'custom') {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= start && d <= end;
+            });
         }
 
         // Service Breakdown
@@ -64,11 +93,42 @@ const AdminAnalytics: React.FC = () => {
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
             dailyCounts: Object.entries(dailyCounts).reverse(), // Oldest to newest
-            recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10)
+            recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
+            allFilteredRedemptions: filteredRedemptions
         };
-    }, [redemptions, timeRange]);
+    }, [redemptions, vouchers, timeRange, startDate, endDate]);
 
     const activeVouchersCount = vouchers.filter(v => !v.status || v.status !== 'Redeemed').length;
+
+    const exportToCSV = () => {
+        const headers = ["Timestamp", "Voucher Code", "Guest Name", "Room Number", "Service Type"];
+        const rows = stats.allFilteredRedemptions.map(r => {
+            const guest = String(r.guestName || "Guest").replace(/"/g, '""');
+            const service = String(r.serviceType || "Service").replace(/"/g, '""');
+            return [
+                new Date(r.timestamp).toLocaleString(),
+                r.voucherCode,
+                `"${guest}"`,
+                r.roomNumber || 'N/A',
+                `"${service}"`
+            ];
+        });
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `voucher_analytics_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     return (
         <div className="min-h-screen bg-[#f8f8f8] text-[#2c2420] font-sans pb-20">
@@ -89,19 +149,52 @@ const AdminAnalytics: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                        {(['week', 'month', 'all'] as const).map((range) => (
-                            <button
-                                key={range}
-                                onClick={() => setTimeRange(range)}
-                                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all ${timeRange === range
-                                    ? 'bg-white text-[#c5a572] shadow-sm'
-                                    : 'text-gray-400 hover:text-gray-600'
-                                    }`}
-                            >
-                                {range === 'all' ? 'All Time' : `This ${range}`}
-                            </button>
-                        ))}
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        {timeRange === 'custom' && (
+                            <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg animate-scale-in">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold uppercase text-gray-400">From</span>
+                                    <input
+                                        type="date"
+                                        className="text-xs bg-white border border-gray-200 rounded px-2 py-1 outline-none"
+                                        value={startDate}
+                                        onChange={e => setStartDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold uppercase text-gray-400">To</span>
+                                    <input
+                                        type="date"
+                                        className="text-xs bg-white border border-gray-200 rounded px-2 py-1 outline-none"
+                                        value={endDate}
+                                        onChange={e => setEndDate(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                            {(['launch', 'week', 'month', 'all', 'custom'] as const).map((range) => (
+                                <button
+                                    key={range}
+                                    onClick={() => setTimeRange(range)}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${timeRange === range
+                                        ? 'bg-white text-[#c5a572] shadow-sm'
+                                        : 'text-gray-400 hover:text-gray-600'
+                                        }`}
+                                >
+                                    {range === 'all' ? 'All Time' : range === 'launch' ? 'Since Launch' : range === 'custom' ? 'Custom' : `This ${range}`}
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={exportToCSV}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#c5a572] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#b09465] transition-all shadow-md"
+                        >
+                            <Download size={14} />
+                            Export
+                        </button>
                     </div>
                 </div>
             </div>

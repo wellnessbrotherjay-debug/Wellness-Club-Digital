@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
     BarChart, TrendingUp, Users,
-    Activity, CheckCircle, Clock, PlusCircle, X, Save
+    Activity, CheckCircle, Clock, PlusCircle, X, Save, Download
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
 import { APPS_SCRIPT_URL } from '../constants/config';
@@ -15,7 +15,9 @@ const AnalyticsDashboard: React.FC = () => {
         // hasLoaded
     } = useVoucherData();
 
-    const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all'>('all');
+    const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'all' | 'custom'>('all');
+    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Default to last 7 days
+    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [posCount, setPosCount] = useState<number | ''>('');
 
     const [showManualInput, setShowManualInput] = useState(false);
@@ -90,7 +92,7 @@ const AnalyticsDashboard: React.FC = () => {
 
         return SERVICE_GROUPS
             .filter(g => relevantGroups.includes(g.label))
-            .flatMap(g => g.items) as { value: string; label: string }[];
+            .flatMap(g => g.items.map(({ value, label }) => ({ value, label })));
     }, [manualForm.store]);
 
     // --- Analytics Logic ---
@@ -138,6 +140,15 @@ const AnalyticsDashboard: React.FC = () => {
                 // But let's log if we have issues.
                 return d && d >= launchDate;
             });
+        } else if (timeRange === 'custom') {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            filteredRedemptions = effectiveRedemptions.filter(r => {
+                const d = parseDate(r.timestamp);
+                return d && d >= start && d <= end;
+            });
         }
 
         // Service Breakdown
@@ -173,35 +184,102 @@ const AnalyticsDashboard: React.FC = () => {
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
             dailyCounts: Object.entries(dailyCounts).reverse(), // Oldest to newest
-            recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10)
+            recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
+            allFilteredRedemptions: filteredRedemptions // Added for export
         };
-    }, [redemptions, timeRange]);
+    }, [redemptions, timeRange, startDate, endDate]);
 
     const activeVouchersCount = vouchers.filter(v => !v.status || v.status !== 'Redeemed').length;
+
+    const exportToCSV = () => {
+        const headers = ["Timestamp", "Voucher Code", "Guest Name", "Room Number", "Service Type"];
+        const rows = stats.allFilteredRedemptions.map(r => {
+            const guest = String(r.guestName || "Guest").replace(/"/g, '""');
+            const service = String(r.serviceType || "Service").replace(/"/g, '""');
+            return [
+                new Date(r.timestamp).toLocaleString(),
+                r.voucherCode,
+                `"${guest}"`,
+                r.roomNumber || 'N/A',
+                `"${service}"`
+            ];
+        });
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `voucher_analytics_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     return (
         <div className="animate-fade-in space-y-8">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center font-bold">
                 🚀 VERSION UPDATE: POS TOOLS ACTIVE (v2) - IF YOU SEE THIS, THE UPDATE WORKED!
             </div>
-            <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 text-gray-400">
-                    <BarChart size={20} />
-                    <span className="text-xs font-bold uppercase tracking-widest">Performance Config</span>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
+                <div className="flex flex-col gap-4 w-full md:w-auto">
+                    <div className="flex items-center gap-2 text-gray-400">
+                        <BarChart size={20} />
+                        <span className="text-xs font-bold uppercase tracking-widest">Performance Config</span>
+                    </div>
+
+                    {timeRange === 'custom' && (
+                        <div className="flex items-center gap-4 animate-scale-in">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">From</label>
+                                <input
+                                    type="date"
+                                    className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none focus:border-[#c5a572]"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">To</label>
+                                <input
+                                    type="date"
+                                    className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none focus:border-[#c5a572]"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <div className="flex bg-gray-50 p-1 rounded-lg">
-                    {(['launch', 'week', 'month', 'all'] as const).map((range) => (
-                        <button
-                            key={range}
-                            onClick={() => setTimeRange(range)}
-                            className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all ${timeRange === range
-                                ? 'bg-white text-[#c5a572] shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600'
-                                }`}
-                        >
-                            {range === 'all' ? 'All Time' : range === 'launch' ? 'Since Launch' : `This ${range}`}
-                        </button>
-                    ))}
+
+                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    <div className="flex bg-gray-50 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
+                        {(['launch', 'week', 'month', 'all', 'custom'] as const).map((range) => (
+                            <button
+                                key={range}
+                                onClick={() => setTimeRange(range)}
+                                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${timeRange === range
+                                    ? 'bg-white text-[#c5a572] shadow-sm'
+                                    : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
+                                {range === 'all' ? 'All Time' : range === 'launch' ? 'Since Launch' : range === 'custom' ? 'Custom Date' : `This ${range}`}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={exportToCSV}
+                        className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-[#c5a572] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#b09465] transition-all shadow-md group"
+                    >
+                        <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                        Export Data
+                    </button>
                 </div>
             </div>
 

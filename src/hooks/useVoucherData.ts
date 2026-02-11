@@ -20,13 +20,12 @@ export const useVoucherData = () => {
     // Extend window for JSONP callbacks
     useEffect(() => {
         (window as any).loadVouchers = (data: any) => {
-            setIsFetchingHistory(false);
+            // setIsFetchingHistory(false); // Only set false when both are done or in loadRedemptions
             setFetchError(false);
 
             if (!Array.isArray(data)) {
                 setRecentVouchers([]);
-                setRedemptions([]);
-                setHasInitialLoaded(true);
+                // setRedemptions([]);
                 return;
             }
 
@@ -55,20 +54,27 @@ export const useVoucherData = () => {
             }).reverse();
 
             setRecentVouchers(mapped);
+        };
 
-            // Derive redemptions from vouchers
-            const derivedRedemptions: RedemptionData[] = mapped
-                .filter(v => v.status === 'Redeemed')
-                .map(v => ({
-                    timestamp: v.redeemed_at || v.created_at, // Fallback to created_at if redeemed_at is missing
-                    voucherCode: v.id,
-                    guestName: v.guestName,
-                    serviceType: v.services && v.services.length > 0 ? v.services[0] : 'General Admission',
-                    roomNumber: v.roomNumber || ''
-                }));
-
-            setRedemptions(derivedRedemptions);
+        (window as any).loadRedemptions = (data: any) => {
+            setIsFetchingHistory(false);
+            setFetchError(false);
             setHasInitialLoaded(true);
+
+            if (!Array.isArray(data)) {
+                setRedemptions([]);
+                return;
+            }
+
+            const mapped: RedemptionData[] = data.map(item => ({
+                timestamp: item.timestamp || item.created_at || new Date().toISOString(),
+                voucherCode: item.voucherCode || item.code || '',
+                guestName: item.guestName || '',
+                serviceType: item.serviceType || 'General Admission',
+                roomNumber: item.roomNumber || ''
+            })).reverse();
+
+            setRedemptions(mapped);
         };
     }, []);
 
@@ -82,10 +88,19 @@ export const useVoucherData = () => {
         document.body.appendChild(vScript);
         vScript.onload = () => document.body.removeChild(vScript);
 
-        vScript.onerror = () => {
+        // Fetch Redemptions
+        const rScript = document.createElement('script');
+        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
+        document.body.appendChild(rScript);
+        rScript.onload = () => document.body.removeChild(rScript);
+
+        const handleError = () => {
             setIsFetchingHistory(false);
             setFetchError(true);
         };
+
+        vScript.onerror = handleError;
+        rScript.onerror = handleError;
     }, []);
 
     // Polling setup
