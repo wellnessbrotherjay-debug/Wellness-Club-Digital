@@ -88,8 +88,48 @@ const AdminAnalytics: React.FC = () => {
             }
         });
 
+        // Calculate Issued Stats (vouchers created in range)
+        let filteredIssued = vouchers;
+        if (timeRange === 'week') {
+            filteredIssued = vouchers.filter(v => {
+                const d = parseDate(v.created_at);
+                return d && d >= oneWeekAgo;
+            });
+        } else if (timeRange === 'month') {
+            filteredIssued = vouchers.filter(v => {
+                const d = parseDate(v.created_at);
+                return d && d >= oneMonthAgo;
+            });
+        } else if (timeRange === 'launch') {
+            filteredIssued = vouchers.filter(v => {
+                const d = parseDate(v.created_at);
+                return d && d >= launchDate;
+            });
+        } else if (timeRange === 'custom') {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            filteredIssued = vouchers.filter(v => {
+                const d = parseDate(v.created_at);
+                return d && d >= start && d <= end;
+            });
+        }
+
+        const statsIssuedVouchers = filteredIssued.length;
+        const statsIssuedPax = filteredIssued.reduce((sum, v) => sum + (v.pax || 1), 0);
+
+        // Calculate Redeemed Pax (Join redemptions with vouchers)
+        const redeemedPax = filteredRedemptions.reduce((sum, r) => {
+            const voucher = vouchers.find(v => v.id === r.voucherCode);
+            return sum + (voucher?.pax || 1);
+        }, 0);
+
         return {
             totalRedemptions: filteredRedemptions.length,
+            totalRedeemedPax: redeemedPax,
+            totalIssuedVouchers: statsIssuedVouchers,
+            totalIssuedPax: statsIssuedPax,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
             dailyCounts: Object.entries(dailyCounts).reverse(), // Oldest to newest
@@ -202,17 +242,27 @@ const AdminAnalytics: React.FC = () => {
             <main className="max-w-7xl mx-auto px-6 py-8 animate-fade-in space-y-8">
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
                         <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
-                            <TrendingUp size={24} />
+                            <CheckCircle size={24} />
                         </div>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Redemptions ({timeRange})</p>
-                        <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Vouchers Issued</p>
+                        <h3 className="text-4xl font-serif font-bold">{stats.totalIssuedVouchers}</h3>
+                        <p className="text-[10px] text-gray-400 mt-2">({stats.totalIssuedPax} Guests Covered)</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
                         <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                            <TrendingUp size={24} />
+                        </div>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Redemptions Done</p>
+                        <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                        <p className="text-[10px] text-gray-400 mt-2">({stats.totalRedeemedPax} Guests Served)</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                        <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600">
                             <Users size={24} />
                         </div>
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Unique Guests</p>
@@ -223,8 +273,9 @@ const AdminAnalytics: React.FC = () => {
                         <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600">
                             <Activity size={24} />
                         </div>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Vouchers</p>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Inventory Balance</p>
                         <h3 className="text-4xl font-serif font-bold">{activeVouchersCount}</h3>
+                        <p className="text-[10px] text-gray-400 mt-2">Pending Redemptions</p>
                     </div>
                 </div>
 

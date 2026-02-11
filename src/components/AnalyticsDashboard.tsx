@@ -177,8 +177,15 @@ const AnalyticsDashboard: React.FC = () => {
             (r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
         ).length;
 
+        // Calculate Redeemed Pax (Join redemptions with vouchers)
+        const redeemedPax = filteredRedemptions.reduce((sum, r) => {
+            const voucher = vouchers.find(v => v.id === r.voucherCode);
+            return sum + (voucher?.pax || 1);
+        }, 0);
+
         return {
             totalRedemptions: filteredRedemptions.length,
+            totalRedeemedPax: redeemedPax,
             manualRedemptions,
             systemRedemptions: filteredRedemptions.length - manualRedemptions,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
@@ -289,8 +296,9 @@ const AnalyticsDashboard: React.FC = () => {
                     <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
                         <TrendingUp size={24} />
                     </div>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Redemptions ({timeRange})</p>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Total Redemptions</p>
                     <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">{stats.totalRedeemedPax} Guests Served</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
