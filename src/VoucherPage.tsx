@@ -776,10 +776,11 @@ const VoucherPage: React.FC = () => {
                             <div className="flex items-center gap-4 w-full md:w-auto">
                                 <button
                                     onClick={toggleSelectAll}
+                                    disabled={isDeleting}
                                     className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all text-xs font-bold uppercase tracking-widest ${selectedIds.length > 0 && selectedIds.length === filteredVouchers.length
                                         ? 'bg-[#c5a572] text-white border-[#c5a572]'
                                         : 'bg-white text-gray-400 border-gray-200 hover:border-[#c5a572]'
-                                        }`}
+                                        } ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     {selectedIds.length > 0 && selectedIds.length === filteredVouchers.length ? 'Deselect All' : 'Select All'}
                                 </button>
@@ -863,10 +864,11 @@ const VoucherPage: React.FC = () => {
                                             {/* Selection Checkbox */}
                                             <button
                                                 onClick={() => toggleSelect(voucher.id)}
+                                                disabled={isDeleting}
                                                 className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${selectedIds.includes(voucher.id)
                                                     ? 'bg-[#c5a572] border-[#c5a572] text-white'
                                                     : 'border-gray-200 hover:border-[#c5a572] text-transparent'
-                                                    }`}
+                                                    } ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <CheckCircle size={14} className={selectedIds.includes(voucher.id) ? 'opacity-100' : 'opacity-0'} />
                                             </button>
