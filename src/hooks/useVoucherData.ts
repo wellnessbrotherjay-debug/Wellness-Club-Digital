@@ -81,6 +81,7 @@ export const useVoucherData = () => {
     const fetchData = useCallback((isSilent: boolean = false) => {
         if (!isSilent) setIsFetchingHistory(true);
         setFetchError(false);
+        console.log('DEBUG: fetchData calling APPS_SCRIPT_URL:', APPS_SCRIPT_URL);
 
         const handleError = () => {
             setIsFetchingHistory(false);

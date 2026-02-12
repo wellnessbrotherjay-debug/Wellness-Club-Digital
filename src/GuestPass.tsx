@@ -379,7 +379,7 @@ const GuestPass: React.FC = () => {
                     <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Scan to Redeem Treatments</p>
                     <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 relative group">
                         <QRCode
-                            value={JSON.stringify({ type: 'voucher-redemption', id: id })}
+                            value={`${window.location.origin}/v/${id}?scan=redeem`}
                             size={140}
                             style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                             viewBox={`0 0 256 256`}

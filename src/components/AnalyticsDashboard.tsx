@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
-    BarChart, TrendingUp, Users,
-    Activity, CheckCircle, Clock, PlusCircle, X, Save, Download
+    BarChart, TrendingUp, Users, Ticket,
+    CheckCircle, Clock, PlusCircle, X, Save, Download
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
 import { APPS_SCRIPT_URL } from '../constants/config';
@@ -101,14 +101,77 @@ const AnalyticsDashboard: React.FC = () => {
         const now = new Date();
         const launchDate = new Date(2026, 0, 1); // Jan 1, 2026
 
-        // Helper to map service string to category
+        // Build a lookup map from SERVICE_GROUPS for accurate categorization
+        const serviceToCategoryMap = new Map<string, string>();
+        SERVICE_GROUPS.forEach(group => {
+            const category = group.label.includes('Shopping') || group.label.includes('T Store') ? 'fashion'
+                : group.label.includes('Salon') || group.label.includes('Hair') ? 'hair'
+                : 'wellness';
+            group.items.forEach(item => {
+                serviceToCategoryMap.set(item.value, category);
+                serviceToCategoryMap.set(item.label, category);
+            });
+        });
+
+        // Helper to map service string to category using the lookup map
         const getServiceCategory = (service: string): string => {
-            const s = service.toLowerCase();
-            if (s.includes('shopping') || s.includes('t store')) return 'fashion';
-            if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani')) return 'hair';
+            if (!service) return 'wellness';
+
+            // Try exact match first (trimmed)
+            const trimmed = service.trim();
+            if (serviceToCategoryMap.has(trimmed)) {
+                return serviceToCategoryMap.get(trimmed)!;
+            }
+
+            // Try case-insensitive match
+            const lowerKey = trimmed.toLowerCase();
+            for (const [key, value] of serviceToCategoryMap.entries()) {
+                if (key.toLowerCase() === lowerKey) {
+                    return value;
+                }
+            }
+
+            // Try partial match (check if any key contains the service name)
+            for (const [key, value] of serviceToCategoryMap.entries()) {
+                if (key.toLowerCase().includes(lowerKey) || lowerKey.includes(key.toLowerCase())) {
+                    return value;
+                }
+            }
+
+            // Fallback keyword matching based on actual Google Sheets entitlement names
+            const s = lowerKey;
+
+            // Fashion (T Store) - check for t store shopping entitlement
+            if (s.includes('t store shopping') || s.includes('shopping') && s.includes('15%')) {
+                return 'fashion';
+            }
+
+            // Hair (TS Salon) - check for salon services entitlement
+            if (s.includes('ts salon') || s.includes('salon services') || s.includes('hair') ||
+                s.includes('manicure') || s.includes('pedicure') || s.includes('facial')) {
+                return 'hair';
+            }
+
+            // Wellness (No.1) - most entitlements fall here
+            // Includes: 15% off All Services @ No.1, Welcome Drink, Breakfast, etc.
+            if (s.includes('no.1') || s.includes('wellness') || s.includes('massage') || s.includes('spa') ||
+                s.includes('iv ') || s.includes('yoga') || s.includes('pilates') || s.includes('fitness') ||
+                s.includes('breakfast') || s.includes('drink') || s.includes('class') || s.includes('f&b') ||
+                s.includes('food') || s.includes('all services')) {
+                return 'wellness';
+            }
+
+            // Apparel/accessories for fashion
+            if (s.includes('apparel') || s.includes('accessories') || s.includes('clothing')) {
+                return 'fashion';
+            }
+
+            // Default to wellness for anything else (most entitlements are wellness)
             return 'wellness';
         };
 
+        // Use Redemptions data (actual services used) if available
+        // Fall back to voucher entitlements if no redemption data exists
         const effectiveRedemptions = redemptions.length > 0 ? redemptions : vouchers
             .filter(v => v.status === 'Redeemed')
             .map(v => ({
@@ -118,6 +181,12 @@ const AnalyticsDashboard: React.FC = () => {
                 serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission',
                 roomNumber: v.roomNumber || ''
             }));
+
+        // Show warning if using fallback data
+        if (redemptions.length === 0 && effectiveRedemptions.length > 0) {
+            console.warn('⚠️ No redemption data found. Using voucher entitlements as fallback.');
+            console.warn('Staff should use "Log Manual Entry" to record actual services used.');
+        }
 
         const parseDate = (dateStr: string) => {
             if (!dateStr) return null;
@@ -199,6 +268,16 @@ const AnalyticsDashboard: React.FC = () => {
             return sum + (voucher?.pax || 1);
         }, 0);
 
+        // Calculate redemption speed breakdown
+        const speedBreakdown = redemptionSpeed.reduce((acc: Record<string, number>, r) => {
+            if (!r) return acc;
+            acc[r.category] = (acc[r.category] || 0) + 1;
+            return acc;
+        }, { 'Same Day': 0, '1 Day': 0, '2 Days': 0, '3 Days': 0, '4+ Days': 0 });
+
+        // Ensure we always have a valid object (even if empty data)
+        const safeSpeedBreakdown = Object.keys(speedBreakdown).length > 0 ? speedBreakdown : { 'Same Day': 0, '1 Day': 0, '2 Days': 0 };
+
         return {
             totalRedemptions: filteredRedemptions.length,
             totalRedeemedPax: redeemedPax,
@@ -210,11 +289,43 @@ const AnalyticsDashboard: React.FC = () => {
             shopGuests,
             dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
-            allFilteredRedemptions: filteredRedemptions
+            allFilteredRedemptions: filteredRedemptions,
+            redemptionSpeed: safeSpeedBreakdown
         };
     }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory]);
 
-    const activeVouchersCount = vouchers.filter(v => !v.status || v.status !== 'Redeemed').length;
+    // Active Vouchers - count both vouchers AND pax
+    const activeVouchers = vouchers.filter(v => !v.status || v.status !== 'Redeemed');
+    const activeVouchersCount = activeVouchers.length;
+    const activeVouchersPax = activeVouchers.reduce((sum, v) => sum + (v.pax || 1), 0);
+
+    // Total Vouchers Issued - all vouchers ever created
+    const totalVouchersIssued = vouchers.length;
+    const totalPaxIssued = vouchers.reduce((sum, v) => sum + (v.pax || 1), 0);
+
+    // Time to Redeem Analysis - track guest habits
+    const redeemedVouchers = vouchers.filter(v => v.status === 'Redeemed' && v.created_at && v.redeemed_at);
+    const validRedemptions = redeemedVouchers.filter(v => {
+        if (!v.created_at || !v.redeemed_at) return false;
+        const createdDate = new Date(v.created_at || '');
+        const redeemedDate = new Date(v.redeemed_at || '');
+        return !isNaN(createdDate.getTime()) && !isNaN(redeemedDate.getTime());
+    });
+
+    const redemptionSpeed = validRedemptions.map(v => {
+        const createdDate = new Date(v.created_at!);
+        const redeemedDate = new Date(v.redeemed_at!);
+        const daysToRedeem = Math.floor((redeemedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+            voucherCode: v.id,
+            guestName: v.guestName || '',
+            daysToRedeem,
+            category: daysToRedeem === 0 ? 'Same Day' :
+                       daysToRedeem === 1 ? '1 Day' :
+                       daysToRedeem === 2 ? '2 Days' :
+                       daysToRedeem === 3 ? '3 Days' : '4+ Days'
+        };
+    });
 
     const exportToCSV = () => {
         const headers = ["Timestamp", "Voucher Code", "Guest Name", "Room Number", "Service Type"];
@@ -248,6 +359,45 @@ const AnalyticsDashboard: React.FC = () => {
 
     return (
         <div className="animate-fade-in space-y-8">
+            {/* Debug Panel - Show data source */}
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-xs">
+                <p className="font-bold text-blue-800 mb-2">📊 Data Source Status</p>
+                {redemptions.length > 0 ? (
+                    <div className="bg-green-100 p-3 rounded border border-green-300 mb-3">
+                        <p className="font-bold text-green-800">✅ Using Redemption Data (Actual Services)</p>
+                        <p className="text-green-700 text-[10px]">Showing real services guests used.</p>
+                    </div>
+                ) : (
+                    <div className="bg-orange-100 p-3 rounded border border-orange-300 mb-3">
+                        <p className="font-bold text-orange-800">⚠️ Using Fallback: Voucher Entitlements</p>
+                        <p className="text-orange-700 text-[10px]">
+                            No redemption data found. Showing voucher entitlements instead.
+                            <br />
+                            <strong>Staff should use "Log Manual Entry" to record actual services used.</strong>
+                        </p>
+                    </div>
+                )}
+                <div className="bg-white p-3 rounded border border-blue-200 font-mono text-[10px]">
+                    <p className="font-bold mb-2">Services in current data:</p>
+                    <pre className="whitespace-pre-wrap">
+                        {JSON.stringify(
+                            [...new Set((redemptions.length > 0 ? redemptions : vouchers.filter(v => v.status === 'Redeemed'))
+                                .map((r: any) => r.serviceType || (r.services && r.services.length > 0 ? r.services[0] : 'No service')))],
+                            null, 2
+                        )}
+                    </pre>
+                </div>
+                <div className="mt-4 bg-yellow-100 p-3 rounded border border-yellow-300">
+                    <p className="font-bold text-yellow-800 mb-2">Workflow:</p>
+                    <ul className="text-yellow-900 text-[10px] space-y-1">
+                        <li>1. Guest has voucher with entitlements (discounts they CAN use)</li>
+                        <li>2. When guest uses a service, staff clicks "Log Manual Entry"</li>
+                        <li>3. Select actual service used (e.g., "Signature Massage")</li>
+                        <li>4. Analytics tracks real usage, not just entitlements</li>
+                    </ul>
+                </div>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
                 <div className="flex flex-col gap-4 w-full md:w-auto">
                     <div className="flex items-center gap-2 text-gray-400">
@@ -378,14 +528,32 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                        <Ticket size={24} />
+                    </div>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Total Issued</p>
+                    <h3 className="text-4xl font-serif font-bold">{totalPaxIssued}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">{totalVouchersIssued} vouchers</p>
+                </div>
+
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
                     <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
                         <TrendingUp size={24} />
                     </div>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Total Redemptions</p>
-                    <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
-                    <p className="text-[10px] text-gray-400 mt-2">{stats.totalRedeemedPax} Guests Served</p>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Redeemed</p>
+                    <h3 className="text-4xl font-serif font-bold">{stats.totalRedeemedPax}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">{stats.totalRedemptions} vouchers</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                    <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600">
+                        <Ticket size={24} />
+                    </div>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active</p>
+                    <h3 className="text-4xl font-serif font-bold">{activeVouchersPax}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">{activeVouchersCount} vouchers</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
@@ -398,19 +566,30 @@ const AnalyticsDashboard: React.FC = () => {
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600">
                         <Users size={24} />
                     </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Unique Guests</p>
                     <h3 className="text-4xl font-serif font-bold">{stats.uniqueGuests}</h3>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                    <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600">
-                        <Activity size={24} />
+                {/* Redemption Speed Analysis */}
+                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 p-6 rounded-2xl shadow-sm border border-cyan-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-serif font-bold text-lg text-cyan-900">⏱️ Redemption Speed</h3>
+                        <p className="text-xs text-cyan-700">How quickly guests use vouchers</p>
                     </div>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Vouchers</p>
-                    <h3 className="text-4xl font-serif font-bold">{activeVouchersCount}</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        {Object.entries(stats.redemptionSpeed || {}).map(([category, count]) => (
+                            <div key={category} className="bg-white/80 p-4 rounded-xl border border-cyan-200 text-center">
+                                <p className="text-2xl font-bold text-cyan-900">{count}</p>
+                                <p className="text-xs text-cyan-700 font-bold uppercase tracking-wider">{category}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-sm text-cyan-800 mt-4 italic">
+                        📊 Based on {redemptionSpeed.reduce((sum: number, item) => sum + (item?.daysToRedeem || 0), 0)} vouchers with valid dates
+                    </p>
                 </div>
             </div>
 
