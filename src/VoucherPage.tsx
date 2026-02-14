@@ -22,6 +22,8 @@ export interface VoucherData {
     services: string[];
     imageUrl?: string;
     status?: string;
+    serviceType?: string;
+    redeemed_service?: string;
     created_at?: string;
     redeemed_at?: string;
     redemptions?: RedemptionData[];
@@ -463,6 +465,15 @@ const VoucherPage: React.FC = () => {
                                     <BarChart size={16} /> Analytics
                                 </button>
                             </>
+                        )}
+                        {userRole === 'staff' && (
+                            <button
+                                onClick={() => setActiveTab('issued')}
+                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <List size={16} /> Issued
+                                <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
+                            </button>
                         )}
                     </div>
                 </div>
@@ -978,6 +989,18 @@ const VoucherPage: React.FC = () => {
 
                                             <button
                                                 onClick={() => {
+                                                    // Populate form with voucher data
+                                                    const names = voucher.guestName.split(' & ');
+                                                    setFormData({
+                                                        guestName: names[0] || '',
+                                                        roomNumber: voucher.roomNumber || '',
+                                                        checkIn: voucher.checkIn || new Date().toISOString().split('T')[0],
+                                                        checkOut: voucher.checkOut || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+                                                        imageUrl: voucher.imageUrl || '',
+                                                        email: '', // Email not stored in voucher data
+                                                        pax: voucher.pax || 1,
+                                                        additionalGuests: names.slice(1),
+                                                    });
                                                     setCurrentVoucher(voucher);
                                                     setActiveTab('create');
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });

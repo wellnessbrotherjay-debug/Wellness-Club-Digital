@@ -120,7 +120,8 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                     voucherCode: targetCode,
                     serviceType: serviceType,
                     guestName: voucher?.guestName || 'Unknown Guest',
-                    redeemedAt: new Date().toISOString()
+                    redeemedAt: new Date().toISOString(),
+                    inputPath: window.location.pathname
                 })
             });
 
@@ -206,17 +207,27 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                             />
                         </div>
                         {vouchers.find(v => v.id === code.trim().toUpperCase()) && (
-                            <div className="mt-3 bg-[#c5a572]/10 border border-[#c5a572]/20 rounded-lg p-3 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572] animate-fade-in">
-                                <span className="flex items-center gap-1">
-                                    <span className="text-sm">👥</span>
-                                    {vouchers.find(v => v.id === code.trim().toUpperCase())?.pax || 1} Pax
-                                </span>
-                                {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName && (
-                                    <span className="flex items-center gap-1 border-l border-[#c5a572]/20 pl-4">
-                                        <span className="text-sm">👤</span>
-                                        {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName}
+                            <div className="mt-3 bg-[#c5a572]/10 border border-[#c5a572]/20 rounded-lg p-4 flex flex-col gap-2 animate-fade-in">
+                                <div className="flex justify-between items-center text-[#2c2420]">
+                                    <span className="text-sm font-serif font-bold">
+                                        {vouchers.find(v => v.id === code.trim().toUpperCase())?.guestName}
                                     </span>
-                                )}
+                                    <span className="px-2 py-0.5 bg-[#c5a572] text-white text-[9px] font-bold rounded uppercase">
+                                        Room {vouchers.find(v => v.id === code.trim().toUpperCase())?.roomNumber}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572]">
+                                    <span className="flex items-center gap-1">
+                                        <span className="text-sm">👥</span>
+                                        {vouchers.find(v => v.id === code.trim().toUpperCase())?.pax || 1} Pax
+                                    </span>
+                                    {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName && (
+                                        <span className="flex items-center gap-1 border-l border-[#c5a572]/20 pl-4">
+                                            <span className="text-sm">👤</span>
+                                            {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
