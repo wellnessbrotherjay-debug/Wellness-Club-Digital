@@ -52,7 +52,9 @@ const GuestPass: React.FC = () => {
                 setStatusMessage('System error: Invalid data format');
                 return;
             }
-            const currentItem = items.find((i: any) => i.code === voucherId);
+            const currentItem = items.find((i: any) =>
+                String(i.voucherCode || i.code || i.id || i.voucherid).toUpperCase() === voucherId.toUpperCase()
+            );
 
             if (!currentItem) {
                 setStatus('error');
@@ -113,7 +115,9 @@ const GuestPass: React.FC = () => {
             const vCallback = `v_poll_${Date.now()}`;
             (window as any)[vCallback] = (items: any) => {
                 if (!Array.isArray(items)) return;
-                const currentItem = items.find((i: any) => i.code === id);
+                const currentItem = items.find((i: any) =>
+                    String(i.voucherCode || i.code || i.id || i.voucherid).toUpperCase() === id.toUpperCase()
+                );
 
                 // MULTI-USE Logic: Only switch to 'redeemed' (Expired) if DATE has passed.
                 // Ignore 'Redeemed' string from sheet.

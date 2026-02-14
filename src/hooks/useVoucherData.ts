@@ -37,7 +37,7 @@ export const useVoucherData = () => {
                 };
 
                 return {
-                    id: (item.voucherCode || item.code) ? String(item.voucherCode || item.code) : '',
+                    id: (item.voucherCode || item.code || item.id || item.voucherid) ? String(item.voucherCode || item.code || item.id || item.voucherid) : '',
                     guestName: item.guestName ? String(item.guestName) : '',
                     roomNumber: item.roomNumber ? String(item.roomNumber) : '',
                     checkIn: safeDate(item.checkIn),

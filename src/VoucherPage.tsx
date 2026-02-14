@@ -730,9 +730,10 @@ const VoucherPage: React.FC = () => {
                                                 const left = (window.screen.width - width) / 2;
                                                 const top = (window.screen.height - height) / 2;
 
-                                                // Link without base64 data (it's fetched by ID now)
+                                                // Use helper to ensure valid URL with fallback data
+                                                const url = voucherUrl(currentVoucher);
                                                 window.open(
-                                                    `${window.location.origin}/v/${currentVoucher.id}`,
+                                                    url,
                                                     'GuestPassPopup',
                                                     `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
                                                 );
