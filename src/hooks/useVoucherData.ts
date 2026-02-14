@@ -37,7 +37,7 @@ export const useVoucherData = () => {
                 };
 
                 return {
-                    id: item.code ? String(item.code) : '',
+                    id: (item.voucherCode || item.code) ? String(item.voucherCode || item.code) : '',
                     guestName: item.guestName ? String(item.guestName) : '',
                     roomNumber: item.roomNumber ? String(item.roomNumber) : '',
                     checkIn: safeDate(item.checkIn),
@@ -47,6 +47,8 @@ export const useVoucherData = () => {
                     redeemed_at: item.redeemed_at || '',
                     imageUrl: item.imageUrl || '',
                     services: item.services ? String(item.services).split(', ') : [],
+                    serviceType: item.serviceType || '', // Read serviceType column from backend
+                    redeemed_service: item.redeemed_service || '', // Capture specific redemption service
                     redemptions: [],
                     pax: item.pax ? parseInt(item.pax as any) : 1,
                     secondGuestName: item.secondGuestName || ''

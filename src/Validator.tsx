@@ -208,6 +208,9 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                         </div>
                         {vouchers.find(v => v.id === code.trim().toUpperCase()) && (
                             <div className="mt-3 bg-[#c5a572]/10 border border-[#c5a572]/20 rounded-lg p-4 flex flex-col gap-2 animate-fade-in">
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-[#c5a572] mb-1">
+                                    Voucher: {vouchers.find(v => v.id === code.trim().toUpperCase())?.id}
+                                </div>
                                 <div className="flex justify-between items-center text-[#2c2420]">
                                     <span className="text-sm font-serif font-bold">
                                         {vouchers.find(v => v.id === code.trim().toUpperCase())?.guestName}

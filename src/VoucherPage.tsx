@@ -694,7 +694,7 @@ const VoucherPage: React.FC = () => {
                                             </>
                                         )}
                                     </div>
-                                    <h3 className="text-3xl font-serif text-[#2c2420] mb-1 font-bold">{currentVoucher.id}</h3>
+                                    <h3 className="text-3xl font-mono text-[#c5a572] mb-1 font-bold tracking-wider">{currentVoucher.id}</h3>
                                     <p className="text-gray-500 text-sm mb-2">{currentVoucher.guestName} • Room {currentVoucher.roomNumber}</p>
 
                                     <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572] mb-8">
