@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, Download, Share2 } from 'lucide-react';
+import { CheckCircle, Calendar, Key, ExternalLink, ImageIcon, XCircle, Loader2, Download, Share2, Clock } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { Helmet } from 'react-helmet-async';
 
@@ -91,7 +91,7 @@ const GuestPass: React.FC = () => {
                         roomNumber: currentItem.roomNumber,
                         // Handle date format differences if necessary
                         checkOut: currentItem.checkOut ? new Date(currentItem.checkOut).toISOString().split('T')[0] : '',
-                        services: currentItem.services ? currentItem.services.split(', ') : [],
+                        services: currentItem.services ? String(currentItem.services).split(/,\s+(?![^()]*\))/g) : [],
                         imageUrl: currentItem.imageUrl || ''
                     });
                 }
@@ -183,7 +183,9 @@ const GuestPass: React.FC = () => {
             roomNumber: data.roomNumber,
             checkIn: data.checkIn || '',
             checkOut: data.checkOut,
-            services: data.services
+            services: data.services,
+            email: data.email || '',
+            whatsapp: data.whatsapp || ''
         });
         const bytes = new TextEncoder().encode(payload);
         let binary = '';
@@ -314,6 +316,17 @@ const GuestPass: React.FC = () => {
                         <div className="bg-[#c5a572] p-8 rounded-[2rem] text-white shadow-xl text-center border-4 border-white">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-90">VIP Benefit Activated</p>
                             <h2 className="text-3xl font-serif font-bold leading-tight">15% SAVINGS</h2>
+                            {data.services?.some((s: string) => s.includes('Salon')) && (
+                                <a
+                                    href="https://www.christophe-c.com/"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-[#c5a572] rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-gray-50 transition-all border border-white active:scale-95"
+                                >
+                                    Book Hair Appointment
+                                    <ExternalLink size={12} />
+                                </a>
+                            )}
                         </div>
                     </div>
                 )}
@@ -421,17 +434,20 @@ const GuestPass: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
-                            <Key size={16} className="text-[#c5a572] mx-auto mb-2" />
-                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Room</p>
-                            <p className="font-bold text-[#1a1a1a]">{data.roomNumber}</p>
-                        </div>
-                        <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
-                            <Calendar size={16} className="text-[#c5a572] mx-auto mb-2" />
-                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Expiry</p>
-                            <p className="font-bold text-[#1a1a1a]">{data.checkOut}</p>
-                        </div>
+                    <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50 col-span-2">
+                        <Clock size={16} className="text-[#c5a572] mx-auto mb-2" />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Issued On</p>
+                        <p className="font-bold text-[#1a1a1a]">{data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Active'}</p>
+                    </div>
+                    <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
+                        <Key size={16} className="text-[#c5a572] mx-auto mb-2" />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Room</p>
+                        <p className="font-bold text-[#1a1a1a]">{data.roomNumber}</p>
+                    </div>
+                    <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
+                        <Calendar size={16} className="text-[#c5a572] mx-auto mb-2" />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Expiry</p>
+                        <p className="font-bold text-[#1a1a1a]">{data.checkOut}</p>
                     </div>
 
                     <div className="border-t border-dashed border-gray-200 pt-6">
@@ -452,12 +468,24 @@ const GuestPass: React.FC = () => {
                                             }`}>
                                             <CheckCircle size={10} strokeWidth={4} />
                                         </div>
-                                        <span className={`text-xs font-bold uppercase tracking-tight ${isDiscount ? 'text-[#c5a572]' :
-                                            isFacility ? 'text-blue-600' :
-                                                'text-[#1a1a1a]'
-                                            }`}>
-                                            {s}
-                                        </span>
+                                        <div className="flex flex-col">
+                                            <span className={`text-xs font-bold uppercase tracking-tight ${isDiscount ? 'text-[#c5a572]' :
+                                                isFacility ? 'text-blue-600' :
+                                                    'text-[#1a1a1a]'
+                                                }`}>
+                                                {s}
+                                            </span>
+                                            {s.includes('Salon') && (
+                                                <a
+                                                    href="https://www.christophe-c.com/"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-[10px] text-[#c5a572] underline font-bold mt-1"
+                                                >
+                                                    Book Online Now
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })}

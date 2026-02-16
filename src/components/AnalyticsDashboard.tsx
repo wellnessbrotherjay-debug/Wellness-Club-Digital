@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
     BarChart, TrendingUp, Users,
-    Activity, CheckCircle, Clock, PlusCircle, X, Save, Download
+    Activity, CheckCircle, Clock, PlusCircle, X, Save, Download, Zap
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
 import { APPS_SCRIPT_URL } from '../constants/config';
@@ -11,6 +11,7 @@ const AnalyticsDashboard: React.FC = () => {
     const {
         vouchers,
         redemptions,
+        refresh,
         // isFetching, // Removed unused variables
         // hasLoaded
     } = useVoucherData();
@@ -20,6 +21,8 @@ const AnalyticsDashboard: React.FC = () => {
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
     const [posCount, setPosCount] = useState<number | ''>('');
+    const [showDebug, setShowDebug] = useState(false);
+    const [showHotelVouchers, setShowHotelVouchers] = useState(true); // Default to show ALL redemptions (hotel + POS)
 
     const [showManualInput, setShowManualInput] = useState(false);
     const [manualForm, setManualForm] = useState({
@@ -33,12 +36,14 @@ const AnalyticsDashboard: React.FC = () => {
 
     const handleManualSubmit = async () => {
         setIsSubmitting(true);
+
         // Tag room with TSS# if not present
         const roomTag = manualForm.roomNumber.toLowerCase().includes('tss')
             ? manualForm.roomNumber
             : `TSS #${manualForm.roomNumber}`;
 
         const payload = JSON.stringify({
+            action: 'create',  // CRITICAL: This tells Apps Script to CREATE entry, not just lookup voucher!
             voucherCode: `MANUAL-${Math.floor(Math.random() * 10000)}`,
             userName: manualForm.guestName,
             status: 'Redeemed',
@@ -51,31 +56,38 @@ const AnalyticsDashboard: React.FC = () => {
             pax: 1
         });
 
+        console.log('📤 SENDING MANUAL ENTRY:', {
+            store: manualForm.store,
+            service: manualForm.service,
+            roomNumber: manualForm.roomNumber,
+            finalTag: roomTag,
+            payload: payload
+        });
+
         try {
-            await fetch(APPS_SCRIPT_URL, {
+            const response = await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: payload,
             });
 
-            // Close and reset
-            setShowManualInput(false);
+            console.log('✅ Response status:', response.status);
+            console.log('✅ Response ok:', response.ok);
+
+            // Reset form but keep modal open for rapid data entry
             setManualForm({
-                store: 'No.1 Wellness',
+                ...manualForm,
                 service: '',
                 roomNumber: '',
-                guestName: '',
-                date: new Date().toISOString().split('T')[0]
+                guestName: ''
             });
-            // Trigger refresh via window reload or hook if possible, 
-            // but hook polling will pick it up eventually. 
-            // For now, let's just alert or let polling handle it.
-            alert('Manual entry logged. It may take a few moments to appear.');
+
+            alert(`✅ Manual entry saved!\n\nStore: ${manualForm.store}\nService: ${manualForm.service}\nRoom: ${roomTag}\n\nForm is ready for next entry. Continue or close to finish.`);
 
         } catch (error) {
-            console.error("Error logging manual entry:", error);
-            alert('Failed to log entry.');
+            console.error("❌ Error logging manual entry:", error);
+            alert(`❌ Failed to save entry!\n\nError: ${error}\n\nPlease:\n1. Check browser console (F12)\n2. Try again or contact support`);
         } finally {
             setIsSubmitting(false);
         }
@@ -96,29 +108,58 @@ const AnalyticsDashboard: React.FC = () => {
             .flatMap(g => g.items.map(({ value, label }) => ({ value, label })));
     }, [manualForm.store]);
 
-    // --- Analytics Logic ---
-    const stats = useMemo(() => {
-        const now = new Date();
-        const launchDate = new Date(2026, 0, 1); // Jan 1, 2026
+    // Service categorization with typo tolerance
+    const normalizeServiceName = (service: string): string => {
+        return String(service || '')
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, ' ')  // Remove extra spaces
+            .replace(/pilates/g, 'pilates')  // Fix common typo
+            .replace(/yoga/g, 'yoga');  // Fix common typo
+    };
 
-        // Helper to map service string to category
-        const getServiceCategory = (service: string): string => {
-            const s = service.toLowerCase();
-            if (s.includes('shopping') || s.includes('t store')) return 'fashion';
-            if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani')) return 'hair';
-            return 'wellness';
-        };
+    // Unified Service Categorization
+    const getServiceCategory = (service: string): string => {
+        const s = normalizeServiceName(service);
+        if (s.includes('shopping') || s.includes('t store') || s.includes('fashion') || s.includes('apparel') || s.includes('boutique')) return 'fashion';
+        if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani') || s.includes('facial') || s.includes('beauty')) return 'hair';
+        return 'wellness';
+    };
 
-        const effectiveRedemptions = redemptions.length > 0 ? redemptions : vouchers
+    // Unified manual entry detection
+    const checkIsManual = (room: string, code: string) => {
+        const r = String(room || '').toLowerCase();
+        const c = String(code || '').toLowerCase();
+        // If code is empty or doesn't start with NW- or TEST-, it's POS/Manual
+        if (!c || (!c.startsWith('nw-') && !c.startsWith('test-'))) return true;
+        // Legacy/explicit manual tags
+        return r.includes('tss') || c.startsWith('manual-');
+    };
+
+    // Calculate effective redemptions at component level
+    const effectiveRedemptions = useMemo(() => {
+        const baseData = redemptions.length > 0 ? redemptions : vouchers
             .filter(v => v.status === 'Redeemed')
             .map(v => ({
                 timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
                 voucherCode: v.id,
-                guestName: v.guestName,
-                serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission',
-                roomNumber: v.roomNumber || ''
+                guestName: v.guestName || 'Unknown Guest',
+                // CRITICAL: Prioritize serviceType (where all services are stored) to avoid fallback to generic "15% off..." entitlements
+                serviceType: v.serviceType || v.redeemed_service || (v.services && v.services.length > 0 && !v.services[0].includes('15%') ? v.services[0] : 'Wellness Service'),
+                roomNumber: v.roomNumber || '',
+                isManual: false
             }));
 
+        return baseData.map(r => ({
+            ...r,
+            isManual: checkIsManual(r.roomNumber, r.voucherCode)
+        }));
+    }, [redemptions, vouchers]);
+
+    // --- Analytics Logic ---
+    const stats = useMemo(() => {
+        const now = new Date();
+        const launchDate = new Date(2026, 1, 4); // Feb 4, 2026 - actual launch date
         const parseDate = (dateStr: string) => {
             if (!dateStr) return null;
             const d = new Date(dateStr);
@@ -130,18 +171,23 @@ const AnalyticsDashboard: React.FC = () => {
 
         let currentRedemptions = effectiveRedemptions;
 
+        // Filter: Show ONLY manual POS entries by default (hotel vouchers excluded)
+        if (!showHotelVouchers) {
+            currentRedemptions = currentRedemptions.filter((r: any) => r.isManual);
+        }
+
         if (timeRange === 'week') {
-            currentRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = currentRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= oneWeekAgo;
             });
         } else if (timeRange === 'month') {
-            currentRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = currentRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= oneMonthAgo;
             });
         } else if (timeRange === 'launch') {
-            currentRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = currentRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= launchDate;
             });
@@ -150,7 +196,7 @@ const AnalyticsDashboard: React.FC = () => {
             start.setHours(0, 0, 0, 0);
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
-            currentRedemptions = effectiveRedemptions.filter(r => {
+            currentRedemptions = currentRedemptions.filter(r => {
                 const d = parseDate(r.timestamp);
                 return d && d >= start && d <= end;
             });
@@ -189,15 +235,42 @@ const AnalyticsDashboard: React.FC = () => {
             }
         });
 
-        const manualRedemptions = filteredRedemptions.filter(r =>
-            (r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
-        ).length;
+        const manualRedemptions = filteredRedemptions.filter(r => r.isManual).length;
 
         // Calculate Redeemed Pax
         const redeemedPax = filteredRedemptions.reduce((sum, r) => {
             const voucher = vouchers.find(v => v.id === r.voucherCode);
             return sum + (voucher?.pax || 1);
         }, 0);
+
+        // Calculate Redemption Speed (only for vouchers with both created_at and redeemed_at)
+        const redeemedVouchers = vouchers.filter(v => v.status === 'Redeemed' && v.created_at && v.redeemed_at);
+        const validRedemptionsForSpeed = redeemedVouchers.filter(v => {
+            const createdDate = new Date(v.created_at!);
+            const redeemedDate = new Date(v.redeemed_at!);
+            return !isNaN(createdDate.getTime()) && !isNaN(redeemedDate.getTime());
+        });
+
+        const redemptionSpeedData = validRedemptionsForSpeed.map(v => {
+            const createdDate = new Date(v.created_at!);
+            const redeemedDate = new Date(v.redeemed_at!);
+            const daysToRedeem = Math.floor((redeemedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+            return {
+                voucherCode: v.id,
+                guestName: v.guestName || '',
+                daysToRedeem,
+                category: daysToRedeem === 0 ? 'Same Day' : daysToRedeem === 1 ? '1 Day' : daysToRedeem === 2 ? '2 Days' : daysToRedeem === 3 ? '3 Days' : '4+ Days'
+            };
+        });
+
+        const redemptionSpeedBreakdown = {
+            sameDay: redemptionSpeedData.filter(r => r.category === 'Same Day').length,
+            oneDay: redemptionSpeedData.filter(r => r.category === '1 Day').length,
+            twoDays: redemptionSpeedData.filter(r => r.category === '2 Days').length,
+            threeDays: redemptionSpeedData.filter(r => r.category === '3 Days').length,
+            fourPlusDays: redemptionSpeedData.filter(r => r.category === '4+ Days').length,
+            total: redemptionSpeedData.length
+        };
 
         return {
             totalRedemptions: filteredRedemptions.length,
@@ -210,7 +283,8 @@ const AnalyticsDashboard: React.FC = () => {
             shopGuests,
             dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10),
-            allFilteredRedemptions: filteredRedemptions
+            allFilteredRedemptions: filteredRedemptions,
+            redemptionSpeedBreakdown
         };
     }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory]);
 
@@ -248,6 +322,68 @@ const AnalyticsDashboard: React.FC = () => {
 
     return (
         <div className="animate-fade-in space-y-8">
+            {/* Debug Panel */}
+            <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
+                <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-bold text-white">🔍 Data Debug Panel</h4>
+                    <button
+                        onClick={() => setShowDebug(!showDebug)}
+                        className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs"
+                    >
+                        {showDebug ? 'Hide' : 'Show'}
+                    </button>
+                </div>
+                {showDebug && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-gray-400 mb-1">Vouchers from Sheet: {vouchers.length}</p>
+                                <p className="text-gray-400 mb-1">Redemptions from Sheet: {redemptions.length}</p>
+                                <p className="text-gray-400 mb-1">Using: {redemptions.length > 0 ? 'Redemptions array' : 'Vouchers (Redeemed)'}</p>
+                                <p className="text-cyan-400 font-bold mt-2">📊 Show Hotel Vouchers: {showHotelVouchers ? 'YES' : 'NO (POS only)'}</p>
+                                <p className="text-orange-400 text-[10px]">Manual POS entries: {
+                                    effectiveRedemptions.filter((r: any) => r.isManual).length
+                                } | Total: {effectiveRedemptions.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 mb-1">Launch Date: Feb 4, 2026</p>
+                                <p className="text-gray-400 mb-1">Current Filter: {timeRange}</p>
+                                <p className="text-gray-400 mb-1">Service Filter: {serviceCategory}</p>
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-yellow-400 font-bold mb-2">Raw Data (Last 5 entries):</p>
+                            <div className="space-y-1 max-h-40 overflow-auto">
+                                {effectiveRedemptions
+                                    .slice(0, 5)
+                                    .map((r: any, i) => (
+                                        <div key={i} className={`bg-gray-800 p-2 rounded border-l-4 ${r.isManual ? 'border-cyan-500' : 'border-gray-700'}`}>
+                                            <p>Service: <span className="text-yellow-300">{r.serviceType || 'N/A'}</span></p>
+                                            <p>Guest: {r.guestName || 'N/A'}</p>
+                                            <p>Room: {r.roomNumber || 'N/A'}</p>
+                                            <p>Date: {r.timestamp || 'N/A'}</p>
+                                            <p className={`text-[10px] font-bold ${r.isManual ? 'text-cyan-400' : 'text-gray-500'}`}>
+                                                {r.isManual ? '✓ MANUAL POS ENTRY' : 'HOTEL VOUCHER'}
+                                            </p>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-yellow-400 font-bold mb-2">Service Categorization Test:</p>
+                            <div className="space-y-1">
+                                {['Signature Massage', 'Hair Cut', 'Manicure/Pedicure', '15% off T Store Shopping', 'IV Therapy'].map(s => {
+                                    const cat = getServiceCategory(s);
+                                    return (
+                                        <p key={s}>"{s}" → <span className={cat === 'fashion' ? 'text-pink-400' : cat === 'hair' ? 'text-purple-400' : 'text-green-400'}>{cat}</span></p>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
                 <div className="flex flex-col gap-4 w-full md:w-auto">
                     <div className="flex items-center gap-2 text-gray-400">
@@ -310,13 +446,26 @@ const AnalyticsDashboard: React.FC = () => {
                         ))}
                     </div>
 
-                    <button
-                        onClick={exportToCSV}
-                        className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-[#c5a572] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#b09465] transition-all shadow-md group"
-                    >
-                        <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
-                        Export Data
-                    </button>
+                    <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                        <button
+                            onClick={() => setShowHotelVouchers(!showHotelVouchers)}
+                            className={`flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${showHotelVouchers
+                                ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                                : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                }`}
+                        >
+                            <span>{showHotelVouchers ? 'All Vouchers' : 'POS Only'}</span>
+                            <span className="text-[9px] normal-case">{showHotelVouchers ? '(includes hotel)' : '(manual entries only)'}</span>
+                        </button>
+
+                        <button
+                            onClick={exportToCSV}
+                            className="flex-1 md:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-[#c5a572] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#b09465] transition-all shadow-md group"
+                        >
+                            <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                            Export Data
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -376,6 +525,42 @@ const AnalyticsDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Redemption Speed Analysis */}
+            {stats.redemptionSpeedBreakdown.total > 0 && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-2 mb-6">
+                        <Zap className="text-amber-500" size={20} />
+                        <h3 className="font-serif font-bold text-lg">Redemption Speed Analysis</h3>
+                        <p className="text-xs text-gray-400 ml-2">How quickly guests redeem after voucher creation</p>
+                    </div>
+                    <div className="grid grid-cols-5 gap-4">
+                        {[
+                            { label: 'Same Day', count: stats.redemptionSpeedBreakdown.sameDay, color: 'bg-green-500', textColor: 'text-green-600', bgLight: 'bg-green-50' },
+                            { label: '1 Day', count: stats.redemptionSpeedBreakdown.oneDay, color: 'bg-blue-500', textColor: 'text-blue-600', bgLight: 'bg-blue-50' },
+                            { label: '2 Days', count: stats.redemptionSpeedBreakdown.twoDays, color: 'bg-yellow-500', textColor: 'text-yellow-600', bgLight: 'bg-yellow-50' },
+                            { label: '3 Days', count: stats.redemptionSpeedBreakdown.threeDays, color: 'bg-orange-500', textColor: 'text-orange-600', bgLight: 'bg-orange-50' },
+                            { label: '4+ Days', count: stats.redemptionSpeedBreakdown.fourPlusDays, color: 'bg-red-500', textColor: 'text-red-600', bgLight: 'bg-red-50' },
+                        ].map((stat) => {
+                            const percentage = stats.redemptionSpeedBreakdown.total > 0
+                                ? Math.round((stat.count / stats.redemptionSpeedBreakdown.total) * 100)
+                                : 0;
+                            return (
+                                <div key={stat.label} className="text-center">
+                                    <div className={`w-16 h-16 ${stat.bgLight} rounded-full flex items-center justify-center mx-auto mb-2`}>
+                                        <span className={`text-2xl font-bold ${stat.textColor}`}>{stat.count}</span>
+                                    </div>
+                                    <p className="text-xs font-bold text-gray-600 mb-1">{stat.label}</p>
+                                    <p className="text-[10px] text-gray-400">{percentage}%</p>
+                                    <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                        <div className={`h-full ${stat.color}`} style={{ width: `${percentage}%` }} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -470,7 +655,7 @@ const AnalyticsDashboard: React.FC = () => {
                                 <h4 className="font-bold text-sm text-purple-900 mb-3 uppercase tracking-wide border-b border-purple-100 pb-2">{store}</h4>
                                 <div className="space-y-3">
                                     {stats.recentActivity
-                                        .filter(r => r.roomNumber && r.roomNumber.toLowerCase().includes('tss'))
+                                        .filter(r => r.isManual)
                                         .filter(r => {
                                             const s = r.serviceType || '';
                                             if (store === 'T Store') return s.includes('Shopping') || s.includes('T Store') || s.includes('Apparel') || s.includes('Accessories');
@@ -551,6 +736,12 @@ const AnalyticsDashboard: React.FC = () => {
                         <h3 className="font-serif font-bold text-lg flex items-center gap-2">
                             <Clock size={18} className="text-[#c5a572]" />
                             Recent Activity Log
+                            <button
+                                onClick={() => refresh(false)}
+                                className="ml-2 text-[10px] text-[#c5a572] hover:text-[#2c2420] transition-colors border border-[#c5a572]/20 px-2 py-0.5 rounded-full"
+                            >
+                                REFRESH
+                            </button>
                         </h3>
                         <div className="text-xs text-gray-400 font-bold uppercase tracking-widest">
                             Latest 10
@@ -577,7 +768,7 @@ const AnalyticsDashboard: React.FC = () => {
                                         </td>
                                         <td className="py-4 font-bold">
                                             {r.guestName}
-                                            {r.roomNumber && r.roomNumber.toLowerCase().includes('tss') && (
+                                            {r.isManual && (
                                                 <div className="text-[10px] text-purple-600 font-bold uppercase tracking-wider mt-1">
                                                     #Manual Input (No System)
                                                 </div>
@@ -589,7 +780,7 @@ const AnalyticsDashboard: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="py-4">
-                                            <span className={`font-mono text-xs ${r.roomNumber && r.roomNumber.toLowerCase().includes('tss') ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
+                                            <span className={`font-mono text-xs ${r.isManual ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
                                                 {r.voucherCode}
                                             </span>
                                         </td>

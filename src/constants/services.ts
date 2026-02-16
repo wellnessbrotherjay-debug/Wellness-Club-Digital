@@ -1,7 +1,7 @@
 export const ENTITLEMENTS = {
     TS_SHOPPING: "15% off T Store Shopping",
     TS_SALON: "15% off TS Salon Services",
-    WELLNESS_ALL: "15% off All Services @ No.1 (F&B, Classes, Massage, etc)",
+    WELLNESS_ALL: "15% off All Services @ No.1 Wellness",
     BREAKFAST: "Complimentary Breakfast",
     LATE_CHECKOUT: "Late Check-out (2pm)",
     WELCOME_DRINK: "Welcome Drink",
@@ -28,6 +28,8 @@ export const SERVICE_GROUPS = [
             { value: 'Slimming Massage', label: 'No.1 Slimming Massage', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
             { value: 'Lymphatic Massage', label: 'No.1 Lymphatic Massage', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
             { value: 'Relaxing Massage', label: 'No.1 Relaxing Massage', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
+            { value: 'Guided Recovery Pilates', label: 'Guided Recovery Pilates', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
+            { value: 'Stretching', label: 'Stretching Class', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
         ]
     },
     {
@@ -60,9 +62,10 @@ export const SERVICE_GROUPS = [
         label: 'Fitness & Wellness',
         items: [
             { value: '1x Free Yoga Class', label: '1x Free Yoga Class', requiredEntitlement: ENTITLEMENTS.FREE_YOGA },
-            { value: 'Yoga Class', label: 'Regular Yoga Class', requiredEntitlement: ENTITLEMENTS.FREE_YOGA },
+            { value: 'Yoga Class', label: 'Yoga Class', requiredEntitlement: ENTITLEMENTS.FREE_YOGA },
             { value: 'Reformer Pilates', label: 'Reformer Pilates', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
-            { value: 'Pilates', label: 'Mat Pilates', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
+            { value: 'Pilates Class', label: 'Mat Pilates Class', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
+            { value: 'Guided Recovery Pilates', label: 'Guided Recovery Pilates', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
             { value: 'Zumba', label: 'Zumba Class', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
             { value: 'Kickboxing', label: 'Kickboxing', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },
             { value: 'Muay Thai', label: 'Muay Thai', requiredEntitlement: ENTITLEMENTS.WELLNESS_ALL },

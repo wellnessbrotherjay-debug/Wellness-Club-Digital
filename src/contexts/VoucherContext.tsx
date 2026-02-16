@@ -8,6 +8,8 @@ interface VoucherData {
     checkIn: string;
     checkOut: string;
     services: string[];
+    email?: string;
+    whatsapp?: string;
 }
 
 interface VoucherContextType {

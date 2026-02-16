@@ -19,60 +19,74 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwCreEUlIhlfesvLzrX-E0NoeeIiBNTreFisv067n2hHYfze1c9exXkyOFhPSUB5a72/exec';
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzJz0fsw03Bc0I82KPf4xEmzCXJ7PAT3yWK_B526--ffxQTf0rI-aLXDFmIECrZLPYZ/exec';
+
+    let scriptResponseText = '';
+    let scriptData = null;
 
     try {
-        // Log incoming request for debugging
-        console.log('Redeeming voucher:', req.body);
+        console.log('Redeeming voucher (Payload):', req.body);
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            redirect: 'follow', // Important for Google Script redirects
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8', // Google Script often prefers this or simple text/plain
-            },
+            redirect: 'follow',
+            headers: { 'Content-Type': 'application/plain' },
             body: JSON.stringify(req.body)
         });
 
-        const data = await response.text();
+        scriptResponseText = await response.text();
+        console.log('Script Raw Response:', scriptResponseText);
 
-        // Try to parse JSON response from Google Script if possible
         try {
-            const jsonData = JSON.parse(data);
+            scriptData = JSON.parse(scriptResponseText);
+        } catch (e) {
+            console.warn('Script response was not JSON, treating as success if text exists.');
+            scriptData = { status: scriptResponseText ? 'success' : 'error', message: scriptResponseText };
+        }
 
-            // Send notification email if redemption was successful
-            if (jsonData.status === 'success' && process.env.RESEND_API_KEY) {
-                try {
-                    const resend = new Resend(process.env.RESEND_API_KEY);
-                    const { voucherCode, serviceType, guestName } = req.body;
+        // --- EMAIL NOTIFICATION LOGIC (Decoupled from JSON parsing) ---
+        // Fire if the script didn't error out and we have a key
+        if (scriptData.status !== 'error' && process.env.RESEND_API_KEY) {
+            let emailStatus = 'Sent';
+            try {
+                const resend = new Resend(process.env.RESEND_API_KEY);
+                const { voucherCode, serviceType, guestName, inputPath } = req.body;
 
-                    await resend.emails.send({
-                        from: 'No.1 Wellness <notifications@resend.dev>', // Update this if you have a custom domain
-                        to: ['wellnessbrotherjay@gmail.com'],
-                        subject: `Voucher Redeemed: ${guestName} (${voucherCode})`,
-                        html: `
-                            <div style="font-family: sans-serif; color: #2c2420;">
-                                <h1>New Voucher Redemption</h1>
-                                <p><strong>Guest Name:</strong> ${guestName || 'Unknown'}</p>
-                                <p><strong>Voucher Code:</strong> ${voucherCode}</p>
-                                <p><strong>Service Redeemed:</strong> ${serviceType || 'General Use'}</p>
-                                <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })}</p>
-                                <hr />
-                                <p><a href="https://wellness-club-digital.vercel.app/admin/analytics">View Analytics Board</a></p>
-                            </div>
-                        `
-                    });
-                    console.log('Notification email sent for voucher:', voucherCode);
-                } catch (emailError) {
-                    console.error('Failed to send email notification:', emailError);
-                    // Don't fail the request if email fails, just log it
+                const emailResult = await resend.emails.send({
+                    from: 'No.1 Wellness <notifications@resend.dev>',
+                    to: ['wellnessbrotherjay@gmail.com'],
+                    subject: `Voucher Redeemed: ${guestName} (${voucherCode})`,
+                    html: `
+                        <div style="font-family: sans-serif; color: #2c2420; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                            <h2 style="border-bottom: 2px solid #c5a572; padding-bottom: 10px;">New Voucher Redemption</h2>
+                            <p><strong>Guest Name:</strong> ${guestName || 'Unknown'}</p>
+                            <p><strong>Voucher Code:</strong> ${voucherCode}</p>
+                            <p><strong>Service Redeemed:</strong> <span style="color: #c5a572; font-weight: bold;">${serviceType || 'General Use'}</span></p>
+                            <p><strong>Redemption Path:</strong> <code>${inputPath || '/'}</code></p>
+                            <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)</p>
+                            <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;" />
+                            <p style="text-align: center;"><a href="https://wellness-club-digital.vercel.app/admin/analytics" style="background: #2c2420; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Analytics Board</a></p>
+                        </div>
+                    `
+                });
+
+                if (emailResult.error) {
+                    console.error('Resend API Error:', emailResult.error);
+                    emailStatus = 'Failed: ' + emailResult.error.message;
+                } else {
+                    console.log('Notification email sent successfully:', voucherCode);
                 }
+            } catch (emailError) {
+                console.error('Critical Error sending notification:', emailError);
+                emailStatus = 'Error: ' + emailError.message;
             }
 
-            return res.status(200).json(jsonData);
-        } catch (e) {
-            return res.status(200).json({ success: true, raw: data });
+            // Update email status in the background if it's not 'Sent'
+            // In a real prod env, we'd update the sheet again with the failure if needed
+            req.body.emailStatus = emailStatus;
         }
+
+        return res.status(200).json(scriptData);
 
     } catch (error) {
         console.error('Proxy Error:', error);

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
     CheckCircle, Loader2, Copy, ExternalLink,
-    RefreshCw, Calendar, PlusCircle, Scan,
-    List, History, Search, Trash2, XCircle, AlertCircle, Mail, BarChart
+    Calendar, PlusCircle, Scan, Plus,
+    List, History, Search, Trash2, XCircle, AlertCircle, Mail, BarChart, Send
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
@@ -29,6 +29,8 @@ export interface VoucherData {
     redemptions?: RedemptionData[];
     pax?: number;
     secondGuestName?: string;
+    email?: string;
+    whatsapp?: string;
 }
 
 interface RedemptionData {
@@ -39,7 +41,6 @@ interface RedemptionData {
 }
 
 import { ENTITLEMENTS } from './constants/services';
-
 import { useVoucherData } from './hooks/useVoucherData';
 
 const VoucherPage: React.FC = () => {
@@ -56,9 +57,9 @@ const VoucherPage: React.FC = () => {
         additionalGuests: [] as string[],
     });
 
-
     const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
     const [currentVoucher, setCurrentVoucher] = useState<VoucherData | null>(null);
+    const [showCreateForm, setShowCreateForm] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
     const [whatsappNumber, setWhatsappNumber] = useState('');
@@ -78,18 +79,16 @@ const VoucherPage: React.FC = () => {
     });
     const [isLogging, setIsLogging] = useState(false);
 
-    // Use custom hook for data fetching
     const {
         vouchers: recentVouchers,
         setVouchers: setRecentVouchers,
-        redemptions, // Added missing redemptions from hook
+        redemptions,
         isFetching: isFetchingHistory,
         hasLoaded: hasInitialLoaded,
         error: fetchError,
         refresh: fetchData
     } = useVoucherData();
 
-    // Robust fallback for redemptions
     const effectiveRedemptions = redemptions.length > 0 ? redemptions : recentVouchers
         .filter(v => v.status === 'Redeemed')
         .map(v => ({
@@ -99,22 +98,18 @@ const VoucherPage: React.FC = () => {
             serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
         }));
 
-    // Auth Persistence & Magic Links
     useEffect(() => {
-        // Check URL for magic PIN
         const params = new URLSearchParams(window.location.search);
         const magicPin = params.get('pin');
 
         if (magicPin === '0000') {
             const role = params.get('role') === 'staff' ? 'staff' : 'admin';
             handleLogin(role);
-            window.history.replaceState({}, '', '/'); // Clear PIN from URL
+            window.history.replaceState({}, '', '/');
         } else if (magicPin === '1234') {
-            // Deprecated 1234 link support
             handleLogin('admin');
             window.history.replaceState({}, '', '/');
         } else {
-            // Fallback to saved session
             const savedRole = localStorage.getItem('wellness_session') as 'admin' | 'staff' | null;
             if (savedRole) {
                 setUserRole(savedRole);
@@ -128,12 +123,6 @@ const VoucherPage: React.FC = () => {
         localStorage.setItem('wellness_session', role);
         if (role === 'staff') setActiveTab('validate');
     };
-
-
-
-    // Removed localStorage logic as we now fetch from Sheets
-
-
 
     const generateVoucherId = () => {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -165,10 +154,11 @@ const VoucherPage: React.FC = () => {
             checkOut: formData.checkOut,
             imageUrl: formData.imageUrl,
             services: services.join(', '),
-            createdAt: new Date().toLocaleString('sv-SE').replace('T', ' '), // Clean format: YYYY-MM-DD HH:mm:ss
-            // details field is removed
+            createdAt: new Date().toLocaleString('sv-SE').replace('T', ' '),
             pax: formData.pax,
-            secondGuestName: formData.additionalGuests[0] || '' // Fallback for existing sheet column
+            secondGuestName: formData.additionalGuests[0] || '',
+            email: formData.email,
+            whatsapp: whatsappNumber
         });
 
         try {
@@ -189,13 +179,16 @@ const VoucherPage: React.FC = () => {
                 services: services,
                 created_at: new Date().toISOString(),
                 pax: formData.pax,
-                secondGuestName: formData.additionalGuests[0] || ''
+                secondGuestName: formData.additionalGuests[0] || '',
+                email: formData.email,
+                whatsapp: whatsappNumber
             };
 
             setCurrentVoucher(newVoucher);
             setRecentVouchers(prev => [newVoucher, ...prev]);
-            setEmail(formData.email); // Pre-fill email for sending
+            setEmail(formData.email);
             setStatus('success');
+            setShowCreateForm(false);
 
         } catch (error) {
             console.error("Error generating voucher:", error);
@@ -217,50 +210,42 @@ const VoucherPage: React.FC = () => {
 
         setCurrentVoucher(null);
         setStatus('idle');
-        // Keep whatsapp number if we want to retain it, or clear it. 
-        // User workflow: New voucher -> New Number.
         setWhatsappNumber('');
         setWaStatus('idle');
         setEmail('');
         setEmailStatus('idle');
+        setShowCreateForm(true);
     };
 
-    const sendToWhatsApp = async () => {
+    const sendWhatsApp = async () => {
         if (!currentVoucher || !whatsappNumber) return;
 
         setWaStatus('sending');
-
-        // Use client-side wa.me link instead of backend webhook
         const cleanNumber = whatsappNumber.replace(/^0+/, '').replace(/\D/g, '');
         const fullNumber = `${countryCode.replace('+', '')}${cleanNumber}`;
         const link = `${window.location.origin}/v/${currentVoucher.id}`;
 
         const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to redeem your services.\n\nEnjoy your stay!`;
-
         const waLink = `https://wa.me/${fullNumber}?text=${encodeURIComponent(message)}`;
 
         window.open(waLink, '_blank');
 
-        // Simulate success
         setTimeout(() => {
             setWaStatus('sent');
             setTimeout(() => setWaStatus('idle'), 3000);
         }, 1000);
     };
 
-    const handleSendEmail = () => {
+    const sendEmail = () => {
         if (!currentVoucher || !email) return;
 
         setEmailStatus('sending');
-
         const subject = `Your No.1 Wellness Club Digital Pass`;
         const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${window.location.origin}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
 
         const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
         window.location.href = mailtoLink;
 
-        // Simulate success since we handed off to the mail client
         setTimeout(() => {
             setEmailStatus('sent');
             setTimeout(() => setEmailStatus('idle'), 3000);
@@ -332,27 +317,23 @@ const VoucherPage: React.FC = () => {
         }
 
         setIsDeleting(true);
-        console.log("Starting deletion for ids:", idList);
 
         try {
             const body = JSON.stringify({
                 action: 'delete',
                 voucherCode: isBulk ? idList : idList[0]
             });
-            console.log("Sending delete request with body:", body);
 
-            // Optimistic update
             setRecentVouchers(prev => prev.filter(v => !idList.includes(v.id)));
             if (isBulk) setSelectedIds([]);
 
-            const response = await fetch(APPS_SCRIPT_URL, {
+            await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: body,
             });
 
-            console.log("Delete request sent:", response.type);
             alert(isBulk ? `${idList.length} vouchers deleted successfully.` : `Voucher deleted successfully.`);
 
         } catch (error) {
@@ -400,7 +381,6 @@ const VoucherPage: React.FC = () => {
                 <title>Reception | No.1 Wellness Club</title>
             </Helmet>
 
-            {/* Header */}
             <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
@@ -424,18 +404,15 @@ const VoucherPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
                 <div className="max-w-7xl mx-auto px-6 overflow-x-auto">
                     <div className="flex border-t border-gray-50">
                         {userRole === 'admin' && (
-                            <>
-                                <button
-                                    onClick={() => setActiveTab('create')}
-                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'create' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                                >
-                                    <PlusCircle size={16} /> Create
-                                </button>
-                            </>
+                            <button
+                                onClick={() => setActiveTab('create')}
+                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'create' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <PlusCircle size={16} /> Create
+                            </button>
                         )}
                         <button
                             onClick={() => setActiveTab('validate')}
@@ -449,24 +426,7 @@ const VoucherPage: React.FC = () => {
                         >
                             <AlertCircle size={16} /> Insights
                         </button>
-                        {userRole === 'admin' && (
-                            <>
-                                <button
-                                    onClick={() => setActiveTab('issued')}
-                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                                >
-                                    <List size={16} /> Issued
-                                    <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('analytics')}
-                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'analytics' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                                >
-                                    <BarChart size={16} /> Analytics
-                                </button>
-                            </>
-                        )}
-                        {userRole === 'staff' && (
+                        {(userRole === 'admin' || userRole === 'staff') && (
                             <button
                                 onClick={() => setActiveTab('issued')}
                                 className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
@@ -475,202 +435,218 @@ const VoucherPage: React.FC = () => {
                                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
                             </button>
                         )}
+                        {userRole === 'admin' && (
+                            <button
+                                onClick={() => setActiveTab('analytics')}
+                                className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'analytics' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <BarChart size={16} /> Analytics
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
 
             <main className="max-w-4xl mx-auto p-6 mt-8">
-
-                {/* CREATE TAB */}
                 {activeTab === 'create' && (
                     <div className="animate-fade-in space-y-8">
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-serif mb-1">New Guest Pass</h2>
-                                <p className="text-sm text-gray-400">Generate a unique QR pass for hotel guests.</p>
+                        {!showCreateForm && (
+                            <div className="flex justify-center mb-8">
+                                <button
+                                    onClick={resetForm}
+                                    className="px-8 py-4 bg-[#c5a572] text-white rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-[#c5a572]/20 hover:bg-[#b08d55] transition-all flex items-center gap-3"
+                                >
+                                    <Plus size={16} /> Create New Guest Pass
+                                </button>
                             </div>
+                        )}
 
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Name</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                            placeholder="Guest Full Name"
-                                            value={formData.guestName}
-                                            onChange={e => setFormData({ ...formData, guestName: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pax (Guests)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                            value={formData.pax}
-                                            onChange={e => setFormData({ ...formData, pax: parseInt(e.target.value) || 1 })}
-                                        />
-                                    </div>
-                                    <div className="space-y-4 md:col-span-1">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Additional Guests</label>
-                                            <button
-                                                onClick={() => setFormData({ ...formData, additionalGuests: [...formData.additionalGuests, ''] })}
-                                                className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors font-bold uppercase"
-                                            >
-                                                + Add
-                                            </button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {formData.additionalGuests.map((name, idx) => (
-                                                <div key={idx} className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-[#c5a572] transition-all text-sm font-medium"
-                                                        placeholder={`Guest ${idx + 2} Name`}
-                                                        value={name}
-                                                        onChange={e => {
-                                                            const newGuests = [...formData.additionalGuests];
-                                                            newGuests[idx] = e.target.value;
-                                                            setFormData({ ...formData, additionalGuests: newGuests });
-                                                        }}
-                                                    />
-                                                    <button
-                                                        onClick={() => {
-                                                            const newGuests = formData.additionalGuests.filter((_, i) => i !== idx);
-                                                            setFormData({ ...formData, additionalGuests: newGuests });
-                                                        }}
-                                                        className="text-red-400 hover:text-red-600 transition-colors p-2"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {formData.additionalGuests.length === 0 && (
-                                                <p className="text-[10px] text-gray-300 italic">No additional guests added.</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Room Number</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                            placeholder="Room 101"
-                                            value={formData.roomNumber}
-                                            onChange={e => setFormData({ ...formData, roomNumber: e.target.value })}
-                                        />
-                                    </div>
+                        {showCreateForm && (
+                            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="mb-8">
+                                    <h2 className="text-2xl font-serif mb-1">New Guest Pass</h2>
+                                    <p className="text-sm text-gray-400">Generate a unique QR pass for hotel guests.</p>
+                                </div>
 
-                                    <div className="space-y-2 md:col-span-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">WhatsApp Number (For Digital Delivery)</label>
-                                        <div className="flex gap-2">
-                                            <CountrySelector value={countryCode} onChange={setCountryCode} />
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Name</label>
                                             <input
                                                 type="text"
-                                                className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium font-mono"
-                                                placeholder="812345678"
-                                                value={whatsappNumber}
-                                                onChange={e => setWhatsappNumber(e.target.value)}
+                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                                placeholder="Guest Full Name"
+                                                value={formData.guestName}
+                                                onChange={e => setFormData({ ...formData, guestName: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pax (Guests)</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                                value={formData.pax}
+                                                onChange={e => setFormData({ ...formData, pax: parseInt(e.target.value) || 1 })}
+                                            />
+                                        </div>
+                                        <div className="space-y-4 md:col-span-1">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Additional Guests</label>
+                                                <button
+                                                    onClick={() => setFormData({ ...formData, additionalGuests: [...formData.additionalGuests, ''] })}
+                                                    className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors font-bold uppercase"
+                                                >
+                                                    + Add
+                                                </button>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {formData.additionalGuests.map((name, idx) => (
+                                                    <div key={idx} className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-[#c5a572] transition-all text-sm font-medium"
+                                                            placeholder={`Guest ${idx + 2} Name`}
+                                                            value={name}
+                                                            onChange={e => {
+                                                                const newGuests = [...formData.additionalGuests];
+                                                                newGuests[idx] = e.target.value;
+                                                                setFormData({ ...formData, additionalGuests: newGuests });
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                const newGuests = formData.additionalGuests.filter((_, i) => i !== idx);
+                                                                setFormData({ ...formData, additionalGuests: newGuests });
+                                                            }}
+                                                            className="text-red-400 hover:text-red-600 transition-colors p-2"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {formData.additionalGuests.length === 0 && (
+                                                    <p className="text-[10px] text-gray-300 italic">No additional guests added.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Room Number</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                                placeholder="Room 101"
+                                                value={formData.roomNumber}
+                                                onChange={e => setFormData({ ...formData, roomNumber: e.target.value })}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">WhatsApp Number (For Digital Delivery)</label>
+                                            <div className="flex gap-2">
+                                                <CountrySelector value={countryCode} onChange={setCountryCode} />
+                                                <input
+                                                    type="text"
+                                                    className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium font-mono"
+                                                    placeholder="812345678"
+                                                    value={whatsappNumber}
+                                                    onChange={e => setWhatsappNumber(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Email (Optional)</label>
+                                            <input
+                                                type="email"
+                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                                placeholder="guest@example.com"
+                                                value={formData.email}
+                                                onChange={e => setFormData({ ...formData, email: e.target.value })}
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2 md:col-span-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Email (Optional)</label>
-                                        <input
-                                            type="email"
-                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                            placeholder="guest@example.com"
-                                            value={formData.email}
-                                            onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                        />
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Check In</label>
+                                        <div className="relative">
+                                            <input
+                                                type="date"
+                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
+                                                value={formData.checkIn}
+                                                onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
+                                            />
+                                            <Calendar
+                                                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer pointer-events-auto"
+                                                size={18}
+                                                onClick={(e) => {
+                                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                    if (input) {
+                                                        try {
+                                                            if (typeof (input as any).showPicker === 'function') {
+                                                                (input as any).showPicker();
+                                                            } else {
+                                                                input.focus();
+                                                            }
+                                                        } catch (err) {
+                                                            input.focus();
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Check Out</label>
+                                        <div className="relative">
+                                            <input
+                                                type="date"
+                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
+                                                value={formData.checkOut}
+                                                onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
+                                            />
+                                            <Calendar
+                                                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer pointer-events-auto"
+                                                size={18}
+                                                onClick={(e) => {
+                                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                    if (input) {
+                                                        try {
+                                                            if (typeof (input as any).showPicker === 'function') {
+                                                                (input as any).showPicker();
+                                                            } else {
+                                                                input.focus();
+                                                            }
+                                                        } catch (err) {
+                                                            input.focus();
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Check In</label>
-                                    <div className="relative">
-                                        <input
-                                            type="date"
-                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
-                                            value={formData.checkIn}
-                                            onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
-                                        />
-                                        <Calendar
-                                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer pointer-events-auto"
-                                            size={18}
-                                            onClick={(e) => {
-                                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                                if (input) {
-                                                    try {
-                                                        if (typeof (input as any).showPicker === 'function') {
-                                                            (input as any).showPicker();
-                                                        } else {
-                                                            input.focus();
-                                                        }
-                                                    } catch (err) {
-                                                        input.focus();
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Check Out</label>
-                                    <div className="relative">
-                                        <input
-                                            type="date"
-                                            className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
-                                            value={formData.checkOut}
-                                            onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
-                                        />
-                                        <Calendar
-                                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer pointer-events-auto"
-                                            size={18}
-                                            onClick={(e) => {
-                                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                                if (input) {
-                                                    try {
-                                                        if (typeof (input as any).showPicker === 'function') {
-                                                            (input as any).showPicker();
-                                                        } else {
-                                                            input.focus();
-                                                        }
-                                                    } catch (err) {
-                                                        input.focus();
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                </div>
+                                <button
+                                    onClick={handleGenerate}
+                                    disabled={status === 'generating' || !formData.guestName || !formData.roomNumber}
+                                    className="w-full bg-[#2c2420] text-white h-16 rounded-xl font-bold tracking-[.2em] uppercase hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-8 group"
+                                >
+                                    {status === 'generating' ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={20} />
+                                            <span>Generating...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Issue Digital Voucher</span>
+                                            <PlusCircle className="group-hover:translate-x-1 transition-transform" size={20} />
+                                        </>
+                                    )}
+                                </button>
                             </div>
+                        )}
 
-
-
-                            <button
-                                onClick={handleGenerate}
-                                disabled={status === 'generating' || !formData.guestName || !formData.roomNumber}
-                                className="w-full bg-[#2c2420] text-white h-16 rounded-xl font-bold tracking-[.2em] uppercase hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-8 group"
-                            >
-                                {status === 'generating' ? (
-                                    <>
-                                        <Loader2 className="animate-spin" size={20} />
-                                        <span>Generating...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>Issue Digital Voucher</span>
-                                        <PlusCircle className="group-hover:translate-x-1 transition-transform" size={20} />
-                                    </>
-                                )}
-                            </button>
-                        </div>
-
-                        {/* GENERATED RECENTLY PREVIEW */}
                         {currentVoucher && (
                             <div className="bg-[#f0fdf4] border border-green-100 p-8 rounded-2xl animate-fade-in flex flex-col items-center gap-6 shadow-sm relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 translate-x-16 -translate-y-16 rounded-full" />
@@ -729,8 +705,6 @@ const VoucherPage: React.FC = () => {
                                                 const height = 800;
                                                 const left = (window.screen.width - width) / 2;
                                                 const top = (window.screen.height - height) / 2;
-
-                                                // Use helper to ensure valid URL with fallback data
                                                 const url = voucherUrl(currentVoucher);
                                                 window.open(
                                                     url,
@@ -745,87 +719,57 @@ const VoucherPage: React.FC = () => {
                                         </button>
                                     </div>
 
-                                    {/* WHATSAPP SENDER */}
                                     <div className="mt-6 w-full max-w-sm pt-6 border-t border-dashed border-gray-200 mx-auto">
-                                        <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 block text-left">Send to Guest (WhatsApp)</label>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4">Send to Guest (WhatsApp)</p>
                                         <div className="flex gap-2">
-                                            <div className="w-32">
-                                                <CountrySelector value={countryCode} onChange={setCountryCode} />
+                                            <div className="w-24">
+                                                <CountrySelector
+                                                    value={countryCode}
+                                                    onChange={setCountryCode}
+                                                />
                                             </div>
                                             <input
-                                                type="text"
+                                                type="tel"
                                                 placeholder="Number..."
+                                                className="flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#c5a572]/20 transition-all font-mono"
                                                 value={whatsappNumber}
-                                                onChange={e => setWhatsappNumber(e.target.value)}
-                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm font-mono focus:outline-none focus:border-green-500 transition-colors"
+                                                onChange={(e) => setWhatsappNumber(e.target.value)}
                                             />
                                             <button
-                                                onClick={sendToWhatsApp}
-                                                disabled={!whatsappNumber || waStatus === 'sending' || waStatus === 'sent'}
-                                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all ${waStatus === 'sent'
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-green-600 text-white hover:bg-green-700'
-                                                    }`}
+                                                onClick={sendWhatsApp}
+                                                disabled={waStatus === 'sending'}
+                                                className={`px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${waStatus === 'sent' ? 'bg-green-500 text-white' : 'bg-[#25D366] text-white hover:bg-[#128C7E] shadow-lg shadow-[#25D366]/20'}`}
                                             >
-                                                {waStatus === 'sending' ? (
-                                                    <Loader2 className="animate-spin" size={14} />
-                                                ) : waStatus === 'sent' ? (
-                                                    <>
-                                                        <CheckCircle size={14} /> Sent!
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        Send
-                                                    </>
-                                                )}
+                                                {waStatus === 'sending' ? <Loader2 size={16} className="animate-spin" /> : waStatus === 'sent' ? 'Sent' : 'Send'}
                                             </button>
                                         </div>
                                     </div>
 
-                                    {/* EMAIL SENDER */}
-                                    <div className="mt-4 w-full max-w-sm pt-4 border-t border-dashed border-gray-200 mx-auto">
-                                        <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 block text-left">Send via Email</label>
+                                    <div className="mt-6 w-full max-w-sm pt-6 border-t border-dashed border-gray-200 mx-auto">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4">Send via Email</p>
                                         <div className="flex gap-2">
                                             <input
                                                 type="email"
                                                 placeholder="guest@example.com"
+                                                className="flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#c5a572]/20 transition-all"
                                                 value={email}
-                                                onChange={e => setEmail(e.target.value)}
-                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm font-medium focus:outline-none focus:border-blue-500 transition-colors"
+                                                onChange={(e) => setEmail(e.target.value)}
                                             />
                                             <button
-                                                onClick={handleSendEmail}
-                                                disabled={!email || emailStatus === 'sending' || emailStatus === 'sent'}
-                                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all ${emailStatus === 'sent'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                                                    }`}
+                                                onClick={sendEmail}
+                                                className="px-6 py-3 bg-[#3b82f6] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
                                             >
-                                                {emailStatus === 'sending' ? (
-                                                    <Loader2 className="animate-spin" size={14} />
-                                                ) : emailStatus === 'sent' ? (
-                                                    <>
-                                                        <CheckCircle size={14} /> Sent!
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Mail size={14} /> Send
-                                                    </>
-                                                )}
+                                                {emailStatus === 'sending' ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                                Send
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         )}
-
-                        <button onClick={resetForm} className="mt-8 text-gray-400 hover:text-gray-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                            <RefreshCw size={14} /> Create Next Voucher
-                        </button>
                     </div>
                 )}
 
-                {/* VALIDATE TAB */}
                 {activeTab === 'validate' && (
                     <div className="animate-fade-in">
                         <Validator
@@ -835,7 +779,6 @@ const VoucherPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* ISSUED TAB */}
                 {activeTab === 'issued' && (
                     <div className="animate-fade-in space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
@@ -927,7 +870,6 @@ const VoucherPage: React.FC = () => {
                                             }`}
                                     >
                                         <div className="flex gap-4 items-center w-full md:w-auto">
-                                            {/* Selection Checkbox */}
                                             <button
                                                 onClick={() => toggleSelect(voucher.id)}
                                                 disabled={isDeleting}
@@ -950,34 +892,31 @@ const VoucherPage: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
                                                     <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
-                                                        Issued: {(() => {
-                                                            if (!voucher.created_at) return 'N/A';
-                                                            try {
-                                                                return new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-                                                            } catch (e) {
-                                                                return 'Invalid Date';
-                                                            }
-                                                        })()}
+                                                        Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
                                                     </span>
                                                 </div>
-                                            </div>
-
-                                            {/* REDEMPTION HISTORY IN LIST */}
-                                            <div className="mt-2 space-y-1">
-                                                {Array.isArray(effectiveRedemptions) && effectiveRedemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
-                                                    <div key={`red-${idx}`} className="text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 flex justify-between items-center">
-                                                        <CheckCircle size={10} />
-                                                        <span className="text-[9px] font-bold uppercase">
-                                                            {redeem.serviceType} • {(() => {
-                                                                try {
-                                                                    return new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                                                } catch (e) {
-                                                                    return '';
-                                                                }
-                                                            })()}
+                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                    {voucher.email && (
+                                                        <span className="flex items-center gap-1 text-[9px] text-gray-500 bg-blue-50/50 px-2 py-0.5 rounded border border-blue-100/50">
+                                                            <Mail size={10} className="text-blue-400" /> {voucher.email}
                                                         </span>
-                                                    </div>
-                                                ))}
+                                                    )}
+                                                    {voucher.whatsapp && (
+                                                        <span className="flex items-center gap-1 text-[9px] text-gray-500 bg-green-50/50 px-2 py-0.5 rounded border border-green-100/50">
+                                                            <Send size={10} className="text-green-500" /> {voucher.whatsapp}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="mt-2 space-y-1">
+                                                    {Array.isArray(effectiveRedemptions) && effectiveRedemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
+                                                        <div key={`red-${idx}`} className="text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 flex justify-between items-center">
+                                                            <CheckCircle size={10} />
+                                                            <span className="text-[9px] font-bold uppercase ml-2">
+                                                                {redeem.serviceType} • {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -987,22 +926,10 @@ const VoucherPage: React.FC = () => {
                                                     Redeemed
                                                 </span>
                                             )}
-
                                             <button
                                                 onClick={() => {
-                                                    // Populate form with voucher data
-                                                    const names = voucher.guestName.split(' & ');
-                                                    setFormData({
-                                                        guestName: names[0] || '',
-                                                        roomNumber: voucher.roomNumber || '',
-                                                        checkIn: voucher.checkIn || new Date().toISOString().split('T')[0],
-                                                        checkOut: voucher.checkOut || new Date(Date.now() + 86400000).toISOString().split('T')[0],
-                                                        imageUrl: voucher.imageUrl || '',
-                                                        email: '', // Email not stored in voucher data
-                                                        pax: voucher.pax || 1,
-                                                        additionalGuests: names.slice(1),
-                                                    });
                                                     setCurrentVoucher(voucher);
+                                                    setShowCreateForm(false);
                                                     setActiveTab('create');
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
@@ -1010,12 +937,10 @@ const VoucherPage: React.FC = () => {
                                             >
                                                 Open
                                             </button>
-
                                             <button
                                                 onClick={() => handleDeleteVoucher(voucher.id)}
                                                 disabled={isDeleting}
                                                 className={`p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                title="Delete Voucher"
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -1026,12 +951,9 @@ const VoucherPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {/* ANALYTICS TAB */}
-                {activeTab === 'analytics' && (
-                    <AnalyticsDashboard />
-                )}
 
-                {/* DECLINED TAB */}
+                {activeTab === 'analytics' && <AnalyticsDashboard />}
+
                 {activeTab === 'declined' && (
                     <div className="animate-fade-in max-w-2xl mx-auto">
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">

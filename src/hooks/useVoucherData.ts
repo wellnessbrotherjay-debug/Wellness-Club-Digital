@@ -46,12 +46,14 @@ export const useVoucherData = () => {
                     created_at: item.created_at || item.timestamp || '',
                     redeemed_at: item.redeemed_at || '',
                     imageUrl: item.imageUrl || '',
-                    services: item.services ? String(item.services).split(', ') : [],
+                    services: item.services ? String(item.services).split(/,\s+(?![^()]*\))/g) : [],
                     serviceType: item.serviceType || '', // Read serviceType column from backend
                     redeemed_service: item.redeemed_service || '', // Capture specific redemption service
                     redemptions: [],
                     pax: item.pax ? parseInt(item.pax as any) : 1,
-                    secondGuestName: item.secondGuestName || ''
+                    secondGuestName: item.secondGuestName || '',
+                    email: item.email || '',
+                    whatsapp: item.whatsapp || ''
                 };
             }).reverse();
 

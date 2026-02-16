@@ -3,230 +3,235 @@
  * Combined script for fetching data AND handling actions
  */
 
-// TODO: Replace with your actual Google Sheet ID
-// Find it in your sheet URL: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
-const SHEET_ID = 'YOUR_GOOGLE_SHEET_ID_HERE';
-
-// If using the active spreadsheet (bound script), you can use:
-// const ss = SpreadsheetApp.getActiveSpreadsheet();
-// Otherwise, open by ID:
-// const ss = SpreadsheetApp.openById(SHEET_ID);
+const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8w8Hjhv6B0l5wgBol';
 
 /**
- * Handle GET requests - Fetch Vouchers or Redemptions data
+ * Normalizes headers to match frontend keys.
+ * Maps: "Service Type", "REDEEMED_SERVICE", "Redeemed Service" -> "serviceType"
+ * Maps: "code", "Voucher Code" -> "voucherCode"
  */
-function doGet(e) {
-    const callback = e.parameter.callback;
-    const sheet = e.parameter.sheet || 'Vouchers';
+function normalizeHeaders(headers) {
+    const map = {
+        'code': 'voucherCode',
+        'vouchercode': 'voucherCode',
+        'voucher code': 'voucherCode',
+        'guestname': 'guestName',
+        'guest name': 'guestName',
+        'username': 'guestName',
+        'roomnumber': 'roomNumber',
+        'room number': 'roomNumber',
+        'servicetype': 'serviceType',
+        'service type': 'serviceType',
+        'redeemed_service': 'serviceType',
+        'redeemed service': 'serviceType',
+        'email_sent': 'emailStatus',
+        'email': 'email',
+        'email address': 'email',
+        'whatsapp': 'whatsapp',
+        'phone': 'whatsapp',
+        'phone number': 'whatsapp',
+        'whatsapp number': 'whatsapp',
+        'email status': 'emailStatus',
+        'input_path': 'inputPath',
+        'input path': 'inputPath',
+        'services': 'services',
+        'status': 'status',
+        'created_at': 'created_at',
+        'redeemed_at': 'redeemed_at',
+        'pax': 'pax'
+    };
 
-    let data;
+    return headers.map(h => {
+        const normalized = String(h).toLowerCase().trim();
+        return map[normalized] || normalized;
+    });
+}
+
+function doGet(e) {
+    const callback = e.parameter ? e.parameter.callback : null;
+    const sheetType = e.parameter ? e.parameter.sheet || 'Vouchers' : 'Vouchers';
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     try {
-        // Use active spreadsheet if bound, otherwise open by ID
-        const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
+        const sheet = ss.getSheetByName(sheetType === 'Redemptions' ? 'Redemptions' : 'Vouchers') || ss.getSheetByName('VoucherCodes');
+        if (!sheet) return returnJson(callback, { status: "error", message: "Sheet not found: " + sheetType });
 
-        if (sheet === 'Vouchers') {
-            data = getVouchersData(ss);
-        } else if (sheet === 'Redemptions') {
-            data = getRedemptionsData(ss);
-        } else {
-            data = [];
-        }
+        const data = sheet.getDataRange().getValues();
+        if (data.length <= 1) return returnJson(callback, []);
 
-        // Return as JSONP for cross-origin requests
-        const jsonp = `${callback}(${JSON.stringify(data)})`;
-        return ContentService.createTextOutput(jsonp).setMimeType(ContentService.MimeType.JAVASCRIPT);
+        const rawHeaders = data[0];
+        const normalizedHeaders = normalizeHeaders(rawHeaders);
+        const rows = data.slice(1);
 
+        const result = rows.map(row => {
+            const obj = {};
+            normalizedHeaders.forEach((header, index) => {
+                obj[header] = row[index] !== undefined && row[index] !== null ? row[index] : '';
+            });
+            return obj;
+        });
+
+        return returnJson(callback, result);
     } catch (error) {
-        console.error('Error in doGet:', error);
-        const errorResponse = `${callback}([])`;
-        return ContentService.createTextOutput(errorResponse).setMimeType(ContentService.MimeType.JAVASCRIPT);
+        return returnJson(callback, { status: "error", message: error.toString() });
     }
 }
 
-/**
- * Fetch all data from Vouchers sheet
- */
-function getVouchersData(ss) {
-    const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
-    if (!sheet) {
-        console.log('Vouchers sheet not found');
-        return [];
+function returnJson(callback, data) {
+    const jsonString = JSON.stringify(data);
+    if (callback) {
+        const jsonp = `${callback}(${jsonString})`;
+        return ContentService.createTextOutput(jsonp).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    } else {
+        return ContentService.createTextOutput(jsonString).setMimeType(ContentService.MimeType.JSON);
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return [];
-
-    const headers = data[0];
-    const rows = data.slice(1);
-
-    return rows.map(row => {
-        const obj = {};
-        headers.forEach((header, index) => {
-            obj[header] = row[index] !== undefined && row[index] !== null ? row[index] : '';
-        });
-        return obj;
-    });
 }
 
-/**
- * Fetch all data from Redemptions sheet
- */
-function getRedemptionsData(ss) {
-    const sheet = ss.getSheetByName('Redemptions');
-    if (!sheet) {
-        console.log('Redemptions sheet not found');
-        return [];
-    }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return [];
-
-    const headers = data[0];
-    const rows = data.slice(1);
-
-    return rows.map(row => {
-        const obj = {};
-        headers.forEach((header, index) => {
-            obj[header] = row[index] !== undefined && row[index] !== null ? row[index] : '';
-        });
-        return obj;
-    });
-}
-
-/**
- * Handle POST requests - Actions (log non-issuance, delete, redeem, etc.)
- */
 function doPost(e) {
-    var data = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
-
-    // --- LOG NON-ISSUANCE (Insights) ---
-    if (data.action === 'log_non_issuance') {
-        var sheet = ss.getSheetByName('NonIssuanceLogs') || ss.insertSheet('NonIssuanceLogs');
-
-        // Setup headers if the sheet is empty
-        if (sheet.getLastRow() === 0) {
-            sheet.appendRow(['Timestamp', 'Room Number', 'Duration (Nights)', 'Reason/Feedback']);
-            sheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#f3f3f3');
-        }
-
-        // Add the log entry
-        sheet.appendRow([
-            new Date(),
-            data.roomNumber,
-            data.duration,
-            data.reason
-        ]);
-
-        return ContentService.createTextOutput("Logged Successfully").setMimeType(ContentService.MimeType.TEXT);
-    }
-
-    // --- DELETE VOUCHER ---
-    if (data.action === 'delete') {
-        var sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
-        var rows = sheet.getDataRange().getValues();
-        var codesToDelete = Array.isArray(data.voucherCode) ? data.voucherCode : [data.voucherCode];
-
-        var deletedCount = 0;
-        // Work backwards when deleting rows
-        for (var i = rows.length - 1; i >= 1; i--) {
-            if (codesToDelete.indexOf(rows[i][0]) !== -1) {
-                sheet.deleteRow(i + 1);
-                deletedCount++;
-            }
-        }
-        return ContentService.createTextOutput(deletedCount + " Deleted").setMimeType(ContentService.MimeType.TEXT);
-    }
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
 
     // --- REDEEM VOUCHER ---
     if (data.action === 'redeem' || data.status === 'Redeemed') {
-        var sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
-        var rows = sheet.getDataRange().getValues();
-        var voucherCode = data.voucherCode || data.code;
-        var headers = rows[0];
+        const voucherCode = (data.voucherCode || data.code || '').trim().toUpperCase();
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        
+        if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
 
-        // Find the voucher row
-        for (var i = 1; i < rows.length; i++) {
-            if (rows[i][0] === voucherCode) {
-                // Update status column
-                var statusCol = headers.indexOf('status') + 1;
-                var redeemedAtCol = headers.indexOf('redeemed_at') + 1;
+        const values = sheet.getDataRange().getValues();
+        const rawHeaders = values[0];
+        const normalizedHeaders = normalizeHeaders(rawHeaders);
+        
+        // Find or create 'redeemed_service' and other critical columns
+        const ensureColumn = (name) => {
+            let idx = normalizedHeaders.indexOf(name);
+            if (idx === -1) {
+                sheet.getRange(1, rawHeaders.length + 1).setValue(name);
+                rawHeaders.push(name);
+                normalizedHeaders.push(name);
+                idx = rawHeaders.length - 1;
+            }
+            return idx + 1;
+        };
 
-                if (statusCol > 0) {
-                    sheet.getRange(i + 1, statusCol).setValue('Redeemed');
-                }
-                if (redeemedAtCol > 0) {
-                    sheet.getRange(i + 1, redeemedAtCol).setValue(new Date().toISOString());
-                }
+        const statusCol = ensureColumn('status');
+        const redeemedAtCol = ensureColumn('redeemed_at');
+        const serviceTypeCol = ensureColumn('serviceType');
+        const emailStatusCol = ensureColumn('emailStatus');
+        const inputPathCol = ensureColumn('inputPath');
+        const codeCol = normalizedHeaders.indexOf('voucherCode') + 1;
 
-                // Also log to Redemptions sheet if it exists
-                var redemptionsSheet = ss.getSheetByName('Redemptions');
-                if (redemptionsSheet) {
-                    redemptionsSheet.appendRow([
-                        new Date().toISOString(),  // timestamp
-                        voucherCode,                // voucherCode
-                        data.userName || data.guestName || rows[i][headers.indexOf('guestName')] || '',  // guestName
-                        data.services || rows[i][headers.indexOf('services')] || '',  // serviceType
-                        data.roomNumber || rows[i][headers.indexOf('roomNumber')] || ''  // roomNumber
-                    ]);
-                }
+        if (codeCol === 0) return returnJson({ status: "error", message: "Code column missing" });
 
-                return ContentService.createTextOutput("Redeemed Successfully").setMimeType(ContentService.MimeType.TEXT);
+        for (let i = 1; i < values.length; i++) {
+            if (String(values[i][codeCol - 1]).toUpperCase() === voucherCode) {
+                const redeemedAtValue = data.redeemedAt || new Date().toISOString();
+                sheet.getRange(i + 1, statusCol).setValue('Redeemed');
+                sheet.getRange(i + 1, redeemedAtCol).setValue(redeemedAtValue);
+                sheet.getRange(i + 1, serviceTypeCol).setValue(data.serviceType || '');
+                sheet.getRange(i + 1, emailStatusCol).setValue(data.emailStatus || 'Sent');
+                sheet.getRange(i + 1, inputPathCol).setValue(data.inputPath || '');
+
+                logToRedemptions(ss, {
+                    timestamp: redeemedAtValue,
+                    voucherCode: voucherCode,
+                    guestName: data.userName || data.guestName || values[i][normalizedHeaders.indexOf('guestName')] || '',
+                    serviceType: data.serviceType || '',
+                    roomNumber: data.roomNumber || values[i][normalizedHeaders.indexOf('roomNumber')] || '',
+                    emailStatus: data.emailStatus || 'Sent',
+                    inputPath: data.inputPath || ''
+                });
+
+                return returnJson({ status: "success", message: "Redeemed Successfully" });
             }
         }
-
-        return ContentService.createTextOutput("Voucher not found").setMimeType(ContentService.MimeType.TEXT);
+        return returnJson({ status: "error", message: "Voucher not found" });
     }
 
-    // --- CREATE NEW VOUCHER (Manual Entry) ---
-    if (data.action === 'create' || data.voucherCode) {
-        var sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
-        var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-        // Build row data based on headers
-        var rowData = headers.map(header => {
-            switch(header) {
-                case 'code': return data.voucherCode || data.code || '';
+    // --- CREATE NEW (OR MANUAL) ---
+    if (data.action === 'create' || data.action === 'manual' || data.voucherCode) {
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        if (sheet.getLastRow() === 0) {
+            sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'services', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'pax']);
+        }
+        
+        const headers = normalizeHeaders(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
+        const rowData = headers.map(h => {
+            switch(h) {
+                case 'voucherCode': return data.voucherCode || data.code || '';
                 case 'guestName': return data.userName || data.guestName || '';
                 case 'status': return data.status || 'Redeemed';
-                case 'roomNumber': return data.roomNumber || '';
-                case 'checkIn': return data.checkIn || '';
-                case 'checkOut': return data.checkOut || '';
-                case 'services': return data.services || '';
+                case 'serviceType': return data.serviceType || '';
+                case 'emailStatus': return data.emailStatus || (data.status === 'Redeemed' ? 'Sent' : '');
+                case 'inputPath': return data.inputPath || '';
                 case 'created_at': return data.created_at || new Date().toISOString();
-                case 'redeemed_at': return data.redeemed_at || new Date().toISOString();
-                case 'imageUrl': return data.imageUrl || '';
-                case 'secondGuestName': return data.secondGuestName || '';
-                case 'pax': return data.pax || 1;
-                default: return '';
+                case 'redeemed_at': return data.redeemed_at || (data.status === 'Redeemed' ? new Date().toISOString() : '');
+                case 'email': return data.email || '';
+                case 'whatsapp': return data.whatsapp || '';
+                default: return data[h] || '';
             }
         });
 
         sheet.appendRow(rowData);
-
-        // Also log to Redemptions sheet
-        var redemptionsSheet = ss.getSheetByName('Redemptions');
-        if (redemptionsSheet) {
-            redemptionsSheet.appendRow([
-                data.redeemed_at || new Date().toISOString(),
-                data.voucherCode || data.code || '',
-                data.userName || data.guestName || '',
-                data.services || '',
-                data.roomNumber || ''
-            ]);
+        if (data.status === 'Redeemed') {
+            logToRedemptions(ss, {
+                timestamp: data.redeemed_at || data.redeemedAt || new Date().toISOString(),
+                voucherCode: data.voucherCode || data.code || '',
+                guestName: data.userName || data.guestName || '',
+                serviceType: data.serviceType || '',
+                roomNumber: data.roomNumber || '',
+                emailStatus: data.emailStatus || 'Sent',
+                inputPath: data.inputPath || ''
+            });
         }
-
-        return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+        return returnJson({ status: "success" });
     }
 
-    return ContentService.createTextOutput("Unknown action").setMimeType(ContentService.MimeType.TEXT);
+    return returnJson({ status: "error", message: "Unknown action" });
 }
 
-/**
- * Handle OPTIONS requests for CORS
- */
+function logToRedemptions(ss, entry) {
+    let sheet = ss.getSheetByName('Redemptions');
+    if (!sheet) {
+        sheet = ss.insertSheet('Redemptions');
+        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'roomNumber', 'emailStatus', 'inputPath']);
+    }
+    
+    const values = sheet.getDataRange().getValues();
+    const headers = normalizeHeaders(values[0]);
+    const codeCol = headers.indexOf('voucherCode');
+    
+    if (codeCol !== -1) {
+        for (let i = 1; i < values.length; i++) {
+            if (String(values[i][codeCol]).trim().toUpperCase() === String(entry.voucherCode).trim().toUpperCase()) {
+                // Update existing row
+                const rowRange = sheet.getRange(i + 1, 1, 1, headers.length);
+                const updatedRowData = headers.map(h => {
+                    switch(h) {
+                        case 'timestamp': return entry.timestamp;
+                        case 'voucherCode': return entry.voucherCode;
+                        case 'guestName': return entry.guestName;
+                        case 'serviceType': return entry.serviceType;
+                        case 'roomNumber': return entry.roomNumber;
+                        case 'emailStatus': return entry.emailStatus;
+                        case 'inputPath': return entry.inputPath;
+                        default: return values[i][headers.indexOf(h)];
+                    }
+                });
+                rowRange.setValues([updatedRowData]);
+                return;
+            }
+        }
+    }
+    
+    // Not found, append new
+    sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.emailStatus, entry.inputPath]);
+}
+
+function returnJson(data) {
+    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doOptions(e) {
-    return ContentService.createTextOutput("")
-        .setMimeType(ContentService.MimeType.TEXT);
+    return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
 }

@@ -1,0 +1,122 @@
+--- Starting Reconciliation ---
+Loaded 130 POS entries.
+Found 46 redeemed vouchers in Google Sheets.
+
+--- Reconciled Results ---
+Matched and Fixed: 23
+Total Redemptions in Sheet: 46
+Redemptions without POS Match: 20
+[FIX] Code: NW-4F9NP7 | Guest: Kristan Neri (POS: Kristan Neri)
+      Change: "Infusion Service" -> "Infusion Service"
+      Reason: "IV - Infus info Nicy"
+---
+[FIX] Code: NW-QT6WX6 | Guest: eliana (POS: Ana)
+      Change: "Stretching Session" -> "Stretching Session"
+      Reason: "Stret COM / Bap per Nicy"
+---
+[FIX] Code: NW-X5R2PB | Guest: ELISABETTA LUPPINO (POS: Mrs. Elisabetta Luppino)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass INF 2/2 - Revi"
+---
+[FIX] Code: NW-KLCE5B | Guest: GIROLAMO MOSCHILLA (POS: Girolamo Mdschilla)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass - 2/2 : Ari"
+---
+[FIX] Code: NW-J8GLNG | Guest: Jordan Ann Vojic (POS: Jordan Vojic)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass INF vani"
+---
+[FIX] Code: NW-CF7JV2 | Guest: jay (POS: Mary)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No. Mass TSS 06/0 Merr"
+---
+[FIX] Code: NW-KLQXKG | Guest: TINA MALEKI (POS: Nina Sulaeman)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass Com - Nic : Net"
+---
+[FIX] Code: NW-P6TZ4Z | Guest: gg (POS: Thomas Longrigg)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass Info 05/0 Nila"
+---
+[FIX] Code: NW-M8B8FY | Guest: Mr. Denise Rodger &  Mrs. Amanda Guisolan (POS: Amanda Guisolan)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No. Mass TSS 08/0 Yuni"
+---
+[FIX] Code: NW-GNK8CL | Guest: David (POS: David Guisolan)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No. Mass TSS 08/0 Nila"
+---
+[FIX] Code: NW-HYEM2H | Guest: jay (POS: Jay)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 mass Com - Nic : Wu"
+---
+[FIX] Code: NW-9Q27J5 | Guest: ja (POS: Eliana Jays Wife)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 mass Com - Nic : Tin"
+---
+[FIX] Code: NW-PWSPG7 | Guest: artem shamsiev & aisylu gimranova (POS: Aisylu)
+      Change: "Wellness Service" -> "Wellness Service"
+      Reason: "No.1 masa info Nicy Netri"
+---
+[FIX] Code: NW-8PVS5N | Guest: Antony (POS: anton)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 mass info Nicy :Tini"
+---
+[FIX] Code: NW-P3XVPM | Guest: david (POS: David Guisolan)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass #144 @Th"
+---
+[FIX] Code: NW-EB83GR | Guest: Randolp the red noe raindeer (POS: Ran)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 mass - 9/2 @Th"
+---
+[FIX] Code: NW-G4GCLW | Guest: DESHAUN JOHNSON & LEONG AN CHI (POS: Leong An Chi)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass TSS Nicy Merr"
+---
+[FIX] Code: NW-4DTV37 | Guest: ALI SELMAN (POS: Ali Selman)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No.1 Mass TSS Ther"
+---
+[FIX] Code: NW-J8G6WX | Guest: ANNA VERESINIKOVA & DARIA (POS: Anna (Daria) Verisinikova)
+      Change: "Yoga Session" -> "Yoga Session"
+      Reason: "Yoga #158"
+---
+[FIX] Code: NW-ENUMDN | Guest: Nabajit Giswami (POS: Nabajit Giswami)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No. Mass TSS @Th"
+---
+[FIX] Code: NW-FB4W3J | Guest: jay (POS: Jay)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No. Mass Com 11/0 @Th"
+---
+[FIX] Code: NW-4XEJE2 | Guest: JAys (POS: Eliana Jays Wife)
+      Change: "Signature Massage" -> "Signature Massage"
+      Reason: "No. Mass Com 11/0 @Th"
+---
+[FIX] Code: NW-4AAX7H | Guest: ALI SELMAN (POS: David Guisolan)
+      Change: "Yoga Session" -> "Signature Massage"
+      Reason: "No.1 Mass TSS Vani Netri"
+---
+
+--- Redemptions without POS Match ---
+[UNMATCHED] Code: NW-VLR2LA | Guest: sam | Date: 2026-01-24 | Service: Unknown
+[UNMATCHED] Code: NW-9D2693 | Guest: kk | Date: 2026-01-26 | Service: Unknown
+[UNMATCHED] Code: NW-YXUFBW | Guest: Tony | Date: 2026-01-26 | Service: Unknown
+[UNMATCHED] Code: NW-BFFDZL | Guest: Test User | Date: 2026-01-26 | Service: Unknown
+[UNMATCHED] Code: NW-WB42HK | Guest: jayden | Date: 2026-01-26 | Service: Unknown
+[UNMATCHED] Code: NW-U2QUVT | Guest: Sam jnr | Date: 2026-01-28 | Service: Unknown
+[UNMATCHED] Code: NW-7SX8LM | Guest: Mona  | Date: 2026-01-28 | Service: Unknown
+[UNMATCHED] Code: NW-24J3Z5 | Guest: Sandy | Date: 2026-01-28 | Service: Unknown
+[UNMATCHED] Code: NW-7LFMGG | Guest: Sandy williams | Date: 2026-01-28 | Service: Unknown
+[UNMATCHED] Code: NW-N3J9VC | Guest: STEPHEN O'CONNOR | Date: 2026-02-02 | Service: Unknown
+[UNMATCHED] Code: NW-WF6VQ6 | Guest: Stephen O' Connor & Crystal O' Connor | Date: 2026-02-02 | Service: Unknown
+[UNMATCHED] Code: NW-YTKB82 | Guest: Estafania sanchez | Date: 2026-02-03 | Service: Unknown
+[UNMATCHED] Code: NW-DEQNT9 | Guest: Kimmy  | Date: 2026-02-04 | Service: Unknown
+[UNMATCHED] Code: NW-QWFYXS | Guest: Ms. Sonia Bholagosien | Date: 2026-02-10 | Service: Unknown
+[UNMATCHED] Code: NW-7AUBPZ | Guest: ESTHER TUT | Date: 2026-02-10 | Service: Unknown
+[UNMATCHED] Code: NW-TZEFKC | Guest: Taylor Shaw & Amanda Shaw | Date: 2026-02-12 | Service: Unknown
+[UNMATCHED] Code: TEST-K95TCX | Guest: Test User Agent | Date: 2026-02-09 | Service: Unknown
+[UNMATCHED] Code: NW-4A5VBS | Guest: jay | Date: 2026-02-13 | Service: Signature Massage
+[UNMATCHED] Code: NW-WCX9BY | Guest: test  | Date: 2026-02-12 | Service: Unknown
+[UNMATCHED] Code: VERIFY-5P4B | Guest: Fix Verification User | Date: 2026-02-13 | Service: Signature Massage

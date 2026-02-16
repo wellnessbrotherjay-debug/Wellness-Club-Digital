@@ -1,0 +1,43 @@
+--- Starting Reconciliation ---
+Loaded 130 POS entries.
+Found 46 redeemed vouchers in Google Sheets.
+
+--- Match Results ---
+Exact Matches Found: 9
+Unmatched POS Entries: 121
+[FIX REQUIRED] User: Mrs. Elisabetta Luppino | Date: 2026-02-04
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 Mass INF 2/2 - Revi")
+---
+[FIX REQUIRED] User: Kristan Neri | Date: 2026-02-05
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 Mass TSS 05/0 mert")
+---
+[FIX REQUIRED] User: Aisylu | Date: 2026-02-08
+   Current: "Unknown"
+   Correct: "Wellness Service" (from POS: "No.1 masa info Nicy Netri")
+---
+[FIX REQUIRED] User: artem | Date: 2026-02-08
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 mass - inf - Nic")
+---
+[FIX REQUIRED] User: Tina Maleki | Date: 2026-02-11
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 Mass TSS Vani Suk")
+---
+[FIX REQUIRED] User: Clariz Ramon | Date: 2026-02-12
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 Mass TSS Vani Revi")
+---
+[FIX REQUIRED] User: Raffaele Milone | Date: 2026-02-12
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 Mass TSS Vani Krist")
+---
+[FIX REQUIRED] User: Ayden Yaqonda | Date: 2026-02-12
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No. Mass TSS 12/0 Revi")
+---
+[FIX REQUIRED] User: Viktor | Date: 2026-02-13
+   Current: "Unknown"
+   Correct: "Signature Massage" (from POS: "No.1 Mass TSS Vani Wula")
+---
