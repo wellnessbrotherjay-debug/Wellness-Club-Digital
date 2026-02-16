@@ -726,7 +726,9 @@ const VoucherPage: React.FC = () => {
                                             <div className="text-right">
                                                 <p className="text-[9px] font-black uppercase tracking-[0.15em] text-red-500 mb-1">Valid Until (Expiry)</p>
                                                 <p className="text-xs font-black text-white bg-red-500 px-3 py-1 rounded-lg inline-block shadow-sm">
-                                                    {currentVoucher.checkOut ? new Date(currentVoucher.checkOut).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                    {currentVoucher.checkOut || currentVoucher.checkIn
+                                                        ? new Date(currentVoucher.checkOut || currentVoucher.checkIn).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+                                                        : 'N/A'}
                                                 </p>
                                             </div>
                                         </div>
