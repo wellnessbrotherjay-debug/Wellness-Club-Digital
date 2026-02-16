@@ -172,21 +172,21 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             return sum + (voucher?.pax || 1);
         }, 0);
 
-        // Calculate Redemption Speed (only for vouchers with both created_at and redeemed_at)
+        // Calculate Redemption Speed (days from check-in to redemption)
         // Use filteredRedemptions to respect the selected filters (Service Category & Time Range)
         const validRedemptionsForSpeed = filteredRedemptions
             .map(r => vouchers.find(v => v.id === r.voucherCode))
-            .filter(v => v && v.status === 'Redeemed' && v.created_at && v.redeemed_at)
+            .filter(v => v && v.status === 'Redeemed' && v.checkIn && v.redeemed_at)
             .filter(v => {
-                const createdDate = new Date(v!.created_at!);
+                const checkInDate = new Date(v!.checkIn!);
                 const redeemedDate = new Date(v!.redeemed_at!);
-                return !isNaN(createdDate.getTime()) && !isNaN(redeemedDate.getTime());
+                return !isNaN(checkInDate.getTime()) && !isNaN(redeemedDate.getTime());
             });
 
         const redemptionSpeedData = validRedemptionsForSpeed.map(v => {
-            const createdDate = new Date(v!.created_at!);
+            const checkInDate = new Date(v!.checkIn!);
             const redeemedDate = new Date(v!.redeemed_at!);
-            const daysToRedeem = Math.floor((redeemedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+            const daysToRedeem = Math.floor((redeemedDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
             return {
                 voucherCode: v!.id,
                 guestName: v!.guestName || '',

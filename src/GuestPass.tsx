@@ -426,7 +426,7 @@ const GuestPass: React.FC = () => {
                 {/* Details */}
                 <div className="p-8 pt-0 space-y-6">
                     <div className="text-center">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pass Holder(s)</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pass Holder (Name & Surname)</p>
                         <div className="space-y-1">
                             {data.guestName.split(' & ').map((name: string, i: number) => (
                                 <p key={i} className="text-xl font-serif text-[#1a1a1a] font-bold italic">{name}</p>
@@ -445,9 +445,9 @@ const GuestPass: React.FC = () => {
                         <p className="font-bold text-[#1a1a1a]">{data.roomNumber}</p>
                     </div>
                     <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
-                        <Calendar size={16} className="text-[#c5a572] mx-auto mb-2" />
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Expiry</p>
-                        <p className="font-bold text-[#1a1a1a]">{data.checkOut}</p>
+                        <Calendar size={16} className="text-red-500 mx-auto mb-2" />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Valid Until</p>
+                        <p className="font-bold text-red-600 underline">{data.checkOut}</p>
                     </div>
 
                     <div className="border-t border-dashed border-gray-200 pt-6">
