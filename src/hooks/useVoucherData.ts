@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { APPS_SCRIPT_URL } from '../constants/config';
 import type { VoucherData } from '../VoucherPage';
+import { VoucherCache } from '../utils/voucherCache';
 
 interface RedemptionData {
     timestamp: string;
@@ -40,8 +41,8 @@ export const useVoucherData = () => {
                     id: (item.voucherCode || item.code || item.id || item.voucherid) ? String(item.voucherCode || item.code || item.id || item.voucherid) : '',
                     guestName: item.guestName ? String(item.guestName) : '',
                     roomNumber: item.roomNumber ? String(item.roomNumber) : '',
-                    checkIn: safeDate(item.checkIn),
-                    checkOut: safeDate(item.checkOut),
+                    checkIn: safeDate(item.checkIn || item.check_in || item.CheckIn || item['Check In'] || item.checkin),
+                    checkOut: safeDate(item.checkOut || item.check_out || item.CheckOut || item['Check Out'] || item.checkout),
                     status: item.status ? String(item.status) : '',
                     created_at: item.created_at || item.timestamp || '',
                     redeemed_at: item.redeemed_at || '',
@@ -57,7 +58,9 @@ export const useVoucherData = () => {
                 };
             }).reverse();
 
-            setRecentVouchers(mapped);
+            // Merge with local cache to preserve critical fields if backend fails
+            const merged = VoucherCache.merge(mapped);
+            setRecentVouchers(merged);
         };
 
         (window as any).loadRedemptions = (data: any) => {

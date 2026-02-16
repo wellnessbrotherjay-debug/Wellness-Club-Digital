@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
     CheckCircle, Loader2, Copy, ExternalLink,
     Calendar, PlusCircle, Scan, Plus,
-    List, History, Search, Trash2, XCircle, AlertCircle, Mail, BarChart, Send
+    List, History, Search, Trash2, XCircle, AlertCircle, Mail, BarChart, Send, Clock
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
+import { COUNTRY_CODES } from './data/countryCodes';
 
 import { APPS_SCRIPT_URL } from './constants/config';
 import { LoginScreen } from './components/LoginScreen';
+import { VoucherCache } from './utils/voucherCache';
 
 export interface VoucherData {
     id: string;
@@ -53,6 +55,8 @@ const VoucherPage: React.FC = () => {
         checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
         imageUrl: '',
         email: '',
+        whatsapp: '',
+        countryCode: '+62',
         pax: 1,
         additionalGuests: [] as string[],
     });
@@ -62,8 +66,6 @@ const VoucherPage: React.FC = () => {
     const [showCreateForm, setShowCreateForm] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
-    const [whatsappNumber, setWhatsappNumber] = useState('');
-    const [countryCode, setCountryCode] = useState('+62');
     const [waStatus, setWaStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
     const [email, setEmail] = useState('');
@@ -89,14 +91,29 @@ const VoucherPage: React.FC = () => {
         refresh: fetchData
     } = useVoucherData();
 
-    const effectiveRedemptions = redemptions.length > 0 ? redemptions : recentVouchers
-        .filter(v => v.status === 'Redeemed')
-        .map(v => ({
-            timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
-            voucherCode: v.id,
-            guestName: v.guestName,
-            serviceType: (v.services && v.services.length > 0) ? v.services[0] : 'General Admission'
-        }));
+    const effectiveRedemptions = useMemo(() => {
+        const recentRedemptions = recentVouchers
+            .filter(v => (v.status === 'Redeemed' || v.redeemed_at) && v.redeemed_at) // Ensure it has a redemption timestamp
+            .map(v => ({
+                timestamp: v.redeemed_at!,
+                voucherCode: v.id,
+                guestName: v.guestName,
+                serviceType: v.redeemed_service || (v.services?.[0] || 'General Admission'), // Capture redeemed service specifically
+                roomNumber: v.roomNumber || ''
+            }));
+
+        // Merge with historical redemptions, prioritizing recentVouchers (which are likely more up-to-date for today's actions)
+        // We use a Map to dedup by voucherCode
+        const redemptionMap = new Map();
+
+        // Populate with history first
+        redemptions.forEach(r => redemptionMap.set(r.voucherCode, r));
+
+        // Overwrite or add with recent vouchers (so if a voucher is in both, the 'recent' one from Vouchers sheet takes precedence which might have better service info)
+        recentRedemptions.forEach(r => redemptionMap.set(r.voucherCode, r));
+
+        return Array.from(redemptionMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }, [recentVouchers, redemptions]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -145,7 +162,12 @@ const VoucherPage: React.FC = () => {
 
         const allGuestNames = [formData.guestName, ...formData.additionalGuests].filter(Boolean).join(' & ');
 
+        const cleanWA = formData.whatsapp.replace(/\D/g, '').replace(/^0+/, '');
+        const prefix = formData.countryCode.replace(/\D/g, '');
+        const finalWA = cleanWA.startsWith(prefix) ? `+${cleanWA}` : `${formData.countryCode}${cleanWA}`;
+
         const payload = JSON.stringify({
+            action: 'create', // CRITICAL: Tell GAS this is a creation, not a redemption
             voucherCode: voucherId,
             userName: allGuestNames,
             status: 'Created',
@@ -158,7 +180,7 @@ const VoucherPage: React.FC = () => {
             pax: formData.pax,
             secondGuestName: formData.additionalGuests[0] || '',
             email: formData.email,
-            whatsapp: whatsappNumber
+            whatsapp: formData.whatsapp ? finalWA : ''
         });
 
         try {
@@ -181,11 +203,16 @@ const VoucherPage: React.FC = () => {
                 pax: formData.pax,
                 secondGuestName: formData.additionalGuests[0] || '',
                 email: formData.email,
-                whatsapp: whatsappNumber
+                whatsapp: formData.whatsapp ? finalWA : ''
             };
 
             setCurrentVoucher(newVoucher);
+            setCurrentVoucher(newVoucher);
             setRecentVouchers(prev => [newVoucher, ...prev]);
+
+            // CRITICAL: Cache locally to ensure WhatsApp/Email persist even if backend sync lags
+            VoucherCache.save(newVoucher);
+
             setEmail(formData.email);
             setStatus('success');
             setShowCreateForm(false);
@@ -204,13 +231,14 @@ const VoucherPage: React.FC = () => {
             checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
             imageUrl: '',
             email: '',
+            whatsapp: '',
+            countryCode: '+62',
             pax: 1,
             additionalGuests: [],
         });
 
         setCurrentVoucher(null);
         setStatus('idle');
-        setWhatsappNumber('');
         setWaStatus('idle');
         setEmail('');
         setEmailStatus('idle');
@@ -218,15 +246,13 @@ const VoucherPage: React.FC = () => {
     };
 
     const sendWhatsApp = async () => {
-        if (!currentVoucher || !whatsappNumber) return;
+        if (!currentVoucher || !currentVoucher.whatsapp) return;
 
         setWaStatus('sending');
-        const cleanNumber = whatsappNumber.replace(/^0+/, '').replace(/\D/g, '');
-        const fullNumber = `${countryCode.replace('+', '')}${cleanNumber}`;
         const link = `${window.location.origin}/v/${currentVoucher.id}`;
 
         const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to redeem your services.\n\nEnjoy your stay!`;
-        const waLink = `https://wa.me/${fullNumber}?text=${encodeURIComponent(message)}`;
+        const waLink = `https://wa.me/${currentVoucher.whatsapp.replace('+', '')}?text=${encodeURIComponent(message)}`;
 
         window.open(waLink, '_blank');
 
@@ -295,7 +321,7 @@ const VoucherPage: React.FC = () => {
     const clearHistory = () => {
         if (window.confirm("Are you sure you want to clear all local voucher history? This doesn't affect the Google Sheet.")) {
             setRecentVouchers([]);
-            localStorage.removeItem('reception_vouchers');
+            VoucherCache.clear();
         }
     };
 
@@ -326,6 +352,7 @@ const VoucherPage: React.FC = () => {
 
             setRecentVouchers(prev => prev.filter(v => !idList.includes(v.id)));
             if (isBulk) setSelectedIds([]);
+            VoucherCache.delete(idList);
 
             await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
@@ -393,7 +420,7 @@ const VoucherPage: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end mr-4">
                             <span className="text-xs font-bold">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard</span>
+                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.4</span>
                         </div>
                         <button
                             onClick={() => window.location.href = '/help'}
@@ -471,11 +498,11 @@ const VoucherPage: React.FC = () => {
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Name</label>
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Name & Surname</label>
                                             <input
                                                 type="text"
                                                 className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                                placeholder="Guest Full Name"
+                                                placeholder="e.g. John Smith"
                                                 value={formData.guestName}
                                                 onChange={e => setFormData({ ...formData, guestName: e.target.value })}
                                             />
@@ -544,13 +571,13 @@ const VoucherPage: React.FC = () => {
                                         <div className="space-y-2 md:col-span-2">
                                             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">WhatsApp Number (For Digital Delivery)</label>
                                             <div className="flex gap-2">
-                                                <CountrySelector value={countryCode} onChange={setCountryCode} />
+                                                <CountrySelector value={formData.countryCode} onChange={val => setFormData({ ...formData, countryCode: val })} />
                                                 <input
                                                     type="text"
                                                     className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium font-mono"
                                                     placeholder="812345678"
-                                                    value={whatsappNumber}
-                                                    onChange={e => setWhatsappNumber(e.target.value)}
+                                                    value={formData.whatsapp}
+                                                    onChange={e => setFormData({ ...formData, whatsapp: e.target.value })}
                                                 />
                                             </div>
                                         </div>
@@ -670,24 +697,87 @@ const VoucherPage: React.FC = () => {
                                             </>
                                         )}
                                     </div>
-                                    <h3 className="text-3xl font-mono text-[#c5a572] mb-1 font-bold tracking-wider">{currentVoucher.id}</h3>
-                                    <p className="text-gray-500 text-sm mb-2">{currentVoucher.guestName} • Room {currentVoucher.roomNumber}</p>
+                                    <div className="bg-white border-2 border-[#c5a572]/20 rounded-3xl p-6 w-full max-w-sm mb-6 text-left space-y-4 shadow-xl relative">
+                                        <div className="absolute -top-3 left-6 bg-[#c5a572] text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">
+                                            Official Guest Receipt
+                                        </div>
 
-                                    <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572] mb-8">
-                                        <span>{currentVoucher.pax || 1} Pax</span>
-                                        {currentVoucher.guestName.includes('&') && (
-                                            <>
-                                                <span>•</span>
-                                                <div className="flex flex-col gap-1">
-                                                    {currentVoucher.guestName.split(' & ').slice(1).map((name, i) => (
-                                                        <span key={i}>+ {name}</span>
-                                                    ))}
-                                                </div>
-                                            </>
-                                        )}
+                                        <div className="flex justify-between items-start border-b border-gray-100 pb-3 mt-2">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#c5a572] mb-0.5">Guest (Name & Surname)</p>
+                                                <h4 className="text-xl font-serif text-[#2c2420] font-bold italic">{currentVoucher.guestName}</h4>
+                                                <p className="text-xs font-bold text-gray-500 mt-1">Room {currentVoucher.roomNumber}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#c5a572] mb-0.5">Voucher ID</p>
+                                                <p className="text-sm font-mono font-black text-[#2c2420]">{currentVoucher.id}</p>
+                                                <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">{currentVoucher.pax || 1} Pax</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 border-b border-gray-100 pb-3">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#c5a572] mb-1">Pass Issued On</p>
+                                                <p className="text-xs font-bold text-[#2c2420] flex items-center gap-2">
+                                                    <Clock size={12} className="text-gray-400" />
+                                                    {currentVoucher.created_at ? new Date(currentVoucher.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-red-500 mb-1">Valid Until (Expiry)</p>
+                                                <p className="text-xs font-black text-white bg-red-500 px-3 py-1 rounded-lg inline-block shadow-sm">
+                                                    {currentVoucher.checkOut ? new Date(currentVoucher.checkOut).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-1">
+                                            {(() => {
+                                                const voucherRedemptions = Array.isArray(effectiveRedemptions) ? effectiveRedemptions.filter(r => r.voucherCode === currentVoucher.id) : [];
+                                                if (voucherRedemptions.length > 0) {
+                                                    return (
+                                                        <div className="mb-4 pt-1 border-b border-gray-100 pb-3">
+                                                            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-green-600 mb-2">Redemption Details</p>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                {voucherRedemptions.map((r, i) => (
+                                                                    <div key={i} className="flex flex-col gap-1 text-xs bg-green-50 p-2 rounded-lg border border-green-100">
+                                                                        <span className="font-bold text-green-800">{r.serviceType}</span>
+                                                                        <span className="text-[10px] text-green-600 flex items-center gap-1">
+                                                                            <Clock size={10} />
+                                                                            {new Date(r.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+
+                                            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#c5a572] mb-2">Back-End Contact Data</p>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {currentVoucher.email && (
+                                                    <div className="flex items-center gap-3 text-xs text-gray-600 bg-gray-50 p-2 rounded-xl">
+                                                        <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm">
+                                                            <Mail size={12} />
+                                                        </div>
+                                                        <span className="font-semibold truncate">{currentVoucher.email}</span>
+                                                    </div>
+                                                )}
+                                                {currentVoucher.whatsapp && (
+                                                    <div className="flex items-center gap-3 text-xs text-gray-600 bg-gray-50 p-2 rounded-xl">
+                                                        <div className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center text-green-600 shadow-sm">
+                                                            <Send size={12} />
+                                                        </div>
+                                                        <span className="font-mono font-bold tracking-tighter">{currentVoucher.whatsapp}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
+                                    <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-sm mx-auto mb-8">
                                         <button
                                             onClick={() => {
                                                 navigator.clipboard.writeText(voucherUrl(currentVoucher));
@@ -712,33 +802,53 @@ const VoucherPage: React.FC = () => {
                                                     `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
                                                 );
                                             }}
-                                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#2c2420] text-white rounded-xl hover:bg-black text-sm font-bold transition-all"
+                                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#2c2420] text-white rounded-xl hover:bg-black text-sm font-bold transition-all shadow-lg shadow-black/10"
                                         >
                                             Open Pass
                                             <ExternalLink size={16} />
                                         </button>
                                     </div>
 
-                                    <div className="mt-6 w-full max-w-sm pt-6 border-t border-dashed border-gray-200 mx-auto">
+                                    <div className="mt-2 w-full max-w-sm pt-6 border-t border-dashed border-gray-200 mx-auto">
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4">Send to Guest (WhatsApp)</p>
-                                        <div className="flex gap-2">
-                                            <div className="w-24">
+                                        <div className="flex gap-1 items-center">
+                                            <div className="flex-shrink-0">
                                                 <CountrySelector
-                                                    value={countryCode}
-                                                    onChange={setCountryCode}
+                                                    value={currentVoucher.whatsapp?.startsWith('+') ? (() => {
+                                                        const match = [...COUNTRY_CODES].sort((a, b) => b.dial_code.length - a.dial_code.length).find((c: any) => currentVoucher.whatsapp?.startsWith(c.dial_code));
+                                                        return match?.dial_code || '+62';
+                                                    })() : '+62'}
+                                                    onChange={(val) => {
+                                                        const match = [...COUNTRY_CODES].sort((a, b) => b.dial_code.length - a.dial_code.length).find((c: any) => currentVoucher.whatsapp?.startsWith(c.dial_code));
+                                                        const currentPrefix = match?.dial_code || '';
+                                                        const rest = currentVoucher.whatsapp?.startsWith('+') ? currentVoucher.whatsapp.slice(currentPrefix.length) : currentVoucher.whatsapp;
+                                                        setCurrentVoucher({ ...currentVoucher, whatsapp: `${val}${rest}` });
+                                                    }}
                                                 />
                                             </div>
                                             <input
                                                 type="tel"
                                                 placeholder="Number..."
-                                                className="flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#c5a572]/20 transition-all font-mono"
-                                                value={whatsappNumber}
-                                                onChange={(e) => setWhatsappNumber(e.target.value)}
+                                                className="flex-1 min-w-0 bg-white border border-gray-100 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#c5a572]/20 transition-all font-mono"
+                                                value={(() => {
+                                                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.dial_code.length - a.dial_code.length);
+                                                    const match = sortedCodes.find((c: any) => currentVoucher.whatsapp?.startsWith(c.dial_code));
+                                                    if (match && currentVoucher.whatsapp?.startsWith(match.dial_code)) {
+                                                        return currentVoucher.whatsapp.slice(match.dial_code.length);
+                                                    }
+                                                    return currentVoucher.whatsapp || '';
+                                                })()}
+                                                onChange={(e) => {
+                                                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.dial_code.length - a.dial_code.length);
+                                                    const match = sortedCodes.find((c: any) => currentVoucher.whatsapp?.startsWith(c.dial_code));
+                                                    const prefix = match?.dial_code || '+62';
+                                                    setCurrentVoucher({ ...currentVoucher, whatsapp: `${prefix}${e.target.value.replace(/\D/g, '')}` });
+                                                }}
                                             />
                                             <button
                                                 onClick={sendWhatsApp}
-                                                disabled={waStatus === 'sending'}
-                                                className={`px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${waStatus === 'sent' ? 'bg-green-500 text-white' : 'bg-[#25D366] text-white hover:bg-[#128C7E] shadow-lg shadow-[#25D366]/20'}`}
+                                                disabled={waStatus === 'sending' || !currentVoucher.whatsapp}
+                                                className={`flex-shrink-0 px-4 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${waStatus === 'sent' ? 'bg-green-500 text-white' : 'bg-[#25D366] text-white hover:bg-[#128C7E] shadow-lg shadow-[#25D366]/20'}`}
                                             >
                                                 {waStatus === 'sending' ? <Loader2 size={16} className="animate-spin" /> : waStatus === 'sent' ? 'Sent' : 'Send'}
                                             </button>
@@ -895,7 +1005,7 @@ const VoucherPage: React.FC = () => {
                                                         Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
                                                     </span>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                <div className="flex flex-wrap gap-2 mt-2">
                                                     {voucher.email && (
                                                         <span className="flex items-center gap-1 text-[9px] text-gray-500 bg-blue-50/50 px-2 py-0.5 rounded border border-blue-100/50">
                                                             <Mail size={10} className="text-blue-400" /> {voucher.email}
@@ -906,16 +1016,50 @@ const VoucherPage: React.FC = () => {
                                                             <Send size={10} className="text-green-500" /> {voucher.whatsapp}
                                                         </span>
                                                     )}
-                                                </div>
-                                                <div className="mt-2 space-y-1">
-                                                    {Array.isArray(effectiveRedemptions) && effectiveRedemptions.filter(r => r.voucherCode === voucher.id).map((redeem, idx) => (
-                                                        <div key={`red-${idx}`} className="text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 flex justify-between items-center">
-                                                            <CheckCircle size={10} />
-                                                            <span className="text-[9px] font-bold uppercase ml-2">
-                                                                {redeem.serviceType} • {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    <div className="flex flex-wrap gap-2 w-full mt-1">
+                                                        {voucher.checkIn && (
+                                                            <span className="flex items-center gap-1 text-[9px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                                                <Calendar size={10} /> In: {new Date(voucher.checkIn).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                                             </span>
-                                                        </div>
-                                                    ))}
+                                                        )}
+                                                        {voucher.checkOut && (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-[9px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                                                    Out: {new Date(voucher.checkOut).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                                </span>
+                                                                <span className="flex items-center gap-1 text-[9px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-bold">
+                                                                    Valid Until: {new Date(voucher.checkOut).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                        {voucher.pax && (
+                                                            <span className="flex items-center gap-1 text-[9px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-bold">
+                                                                {voucher.pax} Pax
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 space-y-1">
+                                                    {(() => {
+                                                        const voucherRedemptions = Array.isArray(effectiveRedemptions) ? effectiveRedemptions.filter(r => r.voucherCode === voucher.id) : [];
+                                                        const count = voucherRedemptions.length;
+                                                        if (count === 0) return null;
+
+                                                        return (
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="text-[10px] font-black uppercase text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200 w-fit flex items-center gap-1.5 animate-pulse">
+                                                                    <CheckCircle size={12} />
+                                                                    Redeemed {count > 1 ? `${count}x` : ''}
+                                                                </div>
+                                                                {voucherRedemptions.map((redeem, idx) => (
+                                                                    <div key={`red-${idx}`} className="text-[8px] text-gray-400 ml-4 flex items-center gap-2">
+                                                                        <div className="w-1 h-1 bg-gray-200 rounded-full" />
+                                                                        {redeem.serviceType} • {new Date(redeem.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>
@@ -928,14 +1072,18 @@ const VoucherPage: React.FC = () => {
                                             )}
                                             <button
                                                 onClick={() => {
+                                                    // CRITICAL: Set all states to sync the "Success" screen view correctly
                                                     setCurrentVoucher(voucher);
+                                                    setEmail(voucher.email || '');
+                                                    setWaStatus('idle');
+                                                    setEmailStatus('idle');
                                                     setShowCreateForm(false);
                                                     setActiveTab('create');
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className="px-4 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                                                className="px-6 py-2 bg-[#2c2420] text-white hover:bg-black rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-md active:scale-95"
                                             >
-                                                Open
+                                                Open Details
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteVoucher(voucher.id)}
@@ -952,7 +1100,19 @@ const VoucherPage: React.FC = () => {
                     </div>
                 )}
 
-                {activeTab === 'analytics' && <AnalyticsDashboard />}
+                {activeTab === 'analytics' && (
+                    <AnalyticsDashboard
+                        onViewVoucher={(voucher) => {
+                            setCurrentVoucher(voucher);
+                            setEmail(voucher.email || '');
+                            setWaStatus('idle');
+                            setEmailStatus('idle');
+                            setShowCreateForm(false);
+                            setActiveTab('create');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                    />
+                )}
 
                 {activeTab === 'declined' && (
                     <div className="animate-fade-in max-w-2xl mx-auto">

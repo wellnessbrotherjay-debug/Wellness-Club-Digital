@@ -18,8 +18,15 @@ function normalizeHeaders(headers) {
         'guestname': 'guestName',
         'guest name': 'guestName',
         'username': 'guestName',
+        'name': 'guestName',
         'roomnumber': 'roomNumber',
         'room number': 'roomNumber',
+        'checkin': 'checkIn',
+        'check in': 'checkIn',
+        'checked in': 'checkIn',
+        'checkout': 'checkOut',
+        'check out': 'checkOut',
+        'checked out': 'checkOut',
         'servicetype': 'serviceType',
         'service type': 'serviceType',
         'redeemed_service': 'serviceType',
@@ -150,40 +157,58 @@ function doPost(e) {
 
     // --- CREATE NEW (OR MANUAL) ---
     if (data.action === 'create' || data.action === 'manual' || data.voucherCode) {
-        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes') || ss.insertSheet('Vouchers');
+        
+        // Ensure header row exists
         if (sheet.getLastRow() === 0) {
-            sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'services', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'pax']);
+            sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'services', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'pax', 'email', 'whatsapp']);
         }
         
-        const headers = normalizeHeaders(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
-        const rowData = headers.map(h => {
-            switch(h) {
-                case 'voucherCode': return data.voucherCode || data.code || '';
-                case 'guestName': return data.userName || data.guestName || '';
-                case 'status': return data.status || 'Redeemed';
-                case 'serviceType': return data.serviceType || '';
-                case 'emailStatus': return data.emailStatus || (data.status === 'Redeemed' ? 'Sent' : '');
-                case 'inputPath': return data.inputPath || '';
-                case 'created_at': return data.created_at || new Date().toISOString();
-                case 'redeemed_at': return data.redeemed_at || (data.status === 'Redeemed' ? new Date().toISOString() : '');
-                case 'email': return data.email || '';
-                case 'whatsapp': return data.whatsapp || '';
-                default: return data[h] || '';
-            }
-        });
+        const rawHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        const headers = normalizeHeaders(rawHeaders);
 
-        sheet.appendRow(rowData);
+        // Helper to find or add column
+        const getColumnIndex = (name) => {
+            let idx = headers.indexOf(name);
+            if (idx === -1) {
+                sheet.getRange(1, rawHeaders.length + 1).setValue(name);
+                headers.push(name);
+                rawHeaders.push(name);
+                return rawHeaders.length;
+            }
+            return idx + 1;
+        };
+
+        const nextRow = sheet.getLastRow() + 1;
+        
+        // Explicitly set each value to ensure mapping correctness
+        sheet.getRange(nextRow, getColumnIndex('voucherCode')).setValue(data.voucherCode || data.code || '');
+        sheet.getRange(nextRow, getColumnIndex('guestName')).setValue(data.userName || data.guestName || '');
+        sheet.getRange(nextRow, getColumnIndex('status')).setValue(data.status || 'Created');
+        sheet.getRange(nextRow, getColumnIndex('roomNumber')).setValue(data.roomNumber || '');
+        sheet.getRange(nextRow, getColumnIndex('checkIn')).setValue(data.checkIn || '');
+        sheet.getRange(nextRow, getColumnIndex('checkOut')).setValue(data.checkOut || '');
+        sheet.getRange(nextRow, getColumnIndex('services')).setValue(data.services || '');
+        sheet.getRange(nextRow, getColumnIndex('created_at')).setValue(data.created_at || data.createdAt || new Date().toISOString());
+        sheet.getRange(nextRow, getColumnIndex('pax')).setValue(data.pax || 1);
+        sheet.getRange(nextRow, getColumnIndex('email')).setValue(data.email || '');
+        sheet.getRange(nextRow, getColumnIndex('whatsapp')).setValue(data.whatsapp || '');
+
         if (data.status === 'Redeemed') {
+            const redeemedAt = data.redeemed_at || data.redeemedAt || new Date().toISOString();
+            sheet.getRange(nextRow, getColumnIndex('redeemed_at')).setValue(redeemedAt);
+            sheet.getRange(nextRow, getColumnIndex('serviceType')).setValue(data.serviceType || '');
+            
             logToRedemptions(ss, {
-                timestamp: data.redeemed_at || data.redeemedAt || new Date().toISOString(),
+                timestamp: redeemedAt,
                 voucherCode: data.voucherCode || data.code || '',
                 guestName: data.userName || data.guestName || '',
                 serviceType: data.serviceType || '',
                 roomNumber: data.roomNumber || '',
-                emailStatus: data.emailStatus || 'Sent',
-                inputPath: data.inputPath || ''
+                emailStatus: data.emailStatus || 'Sent'
             });
         }
+        
         return returnJson({ status: "success" });
     }
 
