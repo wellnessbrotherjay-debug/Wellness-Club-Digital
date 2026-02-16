@@ -132,6 +132,41 @@ function doPost(e) {
 
         for (let i = 1; i < values.length; i++) {
             if (String(values[i][codeCol - 1]).toUpperCase() === voucherCode) {
+                // VALIDATE: Check if redemption is within valid stay period
+                const checkInCol = normalizedHeaders.indexOf('checkIn');
+                const checkOutCol = normalizedHeaders.indexOf('checkOut');
+
+                if (checkInCol >= 0 && checkOutCol >= 0) {
+                    const checkInValue = values[i][checkInCol];
+                    const checkOutValue = values[i][checkOutCol];
+
+                    // Only validate if both dates exist
+                    if (checkInValue && checkOutValue) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0); // Reset to midnight for fair comparison
+
+                        const checkInDate = new Date(checkInValue);
+                        checkInDate.setHours(0, 0, 0, 0);
+
+                        const checkOutDate = new Date(checkOutValue);
+                        checkOutDate.setHours(0, 0, 0, 0);
+
+                        // Block redemption if outside valid stay period
+                        if (today < checkInDate) {
+                            return returnJson({
+                                status: "error",
+                                message: "Voucher not yet valid. Valid from " + checkInValue
+                            });
+                        }
+                        if (today > checkOutDate) {
+                            return returnJson({
+                                status: "error",
+                                message: "Voucher expired. Valid until " + checkOutValue
+                            });
+                        }
+                    }
+                }
+
                 const redeemedAtValue = data.redeemedAt || new Date().toISOString();
                 sheet.getRange(i + 1, statusCol).setValue('Redeemed');
                 sheet.getRange(i + 1, redeemedAtCol).setValue(redeemedAtValue);

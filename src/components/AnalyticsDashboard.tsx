@@ -527,7 +527,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                         <div className="flex items-center gap-2 mb-6">
                             <Zap className="text-amber-500" size={20} />
                             <h3 className="font-serif font-bold text-lg">Redemption Speed Analysis</h3>
-                            <p className="text-xs text-gray-400 ml-2">How quickly guests redeem after voucher creation</p>
+                            <p className="text-xs text-gray-400 ml-2">How quickly guests redeem after check-in</p>
                         </div>
                         <div className="grid grid-cols-5 gap-4">
                             {[
@@ -695,12 +695,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                     const voucher = vouchers.find(v => v.id === r.voucherCode);
                                     let durationTag = null;
 
-                                    if (voucher && voucher.created_at && voucher.redeemed_at) {
-                                        const created = new Date(voucher.created_at);
+                                    if (voucher && voucher.checkIn && voucher.redeemed_at) {
+                                        const checkIn = new Date(voucher.checkIn);
                                         const redeemed = new Date(voucher.redeemed_at);
                                         // Only show tag if valid dates
-                                        if (!isNaN(created.getTime()) && !isNaN(redeemed.getTime())) {
-                                            const diffTime = Math.abs(redeemed.getTime() - created.getTime());
+                                        if (!isNaN(checkIn.getTime()) && !isNaN(redeemed.getTime())) {
+                                            const diffTime = Math.abs(redeemed.getTime() - checkIn.getTime());
                                             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
                                             if (diffDays === 0) {
@@ -774,7 +774,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                     Redemption Speed: {selectedSpeedCategory}
                                 </h3>
                                 <p className="text-xs text-gray-400 mt-1">
-                                    Guests who redeemed within {selectedSpeedCategory} of purchase
+                                    Guests who redeemed within {selectedSpeedCategory} of check-in
                                 </p>
                             </div>
                             <button
