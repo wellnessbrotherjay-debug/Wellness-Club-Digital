@@ -71,8 +71,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                 timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
                 voucherCode: v.id,
                 guestName: v.guestName || 'Unknown Guest',
-                // CRITICAL: Prioritize serviceType (new entries) > services column (manual entries) > redeemed_service
-                serviceType: v.serviceType || v.redeemed_service || (v.services && v.services.length > 0 ? v.services[0] : 'Wellness Service'),
+                // CRITICAL: Prioritize serviceType (new entries) > redeemed_service > services column (manual entries)
+                // Exclude generic "15% off" text from services array
+                serviceType: v.serviceType || v.redeemed_service || (v.services && v.services.length > 0 && !v.services[0].includes('15%') ? v.services[0] : 'Wellness Service'),
                 roomNumber: v.roomNumber || '',
                 isManual: false
             }));
