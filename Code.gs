@@ -247,6 +247,71 @@ function doPost(e) {
         return returnJson({ status: "success" });
     }
 
+    // --- DELETE TEST VOUCHERS ---
+    if (data.action === 'deleteTests') {
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
+
+        const values = sheet.getDataRange().getValues();
+        if (values.length <= 1) return returnJson({ status: "success", deleted: 0, message: "No data to delete" });
+
+        const rawHeaders = values[0];
+        const normalizedHeaders = normalizeHeaders(rawHeaders);
+
+        const voucherCodeCol = normalizedHeaders.indexOf('voucherCode');
+        const guestNameCol = normalizedHeaders.indexOf('guestName');
+        const emailCol = normalizedHeaders.indexOf('email');
+
+        if (voucherCodeCol === -1) return returnJson({ status: "error", message: "voucherCode column missing" });
+
+        let deletedCount = 0;
+        const rowsToDelete = [];
+
+        // Find rows to delete (start from index 1 since 0 is header)
+        for (let i = 1; i < values.length; i++) {
+            const shouldDelete = false;
+
+            // Check voucher code contains "test" (case insensitive)
+            if (voucherCodeCol >= 0) {
+                const voucherCode = String(values[i][voucherCodeCol] || '').toLowerCase();
+                if (voucherCode.includes('test')) {
+                    rowsToDelete.push(i + 1); // +1 because sheet rows are 1-indexed
+                    continue;
+                }
+            }
+
+            // Check email contains sbodyfit or wellnessbrotherjay
+            if (emailCol >= 0) {
+                const email = String(values[i][emailCol] || '').toLowerCase();
+                if (email.includes('sbodyfit') || email.includes('wellnessbrotherjay')) {
+                    rowsToDelete.push(i + 1);
+                    continue;
+                }
+            }
+
+            // Check guest name contains "test"
+            if (guestNameCol >= 0) {
+                const guestName = String(values[i][guestNameCol] || '').toLowerCase();
+                if (guestName.includes('test')) {
+                    rowsToDelete.push(i + 1);
+                    continue;
+                }
+            }
+        }
+
+        // Delete rows in reverse order to avoid index shifting
+        rowsToDelete.reverse().forEach(rowIndex => {
+            sheet.deleteRow(rowIndex);
+            deletedCount++;
+        });
+
+        return returnJson({
+            status: "success",
+            deleted: deletedCount,
+            message: "Deleted " + deletedCount + " test vouchers"
+        });
+    }
+
     return returnJson({ status: "error", message: "Unknown action" });
 }
 
