@@ -186,7 +186,16 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         const redemptionSpeedData = validRedemptionsForSpeed.map(v => {
             const checkInDate = new Date(v!.checkIn!);
             const redeemedDate = new Date(v!.redeemed_at!);
-            const daysToRedeem = Math.floor((redeemedDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            // Normalize both dates to midnight to calculate pure calendar days
+            // This prevents time-of-day from affecting the day count
+            const normalizedCheckIn = new Date(checkInDate);
+            normalizedCheckIn.setHours(0, 0, 0, 0);
+
+            const normalizedRedeemed = new Date(redeemedDate);
+            normalizedRedeemed.setHours(0, 0, 0, 0);
+
+            const daysToRedeem = Math.floor((normalizedRedeemed.getTime() - normalizedCheckIn.getTime()) / (1000 * 60 * 60 * 24));
             return {
                 voucherCode: v!.id,
                 guestName: v!.guestName || '',
