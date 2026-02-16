@@ -108,8 +108,11 @@
             const result = document.getElementById('result');
             const passwordInput = document.getElementById('passwordInput');
 
-            // Check password
-            if (passwordInput.value !== '1234') {
+            // Trim whitespace and check password
+            const password = passwordInput.value.trim();
+            console.log('Password entered:', password);
+
+            if (password !== '1234') {
                 result.className = 'error';
                 result.innerHTML = `<strong>✗ Error:</strong><br>Incorrect password`;
                 result.style.display = 'block';
