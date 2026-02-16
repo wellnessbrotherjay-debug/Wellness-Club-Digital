@@ -85,6 +85,16 @@
             <strong>⚠️ Warning:</strong> This action cannot be undone. Make sure you want to delete these vouchers permanently.
         </div>
 
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Admin Password</label>
+            <input
+                type="password"
+                id="passwordInput"
+                placeholder="Enter password"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#c5a572]"
+            />
+        </div>
+
         <button id="cleanupBtn" onclick="cleanupTests()">Delete Test Vouchers</button>
 
         <div id="result"></div>
@@ -96,7 +106,18 @@
         async function cleanupTests() {
             const btn = document.getElementById('cleanupBtn');
             const result = document.getElementById('result');
+            const passwordInput = document.getElementById('passwordInput');
 
+            // Check password
+            if (passwordInput.value !== '1234') {
+                result.className = 'error';
+                result.innerHTML = `<strong>✗ Error:</strong><br>Incorrect password`;
+                result.style.display = 'block';
+                passwordInput.classList.add('border-red-500');
+                return;
+            }
+
+            passwordInput.classList.remove('border-red-500');
             btn.disabled = true;
             btn.textContent = 'Deleting...';
             result.style.display = 'none';
@@ -134,6 +155,13 @@
                 btn.textContent = 'Delete Test Vouchers';
             }
         }
+
+        // Allow Enter key to submit
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                cleanupTests();
+            }
+        });
     </script>
 </body>
 </html>
