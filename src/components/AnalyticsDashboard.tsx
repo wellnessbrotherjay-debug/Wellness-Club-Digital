@@ -663,9 +663,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                     <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600 group-hover:scale-110 transition-transform">
                         <TrendingUp size={24} />
                     </div>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Digital Redemptions</p>
-                    <h3 className="text-4xl font-serif font-bold">{stats.systemRedemptions}</h3>
-                    <p className="text-[10px] text-gray-400 mt-2">{stats.totalRedeemedPax} Guests Served</p>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Total Redeemed</p>
+                    <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">
+                        <span className="text-green-600 font-bold">{stats.systemRedemptions} Digital</span>
+                        <span className="mx-1">•</span>
+                        <span>{stats.manualRedemptions} Manual</span>
+                    </p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
@@ -710,7 +714,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                     </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Vouchers</p>
                     <h3 className="text-4xl font-serif font-bold text-orange-600">{stats.totalUnredeemedInPeriod}</h3>
-                    <p className="text-[10px] text-gray-400 mt-2">Available to Redeem</p>
+                    <p className="text-[10px] text-gray-400 mt-2 font-medium">Excludes Expired/Errors</p>
                 </div>
             </div>
 
