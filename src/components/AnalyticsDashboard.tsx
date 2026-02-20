@@ -234,8 +234,18 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         // Total Issued = (Redemptions in period) + (Active Vouchers created in period)
         // This ensures Issued = Redeemed + Active.
 
-        // 1. Get Unredeemed Vouchers for the period
-        let unredeemedVouchers = vouchers.filter(v => !v.status || v.status !== 'Redeemed');
+        // 1. Get Unredeemed Vouchers for the period (excluding nameless "ROOM" errors and expired)
+        let unredeemedVouchers = vouchers.filter(v => {
+            const isRedeemed = v.status === 'Redeemed';
+            const hasName = v.guestName && v.guestName !== 'Unknown Guest';
+
+            // Check expiry against checkOut or expires_at
+            const expiryDate = v.checkOut ? new Date(v.checkOut) : (v.expires_at ? new Date(v.expires_at) : null);
+            const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
+
+            return !isRedeemed && hasName && !isExpired;
+        });
+
         if (timeRange === 'week') {
             unredeemedVouchers = unredeemedVouchers.filter(v => parseDate(v.created_at || '') && parseDate(v.created_at || '')! >= oneWeekAgo);
         } else if (timeRange === 'month') {
