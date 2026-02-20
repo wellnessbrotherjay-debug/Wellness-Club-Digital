@@ -387,12 +387,29 @@ const VoucherPage: React.FC = () => {
     };
 
     const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter(v => {
+        // 1. Basic Search Filter
         const query = searchQuery.toLowerCase();
-        return (
+        const matchesQuery = (
             String(v.guestName || '').toLowerCase().includes(query) ||
             String(v.id || '').toLowerCase().includes(query) ||
             String(v.roomNumber || '').toLowerCase().includes(query)
         );
+
+        // 2. Data Quality Filter: Hide if no guest name (causes "ROOM" error)
+        if (!v.guestName || v.guestName === 'Unknown Guest') return false;
+
+        // 3. Status/Expiry Filter: If in "Active" tab, hide expired or redeemed
+        if (activeTab === 'issued') {
+            const isRedeemed = v.status === 'Redeemed';
+
+            // Check expiry against checkOut or expires_at
+            const expiryDate = v.checkOut ? new Date(v.checkOut) : (v.expires_at ? new Date(v.expires_at) : null);
+            const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
+
+            return matchesQuery && !isRedeemed && !isExpired;
+        }
+
+        return matchesQuery;
     });
 
     // Short URL only — no base64 payload. Long base64 URLs make QR codes too dense to scan.
@@ -466,7 +483,13 @@ const VoucherPage: React.FC = () => {
                             >
                                 <List size={16} /> Active
                                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
-                                    {recentVouchers.filter(v => v.status !== 'Redeemed').length}
+                                    {recentVouchers.filter(v => {
+                                        if (!v.guestName || v.guestName === 'Unknown Guest') return false;
+                                        const isRedeemed = v.status === 'Redeemed';
+                                        const expiryDate = v.checkOut ? new Date(v.checkOut) : (v.expires_at ? new Date(v.expires_at) : null);
+                                        const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
+                                        return !isRedeemed && !isExpired;
+                                    }).length}
                                 </span>
                             </button>
                         )}

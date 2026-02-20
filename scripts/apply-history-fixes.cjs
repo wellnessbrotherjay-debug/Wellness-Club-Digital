@@ -19,25 +19,46 @@ async function applyFixes() {
     console.log(`--- Applying ${fixes.length} Fixes ---`);
 
     for (const fix of fixes) {
-        console.log(`Applying: ${fix.guest} (${fix.voucherCode}) -> ${fix.newService}`);
-        try {
-            const response = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'redeem',
-                    voucherCode: fix.voucherCode,
-                    serviceType: fix.newService,
-                    guestName: fix.guest,
-                    redeemedAt: new Date(fix.date + 'T12:00:00Z').toISOString(), // Set to noon of POS date
-                    emailStatus: 'History Reconciled',
-                    inputPath: '/admin/reconcile'
-                })
-            });
-            const result = await response.json();
-            console.log(`   Result: ${result.status} - ${result.message || ''}`);
-        } catch (error) {
-            console.error(`   Failed to apply fix for ${fix.voucherCode}:`, error.message);
+        if (fix.action === 'mark_expired') {
+            console.log(`Marking Expired: ${fix.guest} (${fix.voucherCode}) - Late Redemption`);
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'manual',
+                        voucherCode: fix.voucherCode,
+                        status: 'Expired',
+                        emailStatus: 'INVALID REDEMPTION - Late',
+                        redeemed_at: '' // Clear redemption date
+                    })
+                });
+                const result = await response.json();
+                console.log(`   Result: ${result.status}`);
+            } catch (error) {
+                console.error(`   Failed to expire ${fix.voucherCode}:`, error.message);
+            }
+        } else {
+            console.log(`Applying: ${fix.guest} (${fix.voucherCode}) -> ${fix.newService}`);
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'redeem',
+                        voucherCode: fix.voucherCode,
+                        serviceType: fix.newService,
+                        guestName: fix.guest,
+                        redeemedAt: new Date(fix.date + 'T12:00:00Z').toISOString(), // Set to noon of POS date
+                        emailStatus: 'History Reconciled',
+                        inputPath: '/admin/reconcile'
+                    })
+                });
+                const result = await response.json();
+                console.log(`   Result: ${result.status} - ${result.message || ''}`);
+            } catch (error) {
+                console.error(`   Failed to apply fix for ${fix.voucherCode}:`, error.message);
+            }
         }
         // Small delay to avoid hitting rate limits
         await new Promise(r => setTimeout(r, 200));

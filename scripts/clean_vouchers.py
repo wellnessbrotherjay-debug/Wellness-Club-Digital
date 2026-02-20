@@ -30,7 +30,19 @@ def should_delete(entry):
 def clean_file(filepath):
     print(f"Cleaning {filepath}...")
     with open(filepath, 'r') as f:
-        data = json.load(f)
+        content = f.read().strip()
+    
+    # Handle JSONP wrapping
+    if content.startswith('undefined('):
+        content = content[10:-1]
+    elif content.startswith('callback('):
+        content = content[9:-1]
+        
+    try:
+        data = json.loads(content)
+    except Exception as e:
+        print(f"  Error parsing {filepath}: {e}")
+        return
     
     initial_count = len(data)
     cleaned_data = [entry for entry in data if not should_delete(entry)]
@@ -41,5 +53,8 @@ def clean_file(filepath):
     with open(filepath, 'w') as f:
         json.dump(cleaned_data, f, indent=2)
 
-clean_file("/Users/jaydengle/Wellness-Club-Digital/redeemed_vouchers.json")
-clean_file("/Users/jaydengle/Wellness-Club-Digital/vouchers_debug.json")
+if __name__ == "__main__":
+    import os
+    for f in ["/Users/jaydengle/Wellness-Club-Digital/redeemed_vouchers.json", "/Users/jaydengle/Wellness-Club-Digital/vouchers_debug.json"]:
+        if os.path.exists(f):
+            clean_file(f)

@@ -997,6 +997,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                     <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
                                         <th className="py-3 pl-6">Guest</th>
                                         <th className="py-3">Type/Service</th>
+                                        <th className="py-3">Status / Method</th>
                                         <th className="py-3">Reference</th>
                                         <th className="py-3 pr-6 text-right">Date</th>
                                     </tr>
@@ -1021,6 +1022,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                             </td>
                                             <td className="py-4 font-mono text-[10px]">
                                                 {item.voucherCode || item.id}
+                                            </td>
+                                            <td className="py-4">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full w-fit ${item.isManual ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                                                        }`}>
+                                                        {item.isManual ? 'Manual/POS' : 'System Redeemed'}
+                                                    </span>
+                                                    {item.inputPath && (
+                                                        <span className="text-[8px] text-gray-400">via {item.inputPath.replace('/', '')}</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
                                                 {new Date((item.timestamp || item.created_at || new Date().toISOString())).toLocaleDateString()}

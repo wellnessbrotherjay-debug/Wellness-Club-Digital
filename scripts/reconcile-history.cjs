@@ -43,11 +43,10 @@ function parsePOSDate(dateStr) {
 
 function normalizeName(name) {
     if (!name) return '';
-    // Remove titles, non-alpha, and extra spaces
+    // Remove titles, non-alpha, then REMOVE ALL SPACES for comparison
     return name.toLowerCase()
         .replace(/mrs\.|mr\.|ms\./g, '')
-        .replace(/[^a-z0-9]/g, ' ')
-        .replace(/\s+/g, ' ')
+        .replace(/[^a-z0-9]/g, '')
         .trim();
 }
 
@@ -133,8 +132,11 @@ async function reconcile() {
     const vouchers = await fetchSheetData('Vouchers');
     const redemptions = await fetchSheetData('Redemptions');
 
-    const redeemedVouchers = vouchers.filter(v => v.status === 'Redeemed' || v.status === 'redeemed');
-    console.log(`Found ${redeemedVouchers.length} redeemed vouchers in Google Sheets.`);
+    const redeemedVouchers = vouchers.filter(v => (v.status || '').toLowerCase() === 'redeemed');
+    const unredeemedVouchers = vouchers.filter(v => (v.status || '').toLowerCase() !== 'redeemed');
+
+    console.log(`Loaded ${vouchers.length} total vouchers (${redeemedVouchers.length} redeemed, ${unredeemedVouchers.length} unredeemed).`);
+    console.log(`Loaded ${posEntries.length} POS entries.`);
 
     // 3. Match
     const fixes = [];
@@ -144,56 +146,79 @@ async function reconcile() {
     posEntries.forEach(pos => {
         // Skip non-completed bookings
         if (pos.status === 'Cancel' || pos.status === 'Open') return;
-
-        // Find matching redemption
-        const bestMatch = redeemedVouchers
-            .filter(v => !processedRedemptions.has(v.voucherCode)) // CRITICAL: Skip already matched
+        // First try to match already redeemed ones
+        let bestMatch = redeemedVouchers
+            .filter(v => !processedRedemptions.has(v.voucherCode))
             .map(v => {
-                const vDate = v.redeemed_at ? v.redeemed_at.split('T')[0] : (v.created_at ? v.created_at.split('T')[0] : '');
+                const rawRedeemedAt = v.redeemed_at || v.Redeemed_at || v.redeemed_At || '';
+                const vDate = rawRedeemedAt ? rawRedeemedAt.split('T')[0] : (v.created_at ? v.created_at.split('T')[0] : '');
                 const score = nameSimilarity(v.guestName, pos.guest);
-
-                const today = '2026-02-13';
+                const today = '2026-02-18';
                 const isToday = (vDate === today);
+                const posDateObj = new Date(pos.date);
+                const sheetDateObj = new Date(vDate);
+                const diffDays = Math.abs(posDateObj - sheetDateObj) / (1000 * 60 * 60 * 24);
 
-                // Date flexibility: check same day, prev day, or next day
-                const posDate = new Date(pos.date);
-                const sheetDate = new Date(vDate);
-                const diffDays = Math.abs(posDate - sheetDate) / (1000 * 60 * 60 * 24);
-
-                // Match if date is close OR if name match is high enough to restore dates
-                // Allowing higher leeway for "Today" (Feb 13) redemptions
-                const dateMatch = (diffDays <= 1.1) || (isToday && score > 0.45);
-
-                // Final match criteria
                 let isMatch = false;
                 let reason = '';
-                if (diffDays <= 1.1 && score > 0.4) { isMatch = true; reason = 'Date Match'; }
-                if (isToday && score > 0.45) { isMatch = true; reason = 'Today Restoration'; }
-                if (score > 0.85) { isMatch = true; reason = 'High Confidence Name'; }
-
-                return { v, score, isMatch, vDate, reason };
+                if (diffDays <= 3 && score > 0.8) { isMatch = true; reason = 'Close Date + High Name'; }
+                if (diffDays <= 1.1 && score > 0.5) { isMatch = true; reason = 'Date Match + Name'; }
+                if (isToday && score > 0.6) { isMatch = true; reason = 'Today Restoration'; }
+                if (score > 0.95) { isMatch = true; reason = 'Exact Name Match'; }
+                return { v, score, isMatch, vDate, reason, restoration: false };
             })
             .filter(m => m.isMatch)
             .sort((a, b) => b.score - a.score)[0];
 
+        // If no redeemed match, try searching in unredeemed vouchers (Restoration)
+        if (!bestMatch) {
+            bestMatch = unredeemedVouchers
+                .filter(v => !processedRedemptions.has(v.voucherCode))
+                .map(v => {
+                    const score = nameSimilarity(v.guestName, pos.guest);
+                    const vCreated = v.created_at ? v.created_at.split('T')[0] : '';
+                    const vExpiryRaw = v.checkOut || v.checkout || v.expires_at || '';
+                    const vExpiry = vExpiryRaw ? (typeof vExpiryRaw === 'string' ? vExpiryRaw.split('T')[0] : new Date(vExpiryRaw).toISOString().split('T')[0]) : '';
+
+                    // Restoration Logic: Must be within validity window of the voucher
+                    const posDateObj = new Date(pos.date);
+                    const expiryDateObj = vExpiry ? new Date(vExpiry) : null;
+                    const createdDateObj = vCreated ? new Date(vCreated) : null;
+
+                    let windowValid = true;
+                    if (expiryDateObj && posDateObj > expiryDateObj) windowValid = false;
+
+                    // High name match required for restoration
+                    const isMatch = (score > 0.85) && windowValid;
+                    return { v, score, isMatch, vDate: pos.date, reason: 'Restored from POS', restoration: true };
+                })
+                .filter(m => m.isMatch)
+                .sort((a, b) => b.score - a.score)[0];
+        }
+
         if (bestMatch) {
             const v = bestMatch.v;
             processedRedemptions.add(v.voucherCode);
-            const currentService = v.serviceType || v.redeemed_service || 'Unknown';
-            const vDate = bestMatch.vDate; // Use the vDate from bestMatch
+            const currentService = (v.serviceType || v.redeemed_service || 'Unknown').trim();
+            const posService = pos.serviceGoal;
+            const vDate = bestMatch.vDate;
 
-            // Check for service mismatch OR date mismatch (more than 1 day difference)
-            if (currentService !== pos.serviceGoal || (vDate !== pos.date && Math.abs(new Date(vDate) - new Date(pos.date)) > 86400000)) {
-                if (!vouchersWithFixes.has(v.voucherCode)) { // Ensure only one fix per voucher
+            // Check for service mismatch OR date mismatch
+            const isServiceMismatch = currentService.toLowerCase() !== posService.toLowerCase();
+            const isDateMismatch = vDate !== pos.date;
+
+            if (isServiceMismatch || isDateMismatch) {
+                if (!vouchersWithFixes.has(v.voucherCode)) {
                     fixes.push({
                         voucherCode: v.voucherCode,
                         guest: v.guestName,
                         posGuest: pos.guest,
-                        date: pos.date, // Use POS date for correction
+                        date: pos.date,
                         oldService: currentService,
-                        oldDate: vDate, // New field
-                        newService: pos.serviceGoal,
-                        description: pos.description
+                        oldDate: vDate,
+                        newService: posService,
+                        description: pos.description,
+                        matchReason: bestMatch.reason
                     });
                     vouchersWithFixes.add(v.voucherCode);
                 }
@@ -207,19 +232,42 @@ async function reconcile() {
     console.log(`Redemptions without POS Match: ${redeemedVouchers.length - processedRedemptions.size}`);
 
     fixes.forEach(f => {
-        console.log(`[FIX] Code: ${f.voucherCode} | Guest: ${f.guest} (POS: ${f.posGuest})`);
-        console.log(`      Change: "${f.oldService}" -> "${f.newService}"`);
-        console.log(`      Reason: "${f.description}"`);
+        console.log(`[FIX] Code: ${f.voucherCode} | Guest: ${f.guest}`);
+        console.log(`      Change: "${f.oldService}" (${f.oldDate}) -> "${f.newService}" (${f.date})`);
+        console.log(`      Reason: "${f.matchReason}" | POS: "${f.description}"`);
         console.log(`---`);
     });
 
     console.log(`\n--- Redemptions without POS Match ---`);
+    const lateRedemptions = [];
     redeemedVouchers.forEach(v => {
         if (!processedRedemptions.has(v.voucherCode)) {
-            const vDate = v.redeemed_at ? v.redeemed_at.split('T')[0] : (v.created_at ? v.created_at.split('T')[0] : '');
-            console.log(`[UNMATCHED] Code: ${v.voucherCode} | Guest: ${v.guestName} | Date: ${vDate} | Service: ${v.serviceType || v.redeemed_service || 'Unknown'}`);
+            const rawRedeemedAt = v.redeemed_at || v.Redeemed_at || v.redeemed_At || '';
+            const vDate = rawRedeemedAt ? rawRedeemedAt.split('T')[0] : (v.created_at ? v.created_at.split('T')[0] : '');
+            const vExpiryRaw = v.checkOut || v.checkout || v.expires_at || '';
+            const vExpiry = vExpiryRaw ? (typeof vExpiryRaw === 'string' ? vExpiryRaw.split('T')[0] : new Date(vExpiryRaw).toISOString().split('T')[0]) : '';
+
+            let extra = '';
+            if (vExpiry && vDate > vExpiry) {
+                extra = ` !!! LATE REDEMPTION !!! (Expired: ${vExpiry})`;
+                lateRedemptions.push(v);
+            }
+            console.log(`[UNMATCHED] Code: ${v.voucherCode} | Guest: ${v.guestName} | Date: ${vDate} | Expiry: ${vExpiry}${extra}`);
         }
     });
+
+    if (lateRedemptions.length > 0) {
+        console.log(`\n--- Identified ${lateRedemptions.length} Late Redemptions to categorized as "Expired" ---`);
+        lateRedemptions.forEach(v => {
+            fixes.push({
+                voucherCode: v.voucherCode,
+                guest: v.guestName,
+                action: 'mark_expired',
+                oldStatus: v.status,
+                oldDate: v.redeemed_at
+            });
+        });
+    }
 
     // Output JSON for the apply script
     fs.writeFileSync(path.join(__dirname, 'reconcile_data.json'), JSON.stringify(fixes, null, 2));

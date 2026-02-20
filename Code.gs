@@ -45,7 +45,9 @@ function normalizeHeaders(headers) {
         'status': 'status',
         'created_at': 'created_at',
         'redeemed_at': 'redeemed_at',
-        'pax': 'pax'
+        'expires_at': 'checkOut',
+        'pax': 'pax',
+        'amount': 'amount'
     };
 
     return headers.map(h => {
@@ -96,6 +98,7 @@ function returnJson(callback, data) {
 
 function doPost(e) {
     const data = JSON.parse(e.postData.contents);
+    if (data.action === 'ping') return returnJson({ status: "success", message: "pong" });
     const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
 
     // --- REDEEM VOUCHER ---
@@ -143,7 +146,7 @@ function doPost(e) {
                     // Only validate if both dates exist
                     if (checkInValue && checkOutValue) {
                         const today = new Date();
-                        today.setHours(0, 0, 0, 0); // Reset to midnight for fair comparison
+                        today.setHours(0, 0, 0, 0);
 
                         const checkInDate = new Date(checkInValue);
                         checkInDate.setHours(0, 0, 0, 0);
@@ -155,13 +158,13 @@ function doPost(e) {
                         if (today < checkInDate) {
                             return returnJson({
                                 status: "error",
-                                message: "Voucher not yet valid. Valid from " + checkInValue
+                                message: "REJECTED: Voucher not yet valid. (Valid from " + checkInValue + ")"
                             });
                         }
                         if (today > checkOutDate) {
                             return returnJson({
                                 status: "error",
-                                message: "Voucher expired. Valid until " + checkOutValue
+                                message: "REJECTED: Voucher EXPIRED. (Valid until " + checkOutValue + ")"
                             });
                         }
                     }
@@ -190,7 +193,7 @@ function doPost(e) {
         return returnJson({ status: "error", message: "Voucher not found" });
     }
 
-    // --- CREATE NEW (OR MANUAL) ---
+    // --- CREATE NEW (OR MANUAL UPDATE) ---
     if (data.action === 'create' || data.action === 'manual' || data.voucherCode) {
         const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes') || ss.insertSheet('Vouchers');
         
@@ -199,8 +202,23 @@ function doPost(e) {
             sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'services', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'pax', 'email', 'whatsapp']);
         }
         
-        const rawHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        const dataRange = sheet.getDataRange().getValues();
+        const rawHeaders = dataRange[0];
         const headers = normalizeHeaders(rawHeaders);
+        
+        const voucherCode = data.voucherCode || data.code || '';
+        let targetRow = -1;
+        
+        // Search for existing voucher
+        if (voucherCode) {
+            const codeIdx = headers.indexOf('voucherCode');
+            for (let i = 1; i < dataRange.length; i++) {
+                if (String(dataRange[i][codeIdx]).trim().toUpperCase() === voucherCode.toUpperCase()) {
+                    targetRow = i + 1;
+                    break;
+                }
+            }
+        }
 
         // Helper to find or add column
         const getColumnIndex = (name) => {
@@ -214,37 +232,114 @@ function doPost(e) {
             return idx + 1;
         };
 
-        const nextRow = sheet.getLastRow() + 1;
+        const finalRow = targetRow !== -1 ? targetRow : sheet.getLastRow() + 1;
         
-        // Explicitly set each value to ensure mapping correctness
-        sheet.getRange(nextRow, getColumnIndex('voucherCode')).setValue(data.voucherCode || data.code || '');
-        sheet.getRange(nextRow, getColumnIndex('guestName')).setValue(data.userName || data.guestName || '');
-        sheet.getRange(nextRow, getColumnIndex('status')).setValue(data.status || 'Created');
-        sheet.getRange(nextRow, getColumnIndex('roomNumber')).setValue(data.roomNumber || '');
-        sheet.getRange(nextRow, getColumnIndex('checkIn')).setValue(data.checkIn || '');
-        sheet.getRange(nextRow, getColumnIndex('checkOut')).setValue(data.checkOut || '');
-        sheet.getRange(nextRow, getColumnIndex('services')).setValue(data.services || '');
-        sheet.getRange(nextRow, getColumnIndex('created_at')).setValue(data.created_at || data.createdAt || new Date().toISOString());
-        sheet.getRange(nextRow, getColumnIndex('pax')).setValue(data.pax || 1);
-        sheet.getRange(nextRow, getColumnIndex('email')).setValue(data.email || '');
-        sheet.getRange(nextRow, getColumnIndex('whatsapp')).setValue(data.whatsapp || '');
+        // Set values (only update provided fields if updating, or all if creating)
+        const setVal = (name, val) => {
+            if (val !== undefined && val !== null) {
+                sheet.getRange(finalRow, getColumnIndex(name)).setValue(val);
+            }
+        };
+
+        setVal('voucherCode', voucherCode);
+        setVal('guestName', data.userName || data.guestName || (targetRow !== -1 ? undefined : ''));
+        setVal('status', data.status || (targetRow !== -1 ? undefined : 'Created'));
+        setVal('roomNumber', data.roomNumber || (targetRow !== -1 ? undefined : ''));
+        setVal('checkIn', data.checkIn || (targetRow !== -1 ? undefined : ''));
+        setVal('checkOut', data.checkOut || (targetRow !== -1 ? undefined : ''));
+        setVal('services', data.services || (targetRow !== -1 ? undefined : ''));
+        setVal('pax', data.pax || (targetRow !== -1 ? undefined : 1));
+        setVal('email', data.email || (targetRow !== -1 ? undefined : ''));
+        setVal('whatsapp', data.whatsapp || (targetRow !== -1 ? undefined : ''));
+        
+        if (targetRow === -1) {
+            setVal('created_at', data.created_at || data.createdAt || new Date().toISOString());
+        }
 
         if (data.status === 'Redeemed') {
             const redeemedAt = data.redeemed_at || data.redeemedAt || new Date().toISOString();
-            sheet.getRange(nextRow, getColumnIndex('redeemed_at')).setValue(redeemedAt);
-            sheet.getRange(nextRow, getColumnIndex('serviceType')).setValue(data.serviceType || '');
+            setVal('redeemed_at', redeemedAt);
+            setVal('serviceType', data.serviceType || '');
             
             logToRedemptions(ss, {
                 timestamp: redeemedAt,
-                voucherCode: data.voucherCode || data.code || '',
-                guestName: data.userName || data.guestName || '',
+                voucherCode: voucherCode,
+                guestName: data.userName || data.guestName || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('guestName')] : ''),
                 serviceType: data.serviceType || '',
-                roomNumber: data.roomNumber || '',
+                roomNumber: data.roomNumber || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('roomNumber')] : ''),
                 emailStatus: data.emailStatus || 'Sent'
             });
+        } else if (data.status === 'Expired') {
+            setVal('redeemed_at', ''); // Clear redeemed date if marking expired
+            setVal('serviceType', '');
         }
         
-        return returnJson({ status: "success" });
+        return returnJson({ status: "success", message: targetRow !== -1 ? "Updated Successfully" : "Created Successfully" });
+    }
+
+    // --- CLEANUP DUPLICATES ---
+    if (data.action === 'cleanupDuplicates') {
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
+        const values = sheet.getDataRange().getValues();
+        const headers = normalizeHeaders(values[0]);
+        const codeIdx = headers.indexOf('voucherCode');
+        const statusIdx = headers.indexOf('status');
+        
+        const map = {}; // code -> { rowIndex, statusPriority }
+        const statusPriority = { 'Redeemed': 3, 'Expired': 2, 'Created': 1, '': 0 };
+        
+        const toDelete = [];
+        for (let i = 1; i < values.length; i++) {
+            const code = String(values[i][codeIdx]).trim().toUpperCase();
+            const status = String(values[i][statusIdx]).trim();
+            const priority = statusPriority[status] || 0;
+            
+            if (!code) continue;
+            
+            if (map[code]) {
+                if (priority > map[code].priority) {
+                    // Current row is better, delete the old one
+                    toDelete.push(map[code].rowIndex);
+                    map[code] = { rowIndex: i + 1, priority: priority };
+                } else {
+                    // Old row is better or same, delete current one
+                    toDelete.push(i + 1);
+                }
+            } else {
+                map[code] = { rowIndex: i + 1, priority: priority };
+            }
+        }
+        
+        // Sort toDelete descending to prevent shifting issues
+        toDelete.sort((a, b) => b - a);
+        
+        let deletedCount = 0;
+        for (const row of toDelete) {
+            sheet.deleteRow(row);
+            deletedCount++;
+        }
+        
+        return returnJson({ status: "success", deleted: deletedCount });
+    }
+
+    // --- DELETE VOUCHER ---
+    if (data.action === 'deleteVoucher') {
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
+        const values = sheet.getDataRange().getValues();
+        const headers = normalizeHeaders(values[0]);
+        const codeIdx = headers.indexOf('voucherCode');
+        const codeToDelete = (data.voucherCode || '').trim().toUpperCase();
+        
+        let deletedCount = 0;
+        for (let i = values.length - 1; i >= 1; i--) {
+            if (String(values[i][codeIdx]).trim().toUpperCase() === codeToDelete) {
+                sheet.deleteRow(i + 1);
+                deletedCount++;
+            }
+        }
+        return returnJson({ status: "success", deleted: deletedCount });
     }
 
     // --- DELETE TEST VOUCHERS ---
