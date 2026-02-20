@@ -28,6 +28,8 @@ export interface VoucherData {
     redeemed_service?: string;
     created_at?: string;
     redeemed_at?: string;
+    expires_at?: string;
+    expired_at?: string;
     redemptions?: RedemptionData[];
     pax?: number;
     secondGuestName?: string;
@@ -168,26 +170,25 @@ const VoucherPage: React.FC = () => {
 
         const payload = JSON.stringify({
             action: 'create', // CRITICAL: Tell GAS this is a creation, not a redemption
-            voucherCode: voucherId,
-            userName: allGuestNames,
-            status: 'Created',
-            roomNumber: formData.roomNumber,
-            checkIn: formData.checkIn,
-            checkOut: formData.checkOut,
-            imageUrl: formData.imageUrl,
+            // Keys must match Google Sheet column names EXACTLY (lowercase)
+            date: voucherId,            // Sheet col: "date" = voucher code
+            description: allGuestNames, // Sheet col: "description" = guest name
+            category: 'Created',        // Sheet col: "category" = status
+            amount: formData.roomNumber,// Sheet col: "amount" = room number
+            type: formData.checkIn,     // Sheet col: "type" = check-in date
+            checkout: formData.checkOut,// Sheet col: "checkout" = check-out date
+            imageurl: formData.imageUrl,// Sheet col: "imageurl" = image URL
             services: services.join(', '),
-            createdAt: new Date().toLocaleString('sv-SE').replace('T', ' '),
+            created_at: new Date().toISOString(),
             pax: formData.pax,
-            secondGuestName: formData.additionalGuests[0] || '',
             email: formData.email,
             whatsapp: formData.whatsapp ? finalWA : ''
         });
 
         try {
-            await fetch(APPS_SCRIPT_URL, {
+            await fetch('/api/redeem-voucher', {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'application/json' },
                 body: payload,
             });
 
@@ -337,7 +338,7 @@ const VoucherPage: React.FC = () => {
         if (!window.confirm(confirmMsg)) return;
 
         const password = window.prompt("Enter Admin Password to delete:");
-        if (password !== '1111') {
+        if (password !== '1234') {
             alert("Incorrect password. Deletion cancelled.");
             return;
         }
@@ -354,10 +355,9 @@ const VoucherPage: React.FC = () => {
             if (isBulk) setSelectedIds([]);
             VoucherCache.delete(idList);
 
-            await fetch(APPS_SCRIPT_URL, {
+            await fetch('/api/redeem-voucher', {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'application/json' },
                 body: body,
             });
 
@@ -366,7 +366,7 @@ const VoucherPage: React.FC = () => {
         } catch (error) {
             console.error("Error deleting vouchers:", error);
             alert("Failed to delete. Please check your connection and refresh.");
-            fetchData(true);
+            fetchData();
         } finally {
             setIsDeleting(false);
         }
@@ -395,8 +395,14 @@ const VoucherPage: React.FC = () => {
         );
     });
 
+    // Short URL only — no base64 payload. Long base64 URLs make QR codes too dense to scan.
+    // IMPORTANT: Always use the canonical guest-facing domain, NOT window.location.origin.
+    // The admin app runs on reception.no1wellness.com which is a broken domain (404).
+    // QR codes must point to the working Vercel deployment.
+    const GUEST_PASS_BASE = 'https://wellness-club-digital.vercel.app';
     const voucherUrl = (voucher: VoucherData) =>
-        `${window.location.origin}/v/${voucher.id}?d=${btoa(JSON.stringify(voucher))}`;
+        `${GUEST_PASS_BASE}/v/${voucher.id}`;
+
 
     if (!userRole) {
         return <LoginScreen onLogin={handleLogin} />;
@@ -420,7 +426,7 @@ const VoucherPage: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end mr-4">
                             <span className="text-xs font-bold">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.4</span>
+                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.8 PROXY + DATA REPAIR ACTIVE</span>
                         </div>
                         <button
                             onClick={() => window.location.href = '/help'}
@@ -458,8 +464,10 @@ const VoucherPage: React.FC = () => {
                                 onClick={() => setActiveTab('issued')}
                                 className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                             >
-                                <List size={16} /> Issued
-                                <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">{recentVouchers.length}</span>
+                                <List size={16} /> Active
+                                <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
+                                    {recentVouchers.filter(v => v.status !== 'Redeemed').length}
+                                </span>
                             </button>
                         )}
                         {userRole === 'admin' && (
@@ -886,7 +894,7 @@ const VoucherPage: React.FC = () => {
                     <div className="animate-fade-in">
                         <Validator
                             vouchers={recentVouchers}
-                            onRefresh={() => fetchData(true)}
+                            onRefresh={() => fetchData()}
                         />
                     </div>
                 )}

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { APPS_SCRIPT_URL } from '../constants/config';
 import type { VoucherData } from '../VoucherPage';
 import { VoucherCache } from '../utils/voucherCache';
 
@@ -9,125 +8,127 @@ interface RedemptionData {
     guestName: string;
     serviceType: string;
     roomNumber: string;
+    inputPath?: string;
+    emailStatus?: string;
 }
 
 export const useVoucherData = () => {
     const [recentVouchers, setRecentVouchers] = useState<VoucherData[]>([]);
     const [redemptions, setRedemptions] = useState<RedemptionData[]>([]);
-    const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
     const [fetchError, setFetchError] = useState(false);
     const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
 
-    // Extend window for JSONP callbacks
-    useEffect(() => {
-        (window as any).loadVouchers = (data: any) => {
-            // setIsFetchingHistory(false); // Only set false when both are done or in loadRedemptions
-            setFetchError(false);
-
-            if (!Array.isArray(data)) {
-                setRecentVouchers([]);
-                // setRedemptions([]);
-                return;
+    const mapVoucher = (item: any): VoucherData => {
+        const safeDate = (dateStr: any) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) {
+                // Try parsing DD/MM/YYYY if standard fails
+                const parts = String(dateStr).split('/');
+                if (parts.length === 3) {
+                    const nd = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    if (!isNaN(nd.getTime())) return nd.toISOString().split('T')[0];
+                }
+                return '';
             }
-
-            const mapped = data.map(item => {
-                const safeDate = (dateStr: any) => {
-                    if (!dateStr) return '';
-                    const d = new Date(dateStr);
-                    return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
-                };
-
-                return {
-                    id: (item.voucherCode || item.code || item.id || item.voucherid) ? String(item.voucherCode || item.code || item.id || item.voucherid) : '',
-                    guestName: item.guestName ? String(item.guestName) : '',
-                    roomNumber: item.roomNumber ? String(item.roomNumber) : '',
-                    checkIn: safeDate(item.checkIn || item.check_in || item.CheckIn || item['Check In'] || item.checkin),
-                    checkOut: safeDate(item.checkOut || item.check_out || item.CheckOut || item['Check Out'] || item.checkout),
-                    status: item.status ? String(item.status) : '',
-                    created_at: item.created_at || item.timestamp || '',
-                    redeemed_at: item.redeemed_at || '',
-                    imageUrl: item.imageUrl || '',
-                    services: item.services ? String(item.services).split(/,\s+(?![^()]*\))/g) : [],
-                    serviceType: item.serviceType || '', // Read serviceType column from backend
-                    redeemed_service: item.redeemed_service || '', // Capture specific redemption service
-                    redemptions: [],
-                    pax: item.pax ? parseInt(item.pax as any) : 1,
-                    secondGuestName: item.secondGuestName || '',
-                    email: item.email || '',
-                    whatsapp: item.whatsapp || ''
-                };
-            }).reverse();
-
-            // Merge with local cache to preserve critical fields if backend fails
-            const merged = VoucherCache.merge(mapped);
-            setRecentVouchers(merged);
+            return d.toISOString().split('T')[0];
         };
 
-        (window as any).loadRedemptions = (data: any) => {
-            setIsFetchingHistory(false);
-            setFetchError(false);
-            setHasInitialLoaded(true);
+        // Robust Service Parsing
+        let servicesArr: string[] = [];
+        const rawServices = item.services || item.service || item.Services || '';
+        if (Array.isArray(rawServices)) {
+            servicesArr = rawServices.map(String);
+        } else if (rawServices) {
+            servicesArr = String(rawServices).split(',').map(s => s.trim()).filter(Boolean);
+        }
 
-            if (!Array.isArray(data)) {
-                setRedemptions([]);
-                return;
-            }
-
-            const mapped: RedemptionData[] = data.map(item => ({
-                timestamp: item.timestamp || item.created_at || new Date().toISOString(),
-                voucherCode: item.voucherCode || item.code || '',
-                guestName: item.guestName || '',
-                serviceType: item.serviceType || 'General Admission',
-                roomNumber: item.roomNumber || ''
-            })).reverse();
-
-            setRedemptions(mapped);
+        return {
+            id: String(item.voucherCode || item.code || item.id || item.voucherid || item.date || ''),
+            guestName: String(item.guestName || item.userName || item.name || item.description || ''),
+            roomNumber: String(item.roomNumber || item.room || item.amount || ''),
+            checkIn: safeDate(item.checkIn || item.checkin || item.check_in || item.CheckIn || item.type),
+            checkOut: safeDate(item.checkOut || item.checkout || item.check_out || item.CheckOut),
+            status: String(item.status || item.category || ''),
+            created_at: String(item.created_at || item.createdAt || item.timestamp || ''),
+            redeemed_at: String(item.redeemed_at || item.redeemedAt || ''),
+            imageUrl: String(item.imageUrl || item.imageurl || ''),
+            services: servicesArr,
+            serviceType: String(item.serviceType || item.service_type || ''),
+            redeemed_service: String(item.redeemed_service || item.redeemedService || ''),
+            redemptions: [],
+            pax: item.pax ? parseInt(item.pax as any) : 1,
+            secondGuestName: String(item.secondGuestName || ''),
+            email: String(item.email || ''),
+            whatsapp: String(item.whatsapp || '')
         };
-    }, []);
+    };
 
-    const fetchData = useCallback((isSilent: boolean = false) => {
-        if (!isSilent) setIsFetchingHistory(true);
+    const mapRedemption = (item: any): RedemptionData => ({
+        timestamp: item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString(),
+        voucherCode: item.voucherCode || item.code || item.id || '',
+        guestName: item.guestName || item.name || '',
+        serviceType: item.serviceType || item.service_type || 'General Admission',
+        roomNumber: item.roomNumber || item.room || '',
+        inputPath: item.inputPath || item.inputpath || '',
+        emailStatus: item.emailStatus || item.emailstatus || ''
+    });
+
+    const fetchData = useCallback(async (isSilent: boolean = false) => {
+        if (!isSilent) setIsFetching(true);
         setFetchError(false);
-        console.log('DEBUG: fetchData calling APPS_SCRIPT_URL:', APPS_SCRIPT_URL);
 
-        const handleError = () => {
-            setIsFetchingHistory(false);
+        try {
+            console.log('🚀 [useVoucherData v2.7] Fetching via Proxy API...');
+
+            const [vResponse, rResponse] = await Promise.all([
+                fetch('/api/get-data?sheet=Vouchers'),
+                fetch('/api/get-data?sheet=Redemptions')
+            ]);
+
+            const vData = await vResponse.json();
+            const rData = await rResponse.json();
+
+            // Handling Apps Script Errors
+            if (vData && vData.status === 'error') {
+                console.error('GAS Error (Vouchers):', vData.message);
+                setFetchError(true);
+                return;
+            }
+
+            if (Array.isArray(vData)) {
+                const mappedVouchers = vData.map(mapVoucher).reverse().filter(v => v.id);
+                setRecentVouchers(VoucherCache.merge(mappedVouchers));
+            }
+
+            if (Array.isArray(rData)) {
+                setRedemptions(rData.map(mapRedemption).reverse());
+            }
+
+            setHasInitialLoaded(true);
+        } catch (error) {
+            console.error('❌ [useVoucherData v2.7] Fetch Error:', error);
             setFetchError(true);
-        };
-
-        // Fetch Vouchers
-        const vScript = document.createElement('script');
-        vScript.src = `${APPS_SCRIPT_URL}?callback=loadVouchers&sheet=Vouchers&t=${Date.now()}`;
-        vScript.onerror = handleError;
-        vScript.onload = () => document.body.removeChild(vScript);
-        document.body.appendChild(vScript);
-
-        // Fetch Redemptions
-        const rScript = document.createElement('script');
-        rScript.src = `${APPS_SCRIPT_URL}?callback=loadRedemptions&sheet=Redemptions&t=${Date.now()}`;
-        rScript.onerror = handleError;
-        rScript.onload = () => document.body.removeChild(rScript);
-        document.body.appendChild(rScript);
+        } finally {
+            setIsFetching(false);
+        }
     }, []);
 
-    // Polling setup
     useEffect(() => {
-        fetchData(); // Initial load
-
-        const pollInterval = setInterval(() => {
-            fetchData(true);
-        }, 5000);
-
-        return () => clearInterval(pollInterval);
+        fetchData();
+        const poll = setInterval(() => fetchData(true), 15000); // Poll every 15s for lower impact
+        return () => clearInterval(poll);
     }, [fetchData]);
 
     return {
         vouchers: recentVouchers,
-        setVouchers: setRecentVouchers, // Exposed for manual updates (e.g. after creation)
+        setVouchers: setRecentVouchers,
         redemptions,
-        isFetching: isFetchingHistory,
+        isFetching,
         hasLoaded: hasInitialLoaded,
         error: fetchError,
-        refresh: fetchData
+        refresh: () => fetchData(false)
     };
 };
+

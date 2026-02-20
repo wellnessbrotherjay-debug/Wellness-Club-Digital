@@ -19,7 +19,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbznPz0TtNSRwcuqGEzvDLqNNyJld_doqOxZvafnfz65IyW4ysXIzUC613JPDWT5nY-0/exec';
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzJz0fsw03Bc0I82KPf4xEmzCXJ7PAT3yWK_B526--ffxQTf0rI-aLXDFmIECrZLPYZ/exec';
 
     let scriptResponseText = '';
     let scriptData = null;
@@ -44,9 +44,8 @@ export default async function handler(req, res) {
             scriptData = { status: scriptResponseText ? 'success' : 'error', message: scriptResponseText };
         }
 
-        // --- EMAIL NOTIFICATION LOGIC (Decoupled from JSON parsing) ---
-        // Fire if the script didn't error out and we have a key
-        if (scriptData.status !== 'error' && process.env.RESEND_API_KEY) {
+        // --- EMAIL NOTIFICATION LOGIC (Only for redemptions) ---
+        if (req.body.action === 'redeem' && scriptData.status !== 'error' && process.env.RESEND_API_KEY) {
             let emailStatus = 'Sent';
             try {
                 const resend = new Resend(process.env.RESEND_API_KEY);

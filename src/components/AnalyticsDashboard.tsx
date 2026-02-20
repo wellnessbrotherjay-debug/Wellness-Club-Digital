@@ -35,6 +35,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
     // --- Redemption Speed Detail State ---
     const [selectedSpeedCategory, setSelectedSpeedCategory] = useState<string | null>(null);
 
+    // --- KPI Drill-down State ---
+    const [drillDownType, setDrillDownType] = useState<'digital' | 'manual' | 'active' | 'unique' | null>(null);
+
     // Service categorization with typo tolerance
     const normalizeServiceName = (service: string): string => {
         return String(service || '')
@@ -48,8 +51,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
     // Unified Service Categorization
     const getServiceCategory = (service: string): string => {
         const s = normalizeServiceName(service);
+        // T Store / Fashion
         if (s.includes('shopping') || s.includes('t store') || s.includes('fashion') || s.includes('apparel') || s.includes('boutique')) return 'fashion';
-        if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani') || s.includes('facial') || s.includes('beauty')) return 'hair';
+
+        // Hair Salon
+        if (s.includes('salon') || s.includes('hair') || s.includes('pedi') || s.includes('mani') || s.includes('facial') || s.includes('beauty') || s.includes('waxing')) return 'hair';
+
+        // Default to Wellness (Massage, Yoga, etc)
         return 'wellness';
     };
 
@@ -59,8 +67,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         const c = String(code || '').toLowerCase();
         // If code is empty or doesn't start with NW- or TEST-, it's POS/Manual
         if (!c || (!c.startsWith('nw-') && !c.startsWith('test-'))) return true;
-        // Legacy/explicit manual tags
-        return r.includes('tss') || c.startsWith('manual-');
+        // Legacy/explicit manual tags OR currency symbol in room field
+        return r.includes('tss') || r.includes('$') || c.startsWith('manual-');
     };
 
     // Calculate effective redemptions at component level
@@ -73,9 +81,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                 guestName: v.guestName || 'Unknown Guest',
                 // CRITICAL: Prioritize serviceType (new entries) > redeemed_service > services column (manual entries)
                 // Exclude generic "15% off" text from services array
-                serviceType: v.serviceType || v.redeemed_service || (v.services && v.services.length > 0 && !v.services[0].includes('15%') ? v.services[0] : 'Wellness Service'),
+                // CRITICAL FIX: Do not ignore services with "15%" in the name. 
+                // Many valid T-Store/Salon redemptions contain "15%".
+                serviceType: v.serviceType || v.redeemed_service || (v.services && v.services.length > 0 ? v.services[0] : 'Wellness Service'),
                 roomNumber: v.roomNumber || '',
-                isManual: false
+                isManual: false,
+                inputPath: ''
             }));
 
         return baseData.map(r => ({
@@ -99,7 +110,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
 
         let currentRedemptions = effectiveRedemptions;
 
-        // Filter: Show ONLY manual POS entries by default (hotel vouchers excluded)
+        // Filter: Show ONLY manual POS entries if showHotelVouchers is false
         if (!showHotelVouchers) {
             currentRedemptions = currentRedemptions.filter((r: any) => r.isManual);
         }
@@ -173,35 +184,39 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             return sum + (voucher?.pax || 1);
         }, 0);
 
-        // Calculate Redemption Speed (days from check-in to redemption)
+        // Calculate Redemption Speed (days from issuance (created_at) to redemption)
         // Use filteredRedemptions to respect the selected filters (Service Category & Time Range)
         const validRedemptionsForSpeed = filteredRedemptions
             .map(r => vouchers.find(v => v.id === r.voucherCode))
-            .filter(v => v && v.status === 'Redeemed' && v.checkIn && v.redeemed_at)
+            .filter(v => v && v.status === 'Redeemed' && v.created_at && v.redeemed_at)
             .filter(v => {
-                const checkInDate = new Date(v!.checkIn!);
+                const createdDate = new Date(v!.created_at!);
                 const redeemedDate = new Date(v!.redeemed_at!);
-                return !isNaN(checkInDate.getTime()) && !isNaN(redeemedDate.getTime());
+                return !isNaN(createdDate.getTime()) && !isNaN(redeemedDate.getTime());
             });
 
         const redemptionSpeedData = validRedemptionsForSpeed.map(v => {
-            const checkInDate = new Date(v!.checkIn!);
+            const createdDate = new Date(v!.created_at!);
             const redeemedDate = new Date(v!.redeemed_at!);
 
             // Normalize both dates to midnight to calculate pure calendar days
-            // This prevents time-of-day from affecting the day count
-            const normalizedCheckIn = new Date(checkInDate);
-            normalizedCheckIn.setHours(0, 0, 0, 0);
+            const normalizedCreated = new Date(createdDate);
+            normalizedCreated.setHours(0, 0, 0, 0);
 
             const normalizedRedeemed = new Date(redeemedDate);
             normalizedRedeemed.setHours(0, 0, 0, 0);
 
-            const daysToRedeem = Math.floor((normalizedRedeemed.getTime() - normalizedCheckIn.getTime()) / (1000 * 60 * 60 * 24));
+            const daysToRedeem = Math.max(0, Math.floor((normalizedRedeemed.getTime() - normalizedCreated.getTime()) / (1000 * 60 * 60 * 24)));
+            const stayDuration = v!.checkOut ? Math.max(1, Math.round((new Date(v!.checkOut).getTime() - new Date(v!.checkIn || v!.created_at!).getTime()) / (1000 * 60 * 60 * 24))) : 0;
+
             return {
                 voucherCode: v!.id,
                 guestName: v!.guestName || '',
                 roomNumber: v!.roomNumber,
                 daysToRedeem,
+                stayDuration,
+                redeemedAt: v!.redeemed_at || '',
+                issuedAt: v!.created_at || '',
                 category: daysToRedeem === 0 ? 'Same Day' : daysToRedeem === 1 ? '1 Day' : daysToRedeem === 2 ? '2 Days' : daysToRedeem === 3 ? '3 Days' : '4+ Days'
             };
         });
@@ -215,24 +230,73 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             total: redemptionSpeedData.length
         };
 
+        // UNIFIED STATS RECONCILIATION:
+        // Total Issued = (Redemptions in period) + (Active Vouchers created in period)
+        // This ensures Issued = Redeemed + Active.
+
+        // 1. Get Unredeemed Vouchers for the period
+        let unredeemedVouchers = vouchers.filter(v => !v.status || v.status !== 'Redeemed');
+        if (timeRange === 'week') {
+            unredeemedVouchers = unredeemedVouchers.filter(v => parseDate(v.created_at || '') && parseDate(v.created_at || '')! >= oneWeekAgo);
+        } else if (timeRange === 'month') {
+            unredeemedVouchers = unredeemedVouchers.filter(v => parseDate(v.created_at || '') && parseDate(v.created_at || '')! >= oneMonthAgo);
+        } else if (timeRange === 'launch') {
+            unredeemedVouchers = unredeemedVouchers.filter(v => parseDate(v.created_at || '') && parseDate(v.created_at || '')! >= launchDate);
+        } else if (timeRange === 'custom') {
+            const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+            unredeemedVouchers = unredeemedVouchers.filter(v => {
+                const d = parseDate(v.created_at || '');
+                return d && d >= start && d <= end;
+            });
+        }
+
+        // Apply Category Filter to Unredeemed Vouchers
+        let filteredUnredeemed = unredeemedVouchers;
+        if (serviceCategory !== 'all') {
+            filteredUnredeemed = unredeemedVouchers.filter(v => getServiceCategory(v.serviceType || '') === serviceCategory);
+        }
+
+        const totalIssuedInPeriod = filteredRedemptions.length + filteredUnredeemed.length;
+
+        // Categorize Issued Vouchers for Shop Breakdown
+        const shopIssued = {
+            fashion: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'fashion').length +
+                unredeemedVouchers.filter(v => getServiceCategory(v.serviceType || '') === 'fashion').length,
+            hair: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'hair').length +
+                unredeemedVouchers.filter(v => getServiceCategory(v.serviceType || '') === 'hair').length,
+            wellness: currentRedemptions.filter(r => getServiceCategory(r.serviceType) === 'wellness').length +
+                unredeemedVouchers.filter(v => getServiceCategory(v.serviceType || '') === 'wellness').length
+        };
+
+        const redemptionRate = totalIssuedInPeriod > 0
+            ? Math.round((filteredRedemptions.length / totalIssuedInPeriod) * 100)
+            : 0;
+
+        const systemRedemptions = filteredRedemptions.length - manualRedemptions;
+
         return {
             totalRedemptions: filteredRedemptions.length,
             totalRedeemedPax: redeemedPax,
             manualRedemptions,
-            systemRedemptions: filteredRedemptions.length - manualRedemptions,
+            systemRedemptions,
+            totalIssuedInPeriod,
+            redemptionRate,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             serviceCounts,
-            shopTotals,
+            shopTotals, // Existing Redeemed counts
+            shopIssued, // New Issued counts
             shopGuests,
             dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
-            recentActivity: timeRange === 'latest'
-                ? [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10)
-                : [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+            recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
             allFilteredRedemptions: filteredRedemptions,
+            totalUnredeemedInPeriod: filteredUnredeemed.length,
+            filteredUnredeemed, // List for drill-down
             redemptionSpeedBreakdown,
-            redemptionSpeedData // Expose raw data for detailed view
+            redemptionSpeedData
         };
-    }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory]);
+    }, [redemptions, vouchers, timeRange, startDate, endDate, serviceCategory, showHotelVouchers]);
+
 
     // --- Independent Activity Log Data ---
     const logData = useMemo(() => {
@@ -281,7 +345,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         return data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }, [effectiveRedemptions, showHotelVouchers, serviceCategory, logTimeRange, logStartDate, logEndDate]);
 
-    const activeVouchersCount = vouchers.filter(v => !v.status || v.status !== 'Redeemed').length;
 
     const exportToCSV = () => {
         const headers = ["Timestamp", "Voucher Code", "Guest Name", "Room Number", "Service Type"];
@@ -342,6 +405,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                 <p className="text-gray-400 mb-1">Launch Date: Feb 4, 2026</p>
                                 <p className="text-gray-400 mb-1">Current Filter: {timeRange}</p>
                                 <p className="text-gray-400 mb-1">Service Filter: {serviceCategory}</p>
+                                <p className="text-amber-400 mb-1 font-bold">Redemption Rate: {stats.redemptionRate}%</p>
                             </div>
                         </div>
                         <div>
@@ -478,9 +542,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                             </div>
                             <span className="text-xl">🛍️</span>
                         </div>
-                        <div className="flex items-baseline gap-2 mt-4">
-                            <span className="text-4xl font-serif font-bold">{stats.shopTotals.fashion}</span>
-                            <span className="text-[10px] text-gray-400 font-bold uppercase">Total</span>
+                        <div className="flex items-baseline gap-4 mt-4">
+                            <div className="flex flex-col">
+                                <span className="text-3xl font-serif font-bold">{stats.shopIssued.fashion}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Issued</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-3xl font-serif font-bold text-[#c5a572]">{stats.shopTotals.fashion}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Redeemed</span>
+                            </div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
                             <span>Unique Guests</span>
@@ -498,9 +568,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                             </div>
                             <span className="text-xl">💆</span>
                         </div>
-                        <div className="flex items-baseline gap-2 mt-4">
-                            <span className="text-4xl font-serif font-bold">{stats.shopTotals.wellness}</span>
-                            <span className="text-[10px] text-gray-400 font-bold uppercase">Total</span>
+                        <div className="flex items-baseline gap-4 mt-4">
+                            <div className="flex flex-col">
+                                <span className="text-3xl font-serif font-bold">{stats.shopIssued.wellness}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Issued</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-3xl font-serif font-bold text-[#c5a572]">{stats.shopTotals.wellness}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Redeemed</span>
+                            </div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
                             <span>Unique Guests</span>
@@ -518,9 +594,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                             </div>
                             <span className="text-xl">✂️</span>
                         </div>
-                        <div className="flex items-baseline gap-2 mt-4">
-                            <span className="text-4xl font-serif font-bold">{stats.shopTotals.hair}</span>
-                            <span className="text-[10px] text-gray-400 font-bold uppercase">Total</span>
+                        <div className="flex items-baseline gap-4 mt-4">
+                            <div className="flex flex-col">
+                                <span className="text-3xl font-serif font-bold">{stats.shopIssued.hair}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Issued</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-3xl font-serif font-bold text-[#c5a572]">{stats.shopTotals.hair}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Redeemed</span>
+                            </div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
                             <span>Unique Guests</span>
@@ -573,39 +655,62 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             }
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                    <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <div
+                    onClick={() => setDrillDownType('digital')}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center cursor-pointer hover:border-green-200 hover:shadow-md transition-all group"
+                >
+                    <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600 group-hover:scale-110 transition-transform">
                         <TrendingUp size={24} />
                     </div>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Total Redemptions</p>
-                    <h3 className="text-4xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Digital Redemptions</p>
+                    <h3 className="text-4xl font-serif font-bold">{stats.systemRedemptions}</h3>
                     <p className="text-[10px] text-gray-400 mt-2">{stats.totalRedeemedPax} Guests Served</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                    <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600">
+                    <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600">
+                        <Zap size={24} />
+                    </div>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Redemption Rate</p>
+                    <h3 className="text-4xl font-serif font-bold text-amber-600">{stats.redemptionRate}%</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">of {stats.totalIssuedInPeriod} Total Issued</p>
+                </div>
+
+                <div
+                    onClick={() => setDrillDownType('manual')}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center cursor-pointer hover:border-purple-200 hover:shadow-md transition-all group"
+                >
+                    <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600 group-hover:scale-110 transition-transform">
                         <CheckCircle size={24} />
                     </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Manual Input</p>
                     <h3 className="text-4xl font-serif font-bold">{stats.manualRedemptions}</h3>
-                    <p className="text-[10px] text-gray-400 mt-2">vs {stats.systemRedemptions} System</p>
+                    <p className="text-[10px] text-gray-400 mt-2">POS / Manual Entries</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                <div
+                    onClick={() => setDrillDownType('unique')}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center cursor-pointer hover:border-blue-200 hover:shadow-md transition-all group"
+                >
+                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 group-hover:scale-110 transition-transform">
                         <Users size={24} />
                     </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Unique Guests</p>
                     <h3 className="text-4xl font-serif font-bold">{stats.uniqueGuests}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">Active Participants</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                    <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600">
+                <div
+                    onClick={() => setDrillDownType('active')}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center cursor-pointer hover:border-orange-200 hover:shadow-md transition-all group"
+                >
+                    <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600 group-hover:scale-110 transition-transform">
                         <Activity size={24} />
                     </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Active Vouchers</p>
-                    <h3 className="text-4xl font-serif font-bold">{activeVouchersCount}</h3>
+                    <h3 className="text-4xl font-serif font-bold text-orange-600">{stats.totalUnredeemedInPeriod}</h3>
+                    <p className="text-[10px] text-gray-400 mt-2">Available to Redeem</p>
                 </div>
             </div>
 
@@ -650,7 +755,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                             <Clock size={18} className="text-[#c5a572]" />
                             Recent Activity Log
                             <button
-                                onClick={() => refresh(false)}
+                                onClick={() => refresh()}
                                 className="ml-2 text-[10px] text-[#c5a572] hover:text-[#2c2420] transition-colors border border-[#c5a572]/20 px-2 py-0.5 rounded-full"
                             >
                                 REFRESH
@@ -703,23 +808,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                             <tbody className="text-sm">
                                 {logData.map((r, idx) => {
                                     const voucher = vouchers.find(v => v.id === r.voucherCode);
-                                    let durationTag = null;
-
-                                    if (voucher && voucher.checkIn && voucher.redeemed_at) {
-                                        const checkIn = new Date(voucher.checkIn);
-                                        const redeemed = new Date(voucher.redeemed_at);
-                                        // Only show tag if valid dates
-                                        if (!isNaN(checkIn.getTime()) && !isNaN(redeemed.getTime())) {
-                                            const diffTime = Math.abs(redeemed.getTime() - checkIn.getTime());
-                                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-                                            if (diffDays === 0) {
-                                                durationTag = <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold border border-green-200 whitespace-nowrap">⚡ Same Day</span>;
-                                            } else {
-                                                durationTag = <span className="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-100 whitespace-nowrap">{diffDays} Day{diffDays > 1 ? 's' : ''} to Redeem</span>;
-                                            }
-                                        }
-                                    }
 
                                     return (
                                         <tr
@@ -737,11 +825,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                             <td className="py-4 font-bold">
                                                 <div className="flex flex-col">
                                                     <span>{r.guestName}</span>
-                                                    {r.isManual && (
-                                                        <div className="text-[10px] text-purple-600 font-bold uppercase tracking-wider mt-1">
-                                                            #Manual Input (No System)
-                                                        </div>
-                                                    )}
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {r.isManual ? (
+                                                            <div className="text-[9px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-purple-100">
+                                                                #POS Entry (No System)
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-green-100">
+                                                                #Digital Redemption
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="py-4">
@@ -749,7 +843,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                                     <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-green-100">
                                                         {r.serviceType}
                                                     </span>
-                                                    {durationTag}
                                                 </div>
                                             </td>
                                             <td className="py-4">
@@ -800,33 +893,52 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                 <thead className="bg-gray-50 sticky top-0 z-10">
                                     <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
                                         <th className="py-3 pl-6">Guest Name</th>
-                                        <th className="py-3">Room</th>
-                                        <th className="py-3">Voucher Code</th>
-                                        <th className="py-3 text-right pr-6">Duration</th>
+                                        <th className="py-3 text-center">Room</th>
+                                        <th className="py-3 text-center">Stay Duration</th>
+                                        <th className="py-3 text-right pr-6">Redeemed On</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-sm divide-y divide-gray-50">
                                     {stats.redemptionSpeedData
                                         .filter(d => d.category === selectedSpeedCategory)
-                                        .map((item, idx) => (
-                                            <tr
-                                                key={idx}
-                                                className="hover:bg-amber-50/30 transition-colors cursor-pointer"
-                                                onClick={() => {
-                                                    const voucher = vouchers.find(v => v.id === item.voucherCode);
-                                                    if (onViewVoucher && voucher) onViewVoucher(voucher);
-                                                }}
-                                            >
-                                                <td className="py-3 pl-6 font-bold text-gray-900">{item.guestName}</td>
-                                                <td className="py-3 text-xs text-gray-500">{item.roomNumber || '-'}</td>
-                                                <td className="py-3 font-mono text-xs text-gray-500">{item.voucherCode}</td>
-                                                <td className="py-3 text-right pr-6">
-                                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded-full">
-                                                        {item.daysToRedeem} Days
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        .sort((a: any, b: any) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime())
+                                        .map((item, idx) => {
+                                            const isLate = item.stayDuration > 0 && item.daysToRedeem > item.stayDuration;
+                                            return (
+                                                <tr
+                                                    key={idx}
+                                                    className="hover:bg-amber-50/30 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
+                                                    onClick={() => {
+                                                        const voucher = vouchers.find(v => v.id === item.voucherCode);
+                                                        if (onViewVoucher && voucher) onViewVoucher(voucher);
+                                                    }}
+                                                >
+                                                    <td className="py-4 pl-6">
+                                                        <p className="font-bold text-gray-900">{item.guestName}</p>
+                                                        <p className="text-[9px] font-mono text-gray-400 uppercase tracking-tighter">{item.voucherCode}</p>
+                                                    </td>
+                                                    <td className="py-4 text-center">
+                                                        <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full font-bold text-gray-500">{item.roomNumber || '-'}</span>
+                                                    </td>
+                                                    <td className="py-4 text-center">
+                                                        <p className="text-xs font-bold text-gray-600">
+                                                            {item.stayDuration} Day{item.stayDuration === 1 ? '' : 's'}
+                                                        </p>
+                                                        <p className="text-[9px] text-gray-400 uppercase font-medium">Scheduled Stay</p>
+                                                    </td>
+                                                    <td className="py-4 text-right pr-6">
+                                                        <span className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border ${isLate
+                                                            ? 'bg-red-50 text-red-700 border-red-100'
+                                                            : 'bg-green-50 text-green-700 border-green-100'
+                                                            }`}>
+                                                            Day {item.daysToRedeem === 0 ? '0 (Arrival)' : item.daysToRedeem}
+                                                            {isLate && ' • LATE'}
+                                                        </span>
+                                                        <p className="text-[9px] text-gray-400 mt-1 uppercase font-medium">Post-Check-in</p>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     {stats.redemptionSpeedData.filter(d => d.category === selectedSpeedCategory).length === 0 && (
                                         <tr>
                                             <td colSpan={4} className="py-8 text-center text-gray-400 italic">
@@ -841,6 +953,115 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                             <button
                                 onClick={() => setSelectedSpeedCategory(null)}
                                 className="text-xs font-bold text-gray-500 hover:text-gray-800 uppercase tracking-widest"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Drill-down Modal */}
+            {drillDownType && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+                        <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-serif font-bold text-lg text-gray-900 flex items-center gap-2">
+                                    {drillDownType === 'digital' && <TrendingUp size={20} className="text-green-500" />}
+                                    {drillDownType === 'manual' && <CheckCircle size={20} className="text-purple-500" />}
+                                    {drillDownType === 'active' && <Activity size={20} className="text-orange-500" />}
+                                    {drillDownType === 'unique' && <Users size={20} className="text-blue-500" />}
+                                    {drillDownType === 'digital' ? 'Digital Redemptions' :
+                                        drillDownType === 'manual' ? 'Manual POS Entries' :
+                                            drillDownType === 'active' ? 'Active Non-Redeemed Vouchers' :
+                                                'Unique Participants List'}
+                                </h3>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    {drillDownType === 'active'
+                                        ? 'Vouchers issued but not yet used'
+                                        : `Detailed breakdown for the selected ${timeRange} period`}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setDrillDownType(null)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto flex-1">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 sticky top-0 z-20">
+                                    <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
+                                        <th className="py-3 pl-6">Guest</th>
+                                        <th className="py-3">Type/Service</th>
+                                        <th className="py-3">Reference</th>
+                                        <th className="py-3 pr-6 text-right">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-sm divide-y divide-gray-50">
+                                    {(drillDownType === 'digital' || drillDownType === 'manual' ?
+                                        stats.allFilteredRedemptions.filter(r => drillDownType === 'manual' ? r.isManual : !r.isManual) :
+                                        drillDownType === 'active' ?
+                                            stats.filteredUnredeemed :
+                                            [] // Unique handled below
+                                    ).map((item: any, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                            <td className="py-4 pl-6">
+                                                <p className="font-bold text-gray-900">{item.guestName || 'Unknown'}</p>
+                                                <p className="text-[10px] text-gray-400">{item.roomNumber || 'No Room'}</p>
+                                            </td>
+                                            <td className="py-4">
+                                                <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase tracking-tight ${drillDownType === 'active' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
+                                                    }`}>
+                                                    {item.serviceType || 'Voucher'}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 font-mono text-[10px]">
+                                                {item.voucherCode || item.id}
+                                            </td>
+                                            <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
+                                                {new Date((item.timestamp || item.created_at || new Date().toISOString())).toLocaleDateString()}
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {drillDownType === 'unique' && (
+                                        Array.from(new Set(stats.allFilteredRedemptions.map(r => r.guestName))).map((name, idx) => {
+                                            const lastActivity = stats.allFilteredRedemptions.find(r => r.guestName === name);
+                                            return (
+                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="py-4 pl-6 font-bold text-gray-900">{name}</td>
+                                                    <td className="py-4">
+                                                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold">
+                                                            Last: {lastActivity?.serviceType}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-4 font-mono text-[10px]">{lastActivity?.voucherCode}</td>
+                                                    <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
+                                                        {new Date((lastActivity?.timestamp || new Date().toISOString())).toLocaleDateString()}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                Total entries: {
+                                    drillDownType === 'digital' ? stats.systemRedemptions :
+                                        drillDownType === 'manual' ? stats.manualRedemptions :
+                                            drillDownType === 'active' ? stats.totalUnredeemedInPeriod :
+                                                stats.uniqueGuests
+                                }
+                            </span>
+                            <button
+                                onClick={() => setDrillDownType(null)}
+                                className="px-4 py-2 bg-[#2c2420] text-white text-[10px] font-bold uppercase tracking-widest rounded-lg"
                             >
                                 Close
                             </button>

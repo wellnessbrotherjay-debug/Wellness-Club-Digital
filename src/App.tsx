@@ -16,10 +16,10 @@ function App() {
         <VoucherProvider>
           <Router>
             <Routes>
-              <Route path="/" element={<VoucherPage />} />
               <Route path="/v/:id" element={<GuestPass />} />
               <Route path="/help" element={<HelpSection />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/" element={<VoucherPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
