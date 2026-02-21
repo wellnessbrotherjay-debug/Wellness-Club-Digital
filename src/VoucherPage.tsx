@@ -396,8 +396,8 @@ const VoucherPage: React.FC = () => {
             String(v.roomNumber || '').toLowerCase().includes(query)
         );
 
-        // 2. Data Quality Filter: Hide if no guest name (causes "ROOM" error)
-        if (!v.guestName || v.guestName === 'Unknown Guest') return false;
+        // 2. Data Quality Filter: Relaxed to show row even if name is missing during debug
+        if (v.guestName === 'Unknown Guest' && !query) return false;
 
         // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
         if (activeTab === 'issued') {
@@ -445,7 +445,8 @@ const VoucherPage: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end mr-4">
                             <span className="text-xs font-bold">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.8 PROXY + DATA REPAIR ACTIVE</span>
+                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.9 • {recentVouchers.length} Total • {fetchError ? 'Err' : 'OK'}</span>
+                            <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">{APPS_SCRIPT_URL}</span>
                         </div>
                         <button
                             onClick={() => window.location.href = '/help'}
@@ -1025,9 +1026,17 @@ const VoucherPage: React.FC = () => {
                                     </div>
                                     <p className="text-gray-400">
                                         {statusFilter === 'all'
-                                            ? "No vouchers found in local history."
+                                            ? `No vouchers found. Checked ${recentVouchers.length} local rows.`
                                             : `No ${statusFilter} vouchers found.`}
                                     </p>
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg text-left inline-block max-w-md mx-auto">
+                                        <p className="text-[10px] text-gray-400 font-mono">DEBUG INFO:</p>
+                                        <p className="text-[10px] text-gray-500 font-mono">Voucher Length: {recentVouchers.length}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono">Redemption Length: {redemptions.length}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono">Status: {isFetchingHistory ? 'Fetching...' : 'Idle'}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono">Error: {fetchError ? 'Yes' : 'No'}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono truncate">Endpoint: {APPS_SCRIPT_URL}</p>
+                                    </div>
                                 </div>
                             ) : (
                                 !isFetchingHistory && !fetchError && filteredVouchers.map(voucher => (
