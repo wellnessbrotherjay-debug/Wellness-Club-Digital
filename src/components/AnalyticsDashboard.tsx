@@ -76,17 +76,20 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
 
     // Calculate effective redemptions at component level
     const effectiveRedemptions = useMemo(() => {
-        // Build a fast lookup map: voucherCode -> voucher (for cross-referencing)
-        const voucherMap = new Map(vouchers.map(v => [v.id, v]));
+        // Build a fast lookup map: voucherCode (uppercase) -> voucher
+        const voucherMap = new Map(vouchers.map(v => [v.id?.toUpperCase(), v]));
 
-        // Helper: returns true if the service text is a broad/generic voucher benefit
-        // (e.g. "15% OFF ALL SERVICES @ NO.1 (F&B, Classes, Massage, etc)")
-        const isBroadBenefit = (s?: string) =>
-            !s || s.includes('@') || s.toLowerCase().includes('all services') || s.length > 45;
+        const FAKE_PLACEHOLDERS = new Set(['general admission', 'wellness service', 'general wellness', 'n/a', 'none']);
+        const isBroadBenefit = (s?: string) => {
+            if (!s) return true;
+            const lo = s.toLowerCase().trim();
+            if (FAKE_PLACEHOLDERS.has(lo)) return true;
+            return s.includes('@') || lo.includes('all services') || s.length > 45;
+        };
 
         // Helper: resolve the best possible service name for a redemption
         const resolveService = (voucherCode: string, fallbackService: string): string => {
-            const v = voucherMap.get(voucherCode);
+            const v = voucherMap.get(voucherCode?.toUpperCase());
             if (v) {
                 // redeemed_service (column J) is always most specific
                 const specific = v.redeemed_service?.trim();
