@@ -176,6 +176,24 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             }
         });
 
+        // --- Daily Issued Counts ---
+        const dailyIssuedCounts: Record<string, number> = {};
+        vouchers.forEach(v => {
+            const d = parseDate(v.created_at || '');
+            if (!d) return;
+            // Apply same time range filter
+            if (timeRange === 'week' && d < oneWeekAgo) return;
+            if (timeRange === 'month' && d < oneMonthAgo) return;
+            if (timeRange === 'launch' && d < launchDate) return;
+            if (timeRange === 'custom') {
+                const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+                const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+                if (d < start || d > end) return;
+            }
+            const key = d.toISOString().split('T')[0];
+            dailyIssuedCounts[key] = (dailyIssuedCounts[key] || 0) + 1;
+        });
+
         const manualRedemptions = filteredRedemptions.filter(r => r.isManual).length;
 
         // Calculate Redeemed Pax
@@ -298,6 +316,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             shopIssued, // New Issued counts
             shopGuests,
             dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
+            dailyIssuedCounts,
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
             allFilteredRedemptions: filteredRedemptions,
             totalUnredeemedInPeriod: filteredUnredeemed.length,
@@ -885,6 +904,86 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                     </div>
                 </div>
             </div>
+
+            {/* Daily Issued vs Redeemed Breakdown */}
+            {(() => {
+                // Merge all dates from both issued and redeemed
+                const allDates = new Set([
+                    ...Object.keys(stats.dailyIssuedCounts),
+                    ...stats.dailyCounts.map(([d]) => d)
+                ]);
+                const redeemedMap = Object.fromEntries(stats.dailyCounts);
+                const rows = Array.from(allDates)
+                    .sort((a, b) => b.localeCompare(a)) // newest first
+                    .map(date => ({
+                        date,
+                        issued: stats.dailyIssuedCounts[date] || 0,
+                        redeemed: redeemedMap[date] || 0,
+                    }));
+                const maxIssued = Math.max(1, ...rows.map(r => r.issued));
+                const maxRedeemed = Math.max(1, ...rows.map(r => r.redeemed));
+                if (rows.length === 0) return null;
+                const formatDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+                return (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-serif font-bold text-lg flex items-center gap-2">
+                                <BarChart size={18} className="text-[#c5a572]" />
+                                Daily Issued vs Redeemed
+                            </h3>
+                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#c5a572] inline-block" />Issued</span>
+                                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#1a7a4a] inline-block" />Redeemed</span>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
+                                        <th className="pb-3">Date</th>
+                                        <th className="pb-3 w-1/3">Issued</th>
+                                        <th className="pb-3 w-1/3">Redeemed</th>
+                                        <th className="pb-3 text-right pr-2">Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-sm divide-y divide-gray-50">
+                                    {rows.map(row => {
+                                        const rate = row.issued > 0 ? Math.round((row.redeemed / row.issued) * 100) : 0;
+                                        return (
+                                            <tr key={row.date} className="hover:bg-gray-50 transition-colors">
+                                                <td className="py-3 font-mono text-xs text-gray-500 whitespace-nowrap pr-4">
+                                                    {formatDate(row.date)}
+                                                </td>
+                                                <td className="py-3 pr-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-6 text-xs font-bold text-right text-[#9a7a52]">{row.issued}</span>
+                                                        <div className="flex-1 h-2 bg-amber-50 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-[#c5a572] rounded-full transition-all" style={{ width: `${(row.issued / maxIssued) * 100}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 pr-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-6 text-xs font-bold text-right text-[#1a7a4a]">{row.redeemed}</span>
+                                                        <div className="flex-1 h-2 bg-green-50 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-[#1a7a4a] rounded-full transition-all" style={{ width: `${(row.redeemed / maxRedeemed) * 100}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 text-right pr-2">
+                                                    <span className={`text-xs font-bold ${rate >= 50 ? 'text-[#1a7a4a]' : rate > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
+                                                        {row.issued > 0 ? `${rate}%` : '—'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Speed Category Detail Modal */}
             {selectedSpeedCategory && (
