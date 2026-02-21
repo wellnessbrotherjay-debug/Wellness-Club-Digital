@@ -69,7 +69,7 @@ export const useVoucherData = () => {
         timestamp: item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString(),
         voucherCode: item.voucherCode || item.code || item.id || '',
         guestName: item.guestName || item.name || '',
-        serviceType: item.serviceType || item.service_type || 'General Admission',
+        serviceType: item.serviceType || item.service_type || '',
         roomNumber: item.roomNumber || item.room || '',
         inputPath: item.inputPath || item.inputpath || '',
         emailStatus: item.emailStatus || item.emailstatus || ''

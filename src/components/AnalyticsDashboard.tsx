@@ -97,8 +97,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             }
             // Fall back to whatever came from the Redemptions sheet
             if (!isBroadBenefit(fallbackService)) return fallbackService;
-            // Last resort — still generic, but cleaner label
-            return 'General Wellness';
+            // Last resort — leave blank rather than inventing a category
+            return '';
         };
 
         const baseData = redemptions.length > 0
@@ -514,9 +514,9 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
 
 
     return (
-        <div className="animate-fade-in space-y-8">
+        <div className="animate-fade-in space-y-8" >
             {/* Debug Panel */}
-            <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
+            < div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs" >
                 <div className="flex justify-between items-center mb-3">
                     <h4 className="font-bold text-white">🔍 Data Debug Panel</h4>
                     <button
@@ -576,7 +576,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                         </div>
                     </div>
                 )}
-            </div>
+            </div >
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
                 <div className="flex flex-col gap-4 w-full md:w-auto">
@@ -1057,307 +1057,313 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             </div>
 
             {/* Daily Issued vs Redeemed Breakdown */}
-            {(() => {
-                // Merge all dates from both issued and redeemed
-                const allDates = new Set([
-                    ...Object.keys(stats.dailyIssuedCounts),
-                    ...stats.dailyCounts.map(([d]) => d)
-                ]);
-                const redeemedMap = Object.fromEntries(stats.dailyCounts);
-                const rows = Array.from(allDates)
-                    .sort((a, b) => b.localeCompare(a)) // newest first
-                    .map(date => ({
-                        date,
-                        issued: stats.dailyIssuedCounts[date] || 0,
-                        redeemed: redeemedMap[date] || 0,
-                    }));
-                const maxIssued = Math.max(1, ...rows.map(r => r.issued));
-                const maxRedeemed = Math.max(1, ...rows.map(r => r.redeemed));
-                if (rows.length === 0) return null;
-                const formatDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-                return (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-serif font-bold text-lg flex items-center gap-2">
-                                <BarChart size={18} className="text-[#c5a572]" />
-                                Daily Issued vs Redeemed
-                            </h3>
-                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#c5a572] inline-block" />Issued</span>
-                                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#1a7a4a] inline-block" />Redeemed</span>
-                            </div>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
-                                        <th className="pb-3">Date</th>
-                                        <th className="pb-3 w-1/3" title="Vouchers created on this date">Issued</th>
-                                        <th className="pb-3 w-1/3" title="Redemptions recorded on this date (may include older vouchers)">Redeemed</th>
-                                        <th className="pb-3 text-right pr-2">Rate</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-sm divide-y divide-gray-50">
-                                    {rows.map(row => {
-                                        const rate = row.issued > 0 ? Math.round((row.redeemed / row.issued) * 100) : 0;
-                                        return (
-                                            <tr key={row.date} className="hover:bg-gray-50 transition-colors">
-                                                <td className="py-3 font-mono text-xs text-gray-500 whitespace-nowrap pr-4">
-                                                    {formatDate(row.date)}
-                                                </td>
-                                                <td className="py-3 pr-6">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-6 text-xs font-bold text-right text-[#9a7a52]">{row.issued}</span>
-                                                        <div className="flex-1 h-2 bg-amber-50 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-[#c5a572] rounded-full transition-all" style={{ width: `${(row.issued / maxIssued) * 100}%` }} />
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 pr-6">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-6 text-xs font-bold text-right text-[#1a7a4a]">{row.redeemed}</span>
-                                                        <div className="flex-1 h-2 bg-green-50 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-[#1a7a4a] rounded-full transition-all" style={{ width: `${(row.redeemed / maxRedeemed) * 100}%` }} />
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 text-right pr-2">
-                                                    {row.redeemed > row.issued ? (
-                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-purple-500 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded" title="More redemptions than issues on this day — likely includes backdated entries from older vouchers">
-                                                            bulk
-                                                        </span>
-                                                    ) : (
-                                                        <span className={`text-xs font-bold ${rate >= 50 ? 'text-[#1a7a4a]' : rate > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
-                                                            {row.issued > 0 ? `${rate}%` : '—'}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                );
-            })()}
-
-            {/* Speed Category Detail Modal */}
-            {selectedSpeedCategory && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-                        <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-serif font-bold text-lg text-gray-900 flex items-center gap-2">
-                                    <Zap size={20} className="text-amber-500" />
-                                    Redemption Speed: {selectedSpeedCategory}
+            {
+                (() => {
+                    // Merge all dates from both issued and redeemed
+                    const allDates = new Set([
+                        ...Object.keys(stats.dailyIssuedCounts),
+                        ...stats.dailyCounts.map(([d]) => d)
+                    ]);
+                    const redeemedMap = Object.fromEntries(stats.dailyCounts);
+                    const rows = Array.from(allDates)
+                        .sort((a, b) => b.localeCompare(a)) // newest first
+                        .map(date => ({
+                            date,
+                            issued: stats.dailyIssuedCounts[date] || 0,
+                            redeemed: redeemedMap[date] || 0,
+                        }));
+                    const maxIssued = Math.max(1, ...rows.map(r => r.issued));
+                    const maxRedeemed = Math.max(1, ...rows.map(r => r.redeemed));
+                    if (rows.length === 0) return null;
+                    const formatDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+                    return (
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="font-serif font-bold text-lg flex items-center gap-2">
+                                    <BarChart size={18} className="text-[#c5a572]" />
+                                    Daily Issued vs Redeemed
                                 </h3>
-                                <p className="text-xs text-gray-400 mt-1">
-                                    Guests who redeemed within {selectedSpeedCategory} of check-in
-                                </p>
+                                <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#c5a572] inline-block" />Issued</span>
+                                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#1a7a4a] inline-block" />Redeemed</span>
+                                </div>
                             </div>
-                            <button
-                                onClick={() => setSelectedSpeedCategory(null)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="overflow-y-auto p-0">
-                            <table className="w-full text-left">
-                                <thead className="bg-gray-50 sticky top-0 z-10">
-                                    <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
-                                        <th className="py-3 pl-6">Guest Name</th>
-                                        <th className="py-3 text-center">Room</th>
-                                        <th className="py-3 text-center">Stay Duration</th>
-                                        <th className="py-3 text-right pr-6">Redeemed On</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-sm divide-y divide-gray-50">
-                                    {stats.redemptionSpeedData
-                                        .filter(d => d.category === selectedSpeedCategory)
-                                        .sort((a: any, b: any) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime())
-                                        .map((item, idx) => {
-                                            const isLate = item.stayDuration > 0 && item.daysToRedeem > item.stayDuration;
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
+                                            <th className="pb-3">Date</th>
+                                            <th className="pb-3 w-1/3" title="Vouchers created on this date">Issued</th>
+                                            <th className="pb-3 w-1/3" title="Redemptions recorded on this date (may include older vouchers)">Redeemed</th>
+                                            <th className="pb-3 text-right pr-2">Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm divide-y divide-gray-50">
+                                        {rows.map(row => {
+                                            const rate = row.issued > 0 ? Math.round((row.redeemed / row.issued) * 100) : 0;
                                             return (
-                                                <tr
-                                                    key={idx}
-                                                    className="hover:bg-amber-50/30 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
-                                                    onClick={() => {
-                                                        const voucher = vouchers.find(v => v.id === item.voucherCode);
-                                                        if (onViewVoucher && voucher) onViewVoucher(voucher);
-                                                    }}
-                                                >
-                                                    <td className="py-4 pl-6">
-                                                        <p className="font-bold text-gray-900">{item.guestName}</p>
-                                                        <p className="text-[9px] font-mono text-gray-400 uppercase tracking-tighter">{item.voucherCode}</p>
+                                                <tr key={row.date} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="py-3 font-mono text-xs text-gray-500 whitespace-nowrap pr-4">
+                                                        {formatDate(row.date)}
                                                     </td>
-                                                    <td className="py-4 text-center">
-                                                        <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full font-bold text-gray-500">{item.roomNumber || '-'}</span>
+                                                    <td className="py-3 pr-6">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-6 text-xs font-bold text-right text-[#9a7a52]">{row.issued}</span>
+                                                            <div className="flex-1 h-2 bg-amber-50 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-[#c5a572] rounded-full transition-all" style={{ width: `${(row.issued / maxIssued) * 100}%` }} />
+                                                            </div>
+                                                        </div>
                                                     </td>
-                                                    <td className="py-4 text-center">
-                                                        <p className="text-xs font-bold text-gray-600">
-                                                            {item.stayDuration} Day{item.stayDuration === 1 ? '' : 's'}
-                                                        </p>
-                                                        <p className="text-[9px] text-gray-400 uppercase font-medium">Scheduled Stay</p>
+                                                    <td className="py-3 pr-6">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-6 text-xs font-bold text-right text-[#1a7a4a]">{row.redeemed}</span>
+                                                            <div className="flex-1 h-2 bg-green-50 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-[#1a7a4a] rounded-full transition-all" style={{ width: `${(row.redeemed / maxRedeemed) * 100}%` }} />
+                                                            </div>
+                                                        </div>
                                                     </td>
-                                                    <td className="py-4 text-right pr-6">
-                                                        <span className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border ${isLate
-                                                            ? 'bg-red-50 text-red-700 border-red-100'
-                                                            : 'bg-green-50 text-green-700 border-green-100'
-                                                            }`}>
-                                                            Day {item.daysToRedeem === 0 ? '0 (Arrival)' : item.daysToRedeem}
-                                                            {isLate && ' • LATE'}
-                                                        </span>
-                                                        <p className="text-[9px] text-gray-400 mt-1 uppercase font-medium">Post-Check-in</p>
+                                                    <td className="py-3 text-right pr-2">
+                                                        {row.redeemed > row.issued ? (
+                                                            <span className="text-[9px] font-bold uppercase tracking-wider text-purple-500 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded" title="More redemptions than issues on this day — likely includes backdated entries from older vouchers">
+                                                                bulk
+                                                            </span>
+                                                        ) : (
+                                                            <span className={`text-xs font-bold ${rate >= 50 ? 'text-[#1a7a4a]' : rate > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
+                                                                {row.issued > 0 ? `${rate}%` : '—'}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );
                                         })}
-                                    {stats.redemptionSpeedData.filter(d => d.category === selectedSpeedCategory).length === 0 && (
-                                        <tr>
-                                            <td colSpan={4} className="py-8 text-center text-gray-400 italic">
-                                                No vouchers found in this category.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
-                            <button
-                                onClick={() => setSelectedSpeedCategory(null)}
-                                className="text-xs font-bold text-gray-500 hover:text-gray-800 uppercase tracking-widest"
-                            >
-                                Close
-                            </button>
+                    );
+                })()
+            }
+
+            {/* Speed Category Detail Modal */}
+            {
+                selectedSpeedCategory && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                            <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-serif font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        <Zap size={20} className="text-amber-500" />
+                                        Redemption Speed: {selectedSpeedCategory}
+                                    </h3>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        Guests who redeemed within {selectedSpeedCategory} of check-in
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedSpeedCategory(null)}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="overflow-y-auto p-0">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 sticky top-0 z-10">
+                                        <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
+                                            <th className="py-3 pl-6">Guest Name</th>
+                                            <th className="py-3 text-center">Room</th>
+                                            <th className="py-3 text-center">Stay Duration</th>
+                                            <th className="py-3 text-right pr-6">Redeemed On</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm divide-y divide-gray-50">
+                                        {stats.redemptionSpeedData
+                                            .filter(d => d.category === selectedSpeedCategory)
+                                            .sort((a: any, b: any) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime())
+                                            .map((item, idx) => {
+                                                const isLate = item.stayDuration > 0 && item.daysToRedeem > item.stayDuration;
+                                                return (
+                                                    <tr
+                                                        key={idx}
+                                                        className="hover:bg-amber-50/30 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
+                                                        onClick={() => {
+                                                            const voucher = vouchers.find(v => v.id === item.voucherCode);
+                                                            if (onViewVoucher && voucher) onViewVoucher(voucher);
+                                                        }}
+                                                    >
+                                                        <td className="py-4 pl-6">
+                                                            <p className="font-bold text-gray-900">{item.guestName}</p>
+                                                            <p className="text-[9px] font-mono text-gray-400 uppercase tracking-tighter">{item.voucherCode}</p>
+                                                        </td>
+                                                        <td className="py-4 text-center">
+                                                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full font-bold text-gray-500">{item.roomNumber || '-'}</span>
+                                                        </td>
+                                                        <td className="py-4 text-center">
+                                                            <p className="text-xs font-bold text-gray-600">
+                                                                {item.stayDuration} Day{item.stayDuration === 1 ? '' : 's'}
+                                                            </p>
+                                                            <p className="text-[9px] text-gray-400 uppercase font-medium">Scheduled Stay</p>
+                                                        </td>
+                                                        <td className="py-4 text-right pr-6">
+                                                            <span className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border ${isLate
+                                                                ? 'bg-red-50 text-red-700 border-red-100'
+                                                                : 'bg-green-50 text-green-700 border-green-100'
+                                                                }`}>
+                                                                Day {item.daysToRedeem === 0 ? '0 (Arrival)' : item.daysToRedeem}
+                                                                {isLate && ' • LATE'}
+                                                            </span>
+                                                            <p className="text-[9px] text-gray-400 mt-1 uppercase font-medium">Post-Check-in</p>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        {stats.redemptionSpeedData.filter(d => d.category === selectedSpeedCategory).length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="py-8 text-center text-gray-400 italic">
+                                                    No vouchers found in this category.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
+                                <button
+                                    onClick={() => setSelectedSpeedCategory(null)}
+                                    className="text-xs font-bold text-gray-500 hover:text-gray-800 uppercase tracking-widest"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Drill-down Modal */}
-            {drillDownType && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-                        <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-serif font-bold text-lg text-gray-900 flex items-center gap-2">
-                                    {drillDownType === 'digital' && <TrendingUp size={20} className="text-green-500" />}
-                                    {drillDownType === 'manual' && <CheckCircle size={20} className="text-purple-500" />}
-                                    {drillDownType === 'active' && <Activity size={20} className="text-orange-500" />}
-                                    {drillDownType === 'unique' && <Users size={20} className="text-blue-500" />}
-                                    {drillDownType === 'digital' ? 'Digital Redemptions' :
-                                        drillDownType === 'manual' ? 'Manual POS Entries' :
-                                            drillDownType === 'active' ? 'Active Non-Redeemed Vouchers' :
-                                                'Unique Participants List'}
-                                </h3>
-                                <p className="text-xs text-gray-400 mt-1">
-                                    {drillDownType === 'active'
-                                        ? 'Vouchers issued but not yet used'
-                                        : `Detailed breakdown for the selected ${timeRange} period`}
-                                </p>
+            {
+                drillDownType && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+                            <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-serif font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        {drillDownType === 'digital' && <TrendingUp size={20} className="text-green-500" />}
+                                        {drillDownType === 'manual' && <CheckCircle size={20} className="text-purple-500" />}
+                                        {drillDownType === 'active' && <Activity size={20} className="text-orange-500" />}
+                                        {drillDownType === 'unique' && <Users size={20} className="text-blue-500" />}
+                                        {drillDownType === 'digital' ? 'Digital Redemptions' :
+                                            drillDownType === 'manual' ? 'Manual POS Entries' :
+                                                drillDownType === 'active' ? 'Active Non-Redeemed Vouchers' :
+                                                    'Unique Participants List'}
+                                    </h3>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        {drillDownType === 'active'
+                                            ? 'Vouchers issued but not yet used'
+                                            : `Detailed breakdown for the selected ${timeRange} period`}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setDrillDownType(null)}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setDrillDownType(null)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
 
-                        <div className="overflow-y-auto flex-1">
-                            <table className="w-full text-left">
-                                <thead className="bg-gray-50 sticky top-0 z-20">
-                                    <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
-                                        <th className="py-3 pl-6">Guest</th>
-                                        <th className="py-3">Type/Service</th>
-                                        <th className="py-3">Status / Method</th>
-                                        <th className="py-3">Reference</th>
-                                        <th className="py-3 pr-6 text-right">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-sm divide-y divide-gray-50">
-                                    {(drillDownType === 'digital' || drillDownType === 'manual' ?
-                                        stats.allFilteredRedemptions.filter(r => drillDownType === 'manual' ? r.isManual : !r.isManual) :
-                                        drillDownType === 'active' ?
-                                            stats.filteredUnredeemed :
-                                            [] // Unique handled below
-                                    ).map((item: any, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                            <td className="py-4 pl-6">
-                                                <p className="font-bold text-gray-900">{item.guestName || 'Unknown'}</p>
-                                                <p className="text-[10px] text-gray-400">{item.roomNumber || 'No Room'}</p>
-                                            </td>
-                                            <td className="py-4">
-                                                <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase tracking-tight ${drillDownType === 'active' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
-                                                    }`}>
-                                                    {item.serviceType || 'Voucher'}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 font-mono text-[10px]">
-                                                {item.voucherCode || item.id}
-                                            </td>
-                                            <td className="py-4">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full w-fit ${item.isManual ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
-                                                        }`}>
-                                                        {item.isManual ? 'Manual/POS' : 'System Redeemed'}
-                                                    </span>
-                                                    {item.inputPath && (
-                                                        <span className="text-[8px] text-gray-400">via {item.inputPath.replace('/', '')}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
-                                                {new Date((item.timestamp || item.created_at || new Date().toISOString())).toLocaleDateString()}
-                                            </td>
+                            <div className="overflow-y-auto flex-1">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 sticky top-0 z-20">
+                                        <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
+                                            <th className="py-3 pl-6">Guest</th>
+                                            <th className="py-3">Type/Service</th>
+                                            <th className="py-3">Status / Method</th>
+                                            <th className="py-3">Reference</th>
+                                            <th className="py-3 pr-6 text-right">Date</th>
                                         </tr>
-                                    ))}
-
-                                    {drillDownType === 'unique' && (
-                                        Array.from(new Set(stats.allFilteredRedemptions.map(r => r.guestName))).map((name, idx) => {
-                                            const lastActivity = stats.allFilteredRedemptions.find(r => r.guestName === name);
-                                            return (
-                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="py-4 pl-6 font-bold text-gray-900">{name}</td>
-                                                    <td className="py-4">
-                                                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold">
-                                                            Last: {lastActivity?.serviceType}
+                                    </thead>
+                                    <tbody className="text-sm divide-y divide-gray-50">
+                                        {(drillDownType === 'digital' || drillDownType === 'manual' ?
+                                            stats.allFilteredRedemptions.filter(r => drillDownType === 'manual' ? r.isManual : !r.isManual) :
+                                            drillDownType === 'active' ?
+                                                stats.filteredUnredeemed :
+                                                [] // Unique handled below
+                                        ).map((item: any, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <td className="py-4 pl-6">
+                                                    <p className="font-bold text-gray-900">{item.guestName || 'Unknown'}</p>
+                                                    <p className="text-[10px] text-gray-400">{item.roomNumber || 'No Room'}</p>
+                                                </td>
+                                                <td className="py-4">
+                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase tracking-tight ${drillDownType === 'active' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
+                                                        }`}>
+                                                        {item.serviceType || 'Voucher'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 font-mono text-[10px]">
+                                                    {item.voucherCode || item.id}
+                                                </td>
+                                                <td className="py-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full w-fit ${item.isManual ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                                                            }`}>
+                                                            {item.isManual ? 'Manual/POS' : 'System Redeemed'}
                                                         </span>
-                                                    </td>
-                                                    <td className="py-4 font-mono text-[10px]">{lastActivity?.voucherCode}</td>
-                                                    <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
-                                                        {new Date((lastActivity?.timestamp || new Date().toISOString())).toLocaleDateString()}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                Total entries: {
-                                    drillDownType === 'digital' ? stats.systemRedemptions :
-                                        drillDownType === 'manual' ? stats.manualRedemptions :
-                                            drillDownType === 'active' ? stats.totalUnredeemedInPeriod :
-                                                stats.uniqueGuests
-                                }
-                            </span>
-                            <button
-                                onClick={() => setDrillDownType(null)}
-                                className="px-4 py-2 bg-[#2c2420] text-white text-[10px] font-bold uppercase tracking-widest rounded-lg"
-                            >
-                                Close
-                            </button>
+                                                        {item.inputPath && (
+                                                            <span className="text-[8px] text-gray-400">via {item.inputPath.replace('/', '')}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
+                                                    {new Date((item.timestamp || item.created_at || new Date().toISOString())).toLocaleDateString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+
+                                        {drillDownType === 'unique' && (
+                                            Array.from(new Set(stats.allFilteredRedemptions.map(r => r.guestName))).map((name, idx) => {
+                                                const lastActivity = stats.allFilteredRedemptions.find(r => r.guestName === name);
+                                                return (
+                                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="py-4 pl-6 font-bold text-gray-900">{name}</td>
+                                                        <td className="py-4">
+                                                            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold">
+                                                                Last: {lastActivity?.serviceType}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 font-mono text-[10px]">{lastActivity?.voucherCode}</td>
+                                                        <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
+                                                            {new Date((lastActivity?.timestamp || new Date().toISOString())).toLocaleDateString()}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Total entries: {
+                                        drillDownType === 'digital' ? stats.systemRedemptions :
+                                            drillDownType === 'manual' ? stats.manualRedemptions :
+                                                drillDownType === 'active' ? stats.totalUnredeemedInPeriod :
+                                                    stats.uniqueGuests
+                                    }
+                                </span>
+                                <button
+                                    onClick={() => setDrillDownType(null)}
+                                    className="px-4 py-2 bg-[#2c2420] text-white text-[10px] font-bold uppercase tracking-widest rounded-lg"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 
