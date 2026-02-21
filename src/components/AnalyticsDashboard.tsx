@@ -76,28 +76,47 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
 
     // Calculate effective redemptions at component level
     const effectiveRedemptions = useMemo(() => {
-        const baseData = redemptions.length > 0 ? redemptions : vouchers
-            .filter(v => v.status === 'Redeemed')
-            .map(v => {
-                // Priority: redeemed_service (actual service used) > serviceType (if it's specific, not the generic voucher text) > services[0] fallback
-                const redeemedSvc = v.redeemed_service?.trim();
+        // Build a fast lookup map: voucherCode -> voucher (for cross-referencing)
+        const voucherMap = new Map(vouchers.map(v => [v.id, v]));
+
+        // Helper: returns true if the service text is a broad/generic voucher benefit
+        // (e.g. "15% OFF ALL SERVICES @ NO.1 (F&B, Classes, Massage, etc)")
+        const isBroadBenefit = (s?: string) =>
+            !s || s.includes('@') || s.toLowerCase().includes('all services') || s.length > 45;
+
+        // Helper: resolve the best possible service name for a redemption
+        const resolveService = (voucherCode: string, fallbackService: string): string => {
+            const v = voucherMap.get(voucherCode);
+            if (v) {
+                // redeemed_service (column J) is always most specific
+                const specific = v.redeemed_service?.trim();
+                if (specific && !isBroadBenefit(specific)) return specific;
+                // serviceType from voucher row (if specific)
                 const svcType = v.serviceType?.trim();
-                // Avoid showing the broad voucher benefit text (e.g. "15% OFF ALL SERVICES @ NO.1...")
-                // as the redeemed service. These are typically long strings containing "@"
-                const isBroadBenefit = (s?: string) => !s || s.includes('@') || s.length > 40;
-                const serviceType = redeemedSvc
-                    || (!isBroadBenefit(svcType) ? svcType : undefined)
-                    || (v.services && v.services.length > 0 ? v.services[0] : 'Wellness Service');
-                return {
+                if (svcType && !isBroadBenefit(svcType)) return svcType;
+            }
+            // Fall back to whatever came from the Redemptions sheet
+            if (!isBroadBenefit(fallbackService)) return fallbackService;
+            // Last resort — still generic, but cleaner label
+            return 'General Wellness';
+        };
+
+        const baseData = redemptions.length > 0
+            ? redemptions.map(r => ({
+                ...r,
+                serviceType: resolveService(r.voucherCode, r.serviceType)
+            }))
+            : vouchers
+                .filter(v => v.status === 'Redeemed')
+                .map(v => ({
                     timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
                     voucherCode: v.id,
                     guestName: v.guestName || 'Unknown Guest',
-                    serviceType,
+                    serviceType: resolveService(v.id, v.serviceType || ''),
                     roomNumber: v.roomNumber || '',
                     isManual: false,
                     inputPath: ''
-                };
-            });
+                }));
 
         return baseData.map(r => ({
             ...r,
