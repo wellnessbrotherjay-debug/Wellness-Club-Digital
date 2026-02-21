@@ -19,6 +19,8 @@ function normalizeHeaders(headers) {
         'code': 'voucherCode',
         'vouchercode': 'voucherCode',
         'voucher code': 'voucherCode',
+        'voucherid': 'voucherCode',
+        'voucher id': 'voucherCode',
         'id': 'voucherCode',
         // Description -> guestName
         'description': 'guestName',
@@ -32,8 +34,10 @@ function normalizeHeaders(headers) {
         'roomnumber': 'roomNumber',
         'room number': 'roomNumber',
         'room': 'roomNumber',
-        // Type -> checkIn (not used but mapped)
+        // Type -> checkIn
         'type': 'checkIn',
+        'checkin': 'checkIn',
+        'check in': 'checkIn',
         // checkOut -> checkOut
         'checkout': 'checkOut',
         'check out': 'checkOut',
@@ -43,6 +47,7 @@ function normalizeHeaders(headers) {
         // Phone number -> whatsapp
         'phone': 'whatsapp',
         'phone number': 'whatsapp',
+        'phonenumber': 'whatsapp',
         'whatsapp': 'whatsapp',
         // Status -> status
         'status': 'status',
@@ -56,6 +61,7 @@ function normalizeHeaders(headers) {
         // Redeemed service -> redeemed_service
         'redeemed_service': 'redeemed_service',
         'redeemed service': 'redeemed_service',
+        'redeemedservice': 'redeemed_service',
         'service redeemed': 'redeemed_service',
         // Pax -> pax
         'pax': 'pax',
@@ -243,8 +249,8 @@ function doPost(e) {
                     guestName: data.userName || data.guestName || values[i][normalizedHeaders.indexOf('guestName')] || '',
                     serviceType: data.serviceType || '',
                     roomNumber: data.roomNumber || values[i][normalizedHeaders.indexOf('roomNumber')] || '',
-                    emailStatus: data.emailStatus || 'Sent',
-                    inputPath: data.inputPath || ''
+                    email: data.email || values[i][normalizedHeaders.indexOf('email')] || '',
+                    whatsapp: data.whatsapp || data.phone || values[i][normalizedHeaders.indexOf('whatsapp')] || ''
                 });
 
                 return returnJson({ status: "success", message: "Redeemed Successfully" });
@@ -345,7 +351,8 @@ function doPost(e) {
                 guestName: data.userName || data.guestName || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('guestName')] : ''),
                 serviceType: data.serviceType || '',
                 roomNumber: data.roomNumber || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('roomNumber')] : ''),
-                emailStatus: data.emailStatus || 'Sent'
+                email: data.email || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('email')] : ''),
+                whatsapp: data.whatsapp || data.phone || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('whatsapp')] : '')
             });
         } else if (data.status === 'Expired') {
             setVal('redeemed_at', ''); // Clear redeemed date if marking expired
@@ -492,7 +499,7 @@ function logToRedemptions(ss, entry) {
     let sheet = ss.getSheetByName('Redemptions');
     if (!sheet) {
         sheet = ss.insertSheet('Redemptions');
-        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'roomNumber', 'emailStatus', 'inputPath']);
+        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'roomNumber', 'email', 'phonenumber']);
     }
     
     const values = sheet.getDataRange().getValues();
@@ -511,8 +518,9 @@ function logToRedemptions(ss, entry) {
                         case 'guestName': return entry.guestName;
                         case 'serviceType': return entry.serviceType;
                         case 'roomNumber': return entry.roomNumber;
-                        case 'emailStatus': return entry.emailStatus;
-                        case 'inputPath': return entry.inputPath;
+                        case 'email': return entry.email || '';
+                        case 'phonenumber': return entry.whatsapp || entry.phone || '';
+                        case 'whatsapp': return entry.whatsapp || entry.phone || '';
                         default: return values[i][headers.indexOf(h)];
                     }
                 });
@@ -523,7 +531,7 @@ function logToRedemptions(ss, entry) {
     }
     
     // Not found, append new
-    sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.emailStatus, entry.inputPath]);
+    sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.email || '', entry.whatsapp || entry.phone || '']);
 }
 
 function setupStandardHeaders() {
