@@ -55,7 +55,7 @@ export const useVoucherData = () => {
             redeemed_at: String(item.redeemed_at || item.redeemedAt || ''),
             imageUrl: String(item.imageUrl || item.imageurl || ''),
             services: servicesArr,
-            serviceType: String(item.serviceType || item.service_type || ''),
+            serviceType: String(item.serviceType || item.service_type || item.servicetype || ''),
             redeemed_service: String(item.redeemed_service || item.redeemedService || ''),
             redemptions: [],
             pax: item.pax ? parseInt(item.pax as any) : 1,
@@ -69,7 +69,7 @@ export const useVoucherData = () => {
         timestamp: item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString(),
         voucherCode: item.voucherCode || item.code || item.id || '',
         guestName: item.guestName || item.name || '',
-        serviceType: item.serviceType || item.service_type || '',
+        serviceType: item.serviceType || item.service_type || item.servicetype || '',
         roomNumber: item.roomNumber || item.room || '',
         inputPath: item.inputPath || item.inputpath || '',
         emailStatus: item.emailStatus || item.emailstatus || ''
