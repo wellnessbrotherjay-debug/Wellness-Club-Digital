@@ -50,7 +50,7 @@ import { useVoucherData } from './hooks/useVoucherData';
 const VoucherPage: React.FC = () => {
     const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null);
     const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued' | 'analytics' | 'declined'>('create');
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'redeemed' | 'expired'>('active');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'redeemed' | 'expired'>('all'); // DEFAULT TO ALL TO AVOID EMPTY LIST CONFUSION
     const [formData, setFormData] = useState({
         guestName: '',
         roomNumber: '',
@@ -487,10 +487,8 @@ const VoucherPage: React.FC = () => {
                                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
                                     {recentVouchers.filter(v => {
                                         if (!v.guestName || v.guestName === 'Unknown Guest') return false;
-                                        const isRedeemed = v.status === 'Redeemed';
-                                        const expiryDate = v.checkOut ? new Date(v.checkOut) : (v.expires_at ? new Date(v.expires_at) : null);
-                                        const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
-                                        return !isRedeemed && !isExpired;
+                                        // Show TOTAL count of valid vouchers since we are in "All" mode by default now
+                                        return true;
                                     }).length}
                                 </span>
                             </button>
@@ -1025,7 +1023,11 @@ const VoucherPage: React.FC = () => {
                                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
                                         <History size={32} />
                                     </div>
-                                    <p className="text-gray-400">No vouchers found in local history.</p>
+                                    <p className="text-gray-400">
+                                        {statusFilter === 'all'
+                                            ? "No vouchers found in local history."
+                                            : `No ${statusFilter} vouchers found.`}
+                                    </p>
                                 </div>
                             ) : (
                                 !isFetchingHistory && !fetchError && filteredVouchers.map(voucher => (
