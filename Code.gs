@@ -55,8 +55,7 @@ function normalizeHeaders(headers) {
         'redeemed_at': 'redeemed_at',
         'expires_at': 'checkOut',
         'pax': 'pax',
-        'guests': 'pax',
-        'amount': 'amount'
+        'guests': 'pax'
     };
 
     return headers.map(h => {
@@ -239,7 +238,7 @@ function doPost(e) {
                     'voucherCode': 'Date',
                     'guestName': 'Description',
                     'status': 'Category',
-                    'roomNumber': 'Room',
+                    'roomNumber': 'Amount',
                     'checkIn': 'Type',
                     'checkOut': 'checkOut',
                     'services': 'services',
@@ -489,7 +488,7 @@ function setupStandardHeaders() {
         ['voucherCode', 'Date'],
         ['guestName', 'Description'],
         ['status', 'Category'],
-        ['roomNumber', 'Room'],
+        ['roomNumber', 'Amount'],
         ['checkIn', 'Type'],
         ['checkOut', 'checkOut'],
         ['services', 'services'],
