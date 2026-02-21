@@ -654,9 +654,9 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                         <button
                             onClick={() => setShowSendMenu(v => !v)}
                             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all shadow-md ${sendReportStatus === 'sending' ? 'bg-blue-400 text-white cursor-wait' :
-                                    sendReportStatus === 'sent' ? 'bg-green-500 text-white' :
-                                        sendReportStatus === 'error' ? 'bg-red-500 text-white' :
-                                            'bg-[#2c2420] text-white hover:bg-black'
+                                sendReportStatus === 'sent' ? 'bg-green-500 text-white' :
+                                    sendReportStatus === 'error' ? 'bg-red-500 text-white' :
+                                        'bg-[#2c2420] text-white hover:bg-black'
                                 }`}
                             disabled={sendReportStatus === 'sending'}
                         >
@@ -1066,8 +1066,8 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                 <thead>
                                     <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
                                         <th className="pb-3">Date</th>
-                                        <th className="pb-3 w-1/3">Issued</th>
-                                        <th className="pb-3 w-1/3">Redeemed</th>
+                                        <th className="pb-3 w-1/3" title="Vouchers created on this date">Issued</th>
+                                        <th className="pb-3 w-1/3" title="Redemptions recorded on this date (may include older vouchers)">Redeemed</th>
                                         <th className="pb-3 text-right pr-2">Rate</th>
                                     </tr>
                                 </thead>
@@ -1096,9 +1096,15 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                                     </div>
                                                 </td>
                                                 <td className="py-3 text-right pr-2">
-                                                    <span className={`text-xs font-bold ${rate >= 50 ? 'text-[#1a7a4a]' : rate > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
-                                                        {row.issued > 0 ? `${rate}%` : '—'}
-                                                    </span>
+                                                    {row.redeemed > row.issued ? (
+                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-purple-500 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded" title="More redemptions than issues on this day — likely includes backdated entries from older vouchers">
+                                                            bulk
+                                                        </span>
+                                                    ) : (
+                                                        <span className={`text-xs font-bold ${rate >= 50 ? 'text-[#1a7a4a]' : rate > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
+                                                            {row.issued > 0 ? `${rate}%` : '—'}
+                                                        </span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
