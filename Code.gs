@@ -3,7 +3,8 @@
  * Combined script for fetching data AND handling actions
  */
 
-const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0I5wgBoI';
+const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0l5wgBoI'; // Verified from user text
+const SHEET_ID_ALT = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0l5wgBoI'; // Variation with lowercase L
 
 /**
  * Normalizes headers to match frontend keys.
@@ -68,11 +69,28 @@ function doGet(e) {
     const callback = e.parameter ? e.parameter.callback : null;
     const sheetType = e.parameter ? e.parameter.sheet || 'Vouchers' : 'Vouchers';
     try {
-        const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
+        let ss;
+        try {
+            ss = SpreadsheetApp.getActiveSpreadsheet();
+            if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+        } catch (e) {
+            try {
+                ss = SpreadsheetApp.openById(SHEET_ID_ALT);
+            } catch (e2) {
+                return returnJson(callback, { 
+                    status: "error", 
+                    message: "Spreadsheet Access Error. Ensure the script is deployed as 'Me' and 'Anyone' has access.",
+                    details: e2.toString(),
+                    triedIds: [SHEET_ID, SHEET_ID_ALT]
+                });
+            }
+        }
+
         const sheet = ss.getSheetByName(sheetType === 'Redemptions' ? 'Redemptions' : 'Vouchers') || 
+                      ss.getSheetByName('Vouchers') ||
                       ss.getSheetByName('VoucherCodes') || 
                       ss.getSheetByName('Sheet1') ||
-                      ss.getSheets()[0]; // TOTAL FALLBACK: Get first sheet if names don't match
+                      ss.getSheets()[0];
         if (!sheet) return returnJson(callback, { status: "error", message: "Sheet not found: " + sheetType });
 
         const data = sheet.getDataRange().getValues();

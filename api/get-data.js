@@ -19,18 +19,30 @@ export default async function handler(req, res) {
         // However, many existing GAS scripts always wrap if a param exists.
 
         let data;
+        let parseError = null;
         try {
             data = JSON.parse(text);
         } catch (e) {
+            parseError = e;
             // Try to extract from JSONP if it returned JSONP anyway (e.g. callback wrapping)
             const match = text.match(/^[^(]*\((.*)\)[^)]*$/);
             if (match && match[1]) {
                 try {
                     data = JSON.parse(match[1]);
+                    parseError = null;
                 } catch (pe) {
                     console.error('Failed to parse inner JSONP content:', pe);
                 }
             }
+        }
+
+        if (parseError) {
+            console.error('[Proxy GET] Parse error:', parseError);
+            return res.status(200).json({
+                status: 'error',
+                message: 'Failed to parse Apps Script response. It might be returning HTML or an error message.',
+                rawData: text.substring(0, 500)
+            });
         }
 
         // Final safety check: if we didn't get an array, return an empty array or handle error
