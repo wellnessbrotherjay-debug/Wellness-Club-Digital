@@ -68,10 +68,12 @@ function normalizeHeaders(headers) {
 function doGet(e) {
     const callback = e.parameter ? e.parameter.callback : null;
     const sheetType = e.parameter ? e.parameter.sheet || 'Vouchers' : 'Vouchers';
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-
+    const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
+    
     try {
-        const sheet = ss.getSheetByName(sheetType === 'Redemptions' ? 'Redemptions' : 'Vouchers') || ss.getSheetByName('VoucherCodes');
+        const sheet = ss.getSheetByName(sheetType === 'Redemptions' ? 'Redemptions' : 'Vouchers') || 
+                      ss.getSheetByName('VoucherCodes') || 
+                      ss.getSheetByName('Sheet1');
         if (!sheet) return returnJson(callback, { status: "error", message: "Sheet not found: " + sheetType });
 
         const data = sheet.getDataRange().getValues();
