@@ -1049,9 +1049,15 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                             </td>
                                             <td className="py-4">
                                                 <div className="flex flex-col gap-1 items-start">
-                                                    <span className="bg-[#f0f9f4] text-[#1a7a4a] px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-[#1a7a4a]/20">
-                                                        {r.serviceType || '—'}
-                                                    </span>
+                                                    {r.serviceType ? (
+                                                        <span className="bg-[#f0f9f4] text-[#1a7a4a] px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-[#1a7a4a]/20">
+                                                            {r.serviceType}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="bg-gray-100 text-gray-400 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-gray-200" title="Discount voucher redeemed — specific service not logged by staff">
+                                                            Discount Used
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="py-4">
