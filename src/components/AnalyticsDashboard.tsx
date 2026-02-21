@@ -102,10 +102,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         };
 
         const baseData = redemptions.length > 0
-            ? redemptions.map(r => ({
-                ...r,
-                serviceType: resolveService(r.voucherCode, r.serviceType)
-            }))
+            ? redemptions.map(r => {
+                const v = voucherMap.get(r.voucherCode);
+                // Use voucher's redeemed_at as the canonical timestamp —
+                // the Redemptions sheet timestamps are from data repair runs (wrong)
+                const timestamp = v?.redeemed_at || r.timestamp;
+                return {
+                    ...r,
+                    timestamp,
+                    serviceType: resolveService(r.voucherCode, r.serviceType)
+                };
+            })
             : vouchers
                 .filter(v => v.status === 'Redeemed')
                 .map(v => ({
