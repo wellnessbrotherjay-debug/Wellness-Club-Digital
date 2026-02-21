@@ -262,7 +262,7 @@ function doPost(e) {
         
         // Ensure header row exists
         if (sheet.getLastRow() === 0) {
-            sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'services', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'pax', 'email', 'whatsapp']);
+            sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'redeemed_service', 'pax', 'email', 'whatsapp']);
         }
         
         const dataRange = sheet.getDataRange().getValues();
@@ -294,12 +294,12 @@ function doPost(e) {
                     'roomNumber': 'Amount',
                     'checkIn': 'Type',
                     'checkOut': 'checkOut',
-                    'services': 'services',
                     'pax': 'Pax',
                     'email': 'Email',
                     'whatsapp': 'WhatsApp',
                     'created_at': 'created_at',
                     'redeemed_at': 'redeemed_at',
+                    'redeemed_service': 'redeemed_service',
                     'serviceType': 'ServiceType',
                     'emailStatus': 'EmailStatus',
                     'inputPath': 'InputPath'
@@ -328,7 +328,7 @@ function doPost(e) {
         setVal('roomNumber', data.roomNumber || data.amount || (targetRow !== -1 ? undefined : ''));
         setVal('checkIn', data.checkIn || data.type || (targetRow !== -1 ? undefined : ''));
         setVal('checkOut', data.checkOut || data.checkout || (targetRow !== -1 ? undefined : ''));
-        setVal('services', data.services || (targetRow !== -1 ? undefined : ''));
+        // services column removed — redeemed_service (col J) is the canonical field
         setVal('pax', data.pax || (targetRow !== -1 ? undefined : 1));
         setVal('email', data.email || data.emailAddress || (targetRow !== -1 ? undefined : ''));
         setVal('whatsapp', data.whatsapp || data.phone || data.phoneNumber || (targetRow !== -1 ? undefined : ''));
@@ -544,7 +544,7 @@ function setupStandardHeaders() {
         ['roomNumber', 'Amount'],
         ['checkIn', 'Type'],
         ['checkOut', 'checkOut'],
-        ['services', 'services'],
+        ['redeemed_service', 'redeemed_service'],
         ['pax', 'Pax'],
         ['email', 'Email'],
         ['whatsapp', 'WhatsApp'],
