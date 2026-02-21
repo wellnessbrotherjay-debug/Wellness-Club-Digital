@@ -118,10 +118,23 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                     inputPath: ''
                 }));
 
-        return baseData.map(r => ({
+        const withManual = baseData.map(r => ({
             ...r,
             isManual: checkIsManual(r.roomNumber, r.voucherCode)
         }));
+
+        // Deduplicate by voucherCode — keep only the LATEST entry per voucher
+        // (data repair runs wrote multiple rows for the same voucher to the Redemptions sheet)
+        const seen = new Map<string, typeof withManual[0]>();
+        for (const r of withManual) {
+            const key = r.voucherCode || r.guestName;
+            if (!key) continue;
+            const existing = seen.get(key);
+            if (!existing || new Date(r.timestamp) > new Date(existing.timestamp)) {
+                seen.set(key, r);
+            }
+        }
+        return Array.from(seen.values());
     }, [redemptions, vouchers]);
 
     // --- Analytics Logic ---
@@ -1003,8 +1016,9 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                             }}
                                         >
                                             <td className="py-4 pl-4 font-mono text-gray-500 text-xs">
-                                                {new Date(r.timestamp).toLocaleString([], {
-                                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                {new Date(r.timestamp).toLocaleString('en-GB', {
+                                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                                                    timeZone: 'Asia/Makassar'
                                                 })}
                                             </td>
                                             <td className="py-4 font-bold">
