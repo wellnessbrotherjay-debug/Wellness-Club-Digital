@@ -38,8 +38,9 @@ function normalizeHeaders(headers) {
         'checked out': 'checkOut',
         'servicetype': 'serviceType',
         'service type': 'serviceType',
-        'redeemed_service': 'serviceType',
-        'redeemed service': 'serviceType',
+        'redeemed_service': 'redeemed_service',
+        'redeemed service': 'redeemed_service',
+        'service redeemed': 'redeemed_service',
         'email_sent': 'emailStatus',
         'email': 'email',
         'email address': 'email',
@@ -340,7 +341,7 @@ function doPost(e) {
         if (data.status === 'Redeemed') {
             const redeemedAt = data.redeemed_at || data.redeemedAt || new Date().toISOString();
             setVal('redeemed_at', redeemedAt);
-            setVal('serviceType', data.serviceType || '');
+            setVal('redeemed_service', data.serviceType || data.redeemed_service || '');
             
             logToRedemptions(ss, {
                 timestamp: redeemedAt,
