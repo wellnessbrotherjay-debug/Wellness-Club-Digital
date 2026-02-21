@@ -11,6 +11,7 @@ export default async function handler(req, res) {
         console.log(`[Proxy GET] Fetching ${sheet} from Apps Script...`);
         const response = await fetch(`${SCRIPT_URL}?sheet=${sheet}`);
         const text = await response.text();
+        console.log(`[Proxy GET] Raw response snippet for ${sheet}:`, text.substring(0, 100));
 
         // Apps Script might return JSONP or JSON
         // If it starts with "cb(" or similar, it's JSONP
@@ -45,6 +46,10 @@ export default async function handler(req, res) {
         return res.status(200).json(data);
     } catch (error) {
         console.error(`[Proxy GET Error] ${sheet}:`, error);
-        return res.status(200).json([]); // Always return valid JSON during live issues
+        return res.status(502).json({
+            status: 'error',
+            message: `Failed to fetch ${sheet} from Apps Script. Check deployment permissions.`,
+            details: error.message
+        });
     }
 }
