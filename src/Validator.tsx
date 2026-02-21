@@ -6,7 +6,7 @@ import type { VoucherData } from './VoucherPage';
 // MAPPING: defines which 'Creation Service' unlocks which 'Redeemable Service'
 // "requiredEntitlement" corresponds to the string in VoucherPage.tsx -> SERVICES_LIST
 
-import { SERVICE_GROUPS, ENTITLEMENTS } from './constants/services';
+import { SERVICE_GROUPS } from './constants/services';
 
 const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> = ({ vouchers, onRefresh }) => {
     const [code, setCode] = useState('');
@@ -42,40 +42,14 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
 
     // Derived state: Filter groups based on the current voucher's entitlements
     const getFilteredGroups = useCallback(() => {
-        // If no code entered, show nothing or all? 
-        // Better to show nothing until code is known, BUT users might want to see options.
-        // Let's Find the voucher first.
+        // If no code entered, show nothing (forces them to enter/scan valid code first)
         const voucher = vouchers.find(v => v.id === code.trim().toUpperCase());
 
-        if (!voucher) return []; // If code invalid, show no options (forces them to enter/scan valid code first)
+        if (!voucher) return [];
 
-        // Filter items
-        return SERVICE_GROUPS.map(group => ({
-            ...group,
-            items: group.items.filter(item => {
-                // If the item doesn't require specific entitlement, show it? (Safe default: hide)
-                if (!item.requiredEntitlement) return false;
-
-                // Check if voucher has the required service string
-                if (voucher.services && voucher.services.includes(item.requiredEntitlement)) {
-                    return true;
-                }
-
-                // BACKWARD COMPATIBILITY & PARTIAL MATCH:
-                // If the item requires the NEW string, but the voucher has the OLD string OR contains "No.1", allow it.
-                // This acts as a catch-all for any "No.1 Wellness" related discount.
-                if (item.requiredEntitlement === ENTITLEMENTS.WELLNESS_ALL) {
-                    if (voucher.services && (
-                        voucher.services.includes(ENTITLEMENTS.OLD_WELLNESS) ||
-                        voucher.services.some(s => s.includes("No.1") && s.includes("15%"))
-                    )) {
-                        return true;
-                    }
-                }
-
-                return false;
-            })
-        })).filter(group => group.items.length > 0); // Remove empty groups
+        // UNIVERSAL RULE: All vouchers get 15% off everything
+        // No entitlement checking needed - just return all service groups
+        return SERVICE_GROUPS;
     }, [code, vouchers]);
 
     const filteredServiceGroups = getFilteredGroups();

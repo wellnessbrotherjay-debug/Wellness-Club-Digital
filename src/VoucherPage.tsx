@@ -101,7 +101,7 @@ const VoucherPage: React.FC = () => {
                 timestamp: v.redeemed_at!,
                 voucherCode: v.id,
                 guestName: v.guestName,
-                serviceType: v.redeemed_service || (v.services?.[0] || 'General Admission'), // Capture redeemed service specifically
+                serviceType: v.redeemed_service || v.serviceType || (v.services?.[0] || 'General Admission'), // Check redeemed_service first, then serviceType, then services array
                 roomNumber: v.roomNumber || ''
             }));
 

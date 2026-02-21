@@ -1,5 +1,24 @@
 import { Resend } from 'resend';
 
+const AUDIT_URL = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}/api/audit-log`
+    : 'https://wellness-club-digital.vercel.app/api/audit-log';
+
+/**
+ * Fire-and-forget POST to the audit log. Never throws.
+ */
+async function writeAuditEvent(payload) {
+    try {
+        await fetch(AUDIT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+    } catch (e) {
+        console.warn('[AuditLog] Fire-and-forget failed:', e.message);
+    }
+}
+
 export default async function handler(req, res) {
     // Enable CORS for all origins (or restrict to your domain) to allow mobile browser access
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -19,7 +38,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyyJeL5WgalOEbXYbo4QPXoNd1ZwCs8-vHCoO0df9A4T6x7gwmGJb9O3UL_j_ysxtwA/exec';
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL;
 
     let scriptResponseText = '';
     let scriptData = null;
@@ -44,6 +63,24 @@ export default async function handler(req, res) {
             scriptData = { status: scriptResponseText ? 'success' : 'error', message: scriptResponseText };
         }
 
+        // ── AUDIT LOG (fire-and-forget, always runs for redeem actions) ─────
+        if (req.body.action === 'redeem') {
+            const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+            writeAuditEvent({
+                action: scriptData?.status === 'error' ? 'REDEEM_FAILED' : 'REDEEMED',
+                voucherCode: req.body.voucherCode,
+                guestName: req.body.guestName,
+                serviceType: req.body.serviceType || req.body.redeemed_service || '',
+                roomNumber: req.body.roomNumber,
+                source: 'DIGITAL_REDEMPTION',
+                inputPath: req.body.inputPath || '/',
+                deviceId: req.body.deviceId || req.headers['x-device-id'] || 'unknown',
+                sessionId: req.body.sessionId || '',
+                userAgent: req.body.userAgent || req.headers['user-agent'] || '',
+                ipAddress: ip,
+            });
+        }
+
         // --- EMAIL NOTIFICATION LOGIC (Only for redemptions) ---
         if (req.body.action === 'redeem' && scriptData.status !== 'error' && process.env.RESEND_API_KEY) {
             let emailStatus = 'Sent';
@@ -62,7 +99,7 @@ export default async function handler(req, res) {
                             <p><strong>Voucher Code:</strong> ${voucherCode}</p>
                             <p><strong>Service Redeemed:</strong> <span style="color: #c5a572; font-weight: bold;">${serviceType || 'General Use'}</span></p>
                             <p><strong>Redemption Path:</strong> <code>${inputPath || '/'}</code></p>
-                            <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)</p>
+                            <p><strong>Time:</strong> ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Makassar' })} (WITA)</p>
                             <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;" />
                             <p style="text-align: center;"><a href="https://wellness-club-digital.vercel.app/admin/analytics" style="background: #2c2420; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Analytics Board</a></p>
                         </div>

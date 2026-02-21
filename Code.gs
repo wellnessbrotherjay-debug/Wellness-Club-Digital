@@ -3,9 +3,9 @@
  * Combined script for fetching data AND handling actions
  */
 
-const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0l5wgBoI'; // Verified from user text
-const SHEET_ID_ALT = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0l5wgBoI'; // Variation with lowercase L
-const REPORT_EMAIL = 'YOUR_EMAIL@gmail.com'; // <-- Replace with your email address
+const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0I5wgBoI'; // Updated with correct sheet ID
+const SHEET_ID_ALT = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0I5wgBoI'; // Backup with same ID
+const REPORT_EMAIL = 'wellnessbrotherjay@gmail.com'; // Report email recipient
 
 /**
  * Normalizes headers to match frontend keys.
@@ -14,49 +14,50 @@ const REPORT_EMAIL = 'YOUR_EMAIL@gmail.com'; // <-- Replace with your email addr
  */
 function normalizeHeaders(headers) {
     const map = {
+        // Date column -> voucherCode
         'date': 'voucherCode',
         'code': 'voucherCode',
         'vouchercode': 'voucherCode',
         'voucher code': 'voucherCode',
         'id': 'voucherCode',
+        // Description -> guestName
         'description': 'guestName',
         'guestname': 'guestName',
         'guest name': 'guestName',
-        'username': 'guestName',
         'name': 'guestName',
+        // Category -> status
         'category': 'status',
+        // Amount -> roomNumber
+        'amount': 'roomNumber',
         'roomnumber': 'roomNumber',
         'room number': 'roomNumber',
         'room': 'roomNumber',
-        'amount': 'roomNumber',
-        'checkin': 'checkIn',
-        'check in': 'checkIn',
-        'checked in': 'checkIn',
+        // Type -> checkIn (not used but mapped)
         'type': 'checkIn',
+        // checkOut -> checkOut
         'checkout': 'checkOut',
         'check out': 'checkOut',
-        'checked out': 'checkOut',
-        'servicetype': 'serviceType',
-        'service type': 'serviceType',
+        // Email -> email
+        'email': 'email',
+        'email address': 'email',
+        // Phone number -> whatsapp
+        'phone': 'whatsapp',
+        'phone number': 'whatsapp',
+        'whatsapp': 'whatsapp',
+        // Status -> status
+        'status': 'status',
+        // Created -> created_at
+        'created': 'created_at',
+        'created_at': 'created_at',
+        // Redeemed -> redeemed_at
+        'redeemed': 'redeemed_at',
+        'redeemed_at': 'redeemed_at',
+        'redeem date': 'redeemed_at',
+        // Redeemed service -> redeemed_service
         'redeemed_service': 'redeemed_service',
         'redeemed service': 'redeemed_service',
         'service redeemed': 'redeemed_service',
-        'email_sent': 'emailStatus',
-        'email': 'email',
-        'email address': 'email',
-        'guest email': 'email',
-        'whatsapp': 'whatsapp',
-        'phone': 'whatsapp',
-        'phone number': 'whatsapp',
-        'whatsapp number': 'whatsapp',
-        'email status': 'emailStatus',
-        'input_path': 'inputPath',
-        'input path': 'inputPath',
-        'services': 'services',
-        'status': 'status',
-        'created_at': 'created_at',
-        'redeemed_at': 'redeemed_at',
-        'expires_at': 'checkOut',
+        // Pax -> pax
         'pax': 'pax',
         'guests': 'pax'
     };
@@ -176,26 +177,18 @@ function doPost(e) {
         const rawHeaders = values[0];
         const normalizedHeaders = normalizeHeaders(rawHeaders);
         
-        // Find or create 'redeemed_service' and other critical columns
-        const ensureColumn = (name) => {
-            let idx = normalizedHeaders.indexOf(name);
-            if (idx === -1) {
-                sheet.getRange(1, rawHeaders.length + 1).setValue(name);
-                rawHeaders.push(name);
-                normalizedHeaders.push(name);
-                idx = rawHeaders.length - 1;
-            }
-            return idx + 1;
-        };
-
-        const statusCol = ensureColumn('status');
-        const redeemedAtCol = ensureColumn('redeemed_at');
-        const serviceTypeCol = ensureColumn('serviceType');
-        const emailStatusCol = ensureColumn('emailStatus');
-        const inputPathCol = ensureColumn('inputPath');
+        // Map column indices to exact column letters
+        const statusCol = normalizedHeaders.indexOf('status') + 1;
+        const redeemedAtCol = normalizedHeaders.indexOf('redeemed_at') + 1;
+        const redeemedServiceCol = normalizedHeaders.indexOf('redeemed_service') + 1;
+        const emailCol = normalizedHeaders.indexOf('email') + 1;
+        const phoneCol = normalizedHeaders.indexOf('whatsapp') + 1;
         const codeCol = normalizedHeaders.indexOf('voucherCode') + 1;
 
-        if (codeCol === 0) return returnJson({ status: "error", message: "Code column missing" });
+        // Validate required columns exist
+        if (codeCol === 0) return returnJson({ status: "error", message: "Missing 'Date' column (voucherCode)" });
+        if (statusCol === 0) return returnJson({ status: "error", message: "Missing 'Category' column (status)" });
+        if (redeemedServiceCol === 0) return returnJson({ status: "error", message: "Missing 'redeemed_service' column" });
 
         for (let i = 1; i < values.length; i++) {
             if (String(values[i][codeCol - 1]).toUpperCase() === voucherCode) {
@@ -235,11 +228,14 @@ function doPost(e) {
                 }
 
                 const redeemedAtValue = data.redeemedAt || new Date().toISOString();
+                const serviceValue = data.serviceType || '';
+
+                // Update ONLY the columns that exist in your sheet
                 sheet.getRange(i + 1, statusCol).setValue('Redeemed');
-                sheet.getRange(i + 1, redeemedAtCol).setValue(redeemedAtValue);
-                sheet.getRange(i + 1, serviceTypeCol).setValue(data.serviceType || '');
-                sheet.getRange(i + 1, emailStatusCol).setValue(data.emailStatus || 'Sent');
-                sheet.getRange(i + 1, inputPathCol).setValue(data.inputPath || '');
+                if (redeemedAtCol > 0) sheet.getRange(i + 1, redeemedAtCol).setValue(redeemedAtValue);
+                if (redeemedServiceCol > 0) sheet.getRange(i + 1, redeemedServiceCol).setValue(serviceValue);
+                if (emailCol > 0 && data.email) sheet.getRange(i + 1, emailCol).setValue(data.email);
+                if (phoneCol > 0 && data.phone) sheet.getRange(i + 1, phoneCol).setValue(data.phone);
 
                 logToRedemptions(ss, {
                     timestamp: redeemedAtValue,
@@ -620,10 +616,10 @@ function buildReportData(days) {
         return !isNaN(d.getTime()) && d >= cutoff;
     });
 
-    // Service breakdown of redeemed
+    // Service breakdown of redeemed - use redeemed_service as primary source
     const services = {};
     redeemedInPeriod.forEach(r => {
-        const svc = r.serviceType || r.services || 'General';
+        const svc = r.redeemed_service || r.serviceType || r.services || 'General';
         services[svc] = (services[svc] || 0) + 1;
     });
     const serviceRows = Object.entries(services)
