@@ -5,6 +5,7 @@
 
 const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0l5wgBoI'; // Verified from user text
 const SHEET_ID_ALT = '1oWXJW6jl6Q-32TsG3v_kD9SpK8kW8Hjhv6B0l5wgBoI'; // Variation with lowercase L
+const REPORT_EMAIL = 'YOUR_EMAIL@gmail.com'; // <-- Replace with your email address
 
 /**
  * Normalizes headers to match frontend keys.
@@ -145,6 +146,22 @@ function returnJson(callback, data) {
 function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     if (data.action === 'ping') return returnJson({ status: "success", message: "pong" });
+
+    // --- SEND REPORT ON DEMAND ---
+    if (data.action === 'sendReport') {
+        const period = data.period || 'daily';
+        try {
+            if (period === 'weekly') {
+                sendWeeklyReport();
+            } else {
+                sendDailyReport();
+            }
+            return returnJson({ status: 'success', message: 'Report sent to ' + REPORT_EMAIL });
+        } catch (err) {
+            return returnJson({ status: 'error', message: err.toString() });
+        }
+    }
+
     const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
 
     // --- REDEEM VOUCHER ---
@@ -555,6 +572,251 @@ function setupStandardHeaders() {
 }
 
 // Function deleted to avoid duplicate conflicts
+
+// ============================================================
+// REPORT FUNCTIONS
+// ============================================================
+
+/**
+ * Reads voucher sheet and returns report data for the last `days` days.
+ * @param {number} days - Number of days to look back (1 = today only, 7 = week)
+ */
+function buildReportData(days) {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers');
+    if (!sheet) throw new Error('Voucher sheet not found');
+
+    const values = sheet.getDataRange().getValues();
+    const rawHeaders = values[0];
+    const headers = normalizeHeaders(rawHeaders);
+
+    const now = new Date();
+    // Cutoff: midnight (SGT) N days ago. Apps Script runs in script timezone.
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - (days - 1));
+    cutoff.setHours(0, 0, 0, 0);
+
+    const todayCutoff = new Date(now);
+    todayCutoff.setHours(0, 0, 0, 0);
+
+    const allRows = values.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = row[i]);
+        return obj;
+    }).filter(r => r.voucherCode && r.guestName);
+
+    // Issued in period
+    const issuedInPeriod = allRows.filter(r => {
+        if (!r.created_at) return false;
+        const d = new Date(r.created_at);
+        return !isNaN(d.getTime()) && d >= cutoff;
+    });
+
+    // Redeemed in period
+    const redeemedInPeriod = allRows.filter(r => {
+        if (r.status !== 'Redeemed' || !r.redeemed_at) return false;
+        const d = new Date(r.redeemed_at);
+        return !isNaN(d.getTime()) && d >= cutoff;
+    });
+
+    // Service breakdown of redeemed
+    const services = {};
+    redeemedInPeriod.forEach(r => {
+        const svc = r.serviceType || r.services || 'General';
+        services[svc] = (services[svc] || 0) + 1;
+    });
+    const serviceRows = Object.entries(services)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => ({ name, count }));
+
+    // Daily issued breakdown
+    const dailyIssued = {};
+    issuedInPeriod.forEach(r => {
+        const d = new Date(r.created_at);
+        const key = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        dailyIssued[key] = (dailyIssued[key] || 0) + 1;
+    });
+
+    // Daily redeemed breakdown
+    const dailyRedeemed = {};
+    redeemedInPeriod.forEach(r => {
+        const d = new Date(r.redeemed_at);
+        const key = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        dailyRedeemed[key] = (dailyRedeemed[key] || 0) + 1;
+    });
+
+    // Merge all dates
+    const allDates = [...new Set([...Object.keys(dailyIssued), ...Object.keys(dailyRedeemed)])]
+        .sort((a, b) => b.localeCompare(a));
+
+    const dailyRows = allDates.map(date => ({
+        date,
+        issued: dailyIssued[date] || 0,
+        redeemed: dailyRedeemed[date] || 0
+    }));
+
+    return {
+        period: days === 1 ? 'Daily' : 'Weekly',
+        days,
+        totalIssued: issuedInPeriod.length,
+        totalRedeemed: redeemedInPeriod.length,
+        conversionRate: issuedInPeriod.length > 0
+            ? Math.round((redeemedInPeriod.length / issuedInPeriod.length) * 100)
+            : 0,
+        serviceRows,
+        dailyRows,
+        recentRedemptions: redeemedInPeriod.slice(-10).reverse()
+    };
+}
+
+/**
+ * Builds and sends a beautiful HTML report email.
+ */
+function sendEmailReport(data) {
+    const dateLabel = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'EEE, MMM d, yyyy');
+    const subject = `📊 ${data.period} Wellness Voucher Report — ${dateLabel}`;
+
+    const serviceTableRows = data.serviceRows.map(s =>
+        `<tr><td style="padding:6px 12px;border-bottom:1px solid #f0f0f0">${s.name}</td>
+         <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;color:#1a7a4a">${s.count}</td></tr>`
+    ).join('');
+
+    const dailyTableRows = data.dailyRows.map(row => {
+        const rate = row.issued > 0 ? Math.round((row.redeemed / row.issued) * 100) : 0;
+        const dateObj = new Date(row.date + 'T00:00:00');
+        const formatted = Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'EEE, MMM d');
+        return `<tr>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f5f5;font-family:monospace;font-size:13px">${formatted}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f5f5;text-align:center;font-weight:bold;color:#9a7a52">${row.issued}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f5f5;text-align:center;font-weight:bold;color:#1a7a4a">${row.redeemed}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f5f5;text-align:center;color:${rate>=50?'#1a7a4a':'#cc8800'}">${row.issued > 0 ? rate + '%' : '—'}</td>
+        </tr>`;
+    }).join('');
+
+    const recentRows = data.recentRedemptions.map(r =>
+        `<tr><td style="padding:5px 10px;border-bottom:1px solid #f5f5f5;font-size:12px">${r.guestName || '—'}</td>
+         <td style="padding:5px 10px;border-bottom:1px solid #f5f5f5;font-size:12px">${r.roomNumber || '—'}</td>
+         <td style="padding:5px 10px;border-bottom:1px solid #f5f5f5;font-size:12px;color:#1a7a4a">${r.serviceType || r.services || 'General'}</td>
+         <td style="padding:5px 10px;border-bottom:1px solid #f5f5f5;font-size:11px;font-family:monospace;color:#aaa">${r.voucherCode || '—'}</td></tr>`
+    ).join('');
+
+    const html = `
+<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f7f5f3;font-family:Arial,sans-serif">
+<div style="max-width:600px;margin:0 auto;padding:32px 16px">
+  <div style="background:#2c2420;border-radius:12px 12px 0 0;padding:28px 32px;text-align:center">
+    <h1 style="color:#c5a572;margin:0;font-size:22px;letter-spacing:1px">No.1 Wellness Club</h1>
+    <p style="color:#ffffff99;margin:6px 0 0;font-size:13px">${data.period} Voucher Report &bull; ${dateLabel}</p>
+  </div>
+  <div style="background:white;padding:28px 32px">
+    <!-- KPI Row -->
+    <div style="display:flex;gap:16px;margin-bottom:28px">
+      <div style="flex:1;background:#fdf8f0;border:1px solid #e8d5b5;border-radius:10px;padding:18px;text-align:center">
+        <p style="margin:0;font-size:12px;font-weight:bold;color:#9a7a52;text-transform:uppercase;letter-spacing:1px">Issued</p>
+        <p style="margin:8px 0 0;font-size:40px;font-weight:bold;color:#2c2420">${data.totalIssued}</p>
+      </div>
+      <div style="flex:1;background:#f0f9f4;border:1px solid #9de0bc;border-radius:10px;padding:18px;text-align:center">
+        <p style="margin:0;font-size:12px;font-weight:bold;color:#1a7a4a;text-transform:uppercase;letter-spacing:1px">Redeemed</p>
+        <p style="margin:8px 0 0;font-size:40px;font-weight:bold;color:#1a7a4a">${data.totalRedeemed}</p>
+      </div>
+      <div style="flex:1;background:#f5f5ff;border:1px solid #c0c0f0;border-radius:10px;padding:18px;text-align:center">
+        <p style="margin:0;font-size:12px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:1px">Rate</p>
+        <p style="margin:8px 0 0;font-size:40px;font-weight:bold;color:#4444bb">${data.conversionRate}%</p>
+      </div>
+    </div>
+
+    <!-- Daily Table -->
+    <h3 style="margin:0 0 12px;font-size:14px;color:#2c2420;font-weight:bold">📅 Day-by-Day Breakdown</h3>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;font-size:13px">
+      <thead><tr style="background:#f5f5f5">
+        <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#888">Date</th>
+        <th style="padding:8px 12px;text-align:center;font-size:11px;text-transform:uppercase;color:#9a7a52">Issued</th>
+        <th style="padding:8px 12px;text-align:center;font-size:11px;text-transform:uppercase;color:#1a7a4a">Redeemed</th>
+        <th style="padding:8px 12px;text-align:center;font-size:11px;text-transform:uppercase;color:#888">Rate</th>
+      </tr></thead>
+      <tbody>${dailyTableRows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#aaa">No data for this period</td></tr>'}</tbody>
+    </table>
+
+    <!-- Service Breakdown -->
+    <h3 style="margin:0 0 12px;font-size:14px;color:#2c2420;font-weight:bold">✨ Services Redeemed</h3>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;font-size:13px">
+      <thead><tr style="background:#f5f5f5">
+        <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#888">Service</th>
+        <th style="padding:8px 12px;text-align:right;font-size:11px;text-transform:uppercase;color:#888">Count</th>
+      </tr></thead>
+      <tbody>${serviceTableRows || '<tr><td colspan="2" style="padding:12px;text-align:center;color:#aaa">No redemptions</td></tr>'}</tbody>
+    </table>
+
+    <!-- Recent Redemptions -->
+    ${data.recentRedemptions.length > 0 ? `
+    <h3 style="margin:0 0 12px;font-size:14px;color:#2c2420;font-weight:bold">🕐 Recent Redemptions</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:#f5f5f5">
+        <th style="padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#888">Guest</th>
+        <th style="padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#888">Room</th>
+        <th style="padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#888">Service</th>
+        <th style="padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#888">Code</th>
+      </tr></thead>
+      <tbody>${recentRows}</tbody>
+    </table>` : ''}
+  </div>
+  <div style="background:#f7f5f3;padding:16px 32px;text-align:center;border-radius:0 0 12px 12px">
+    <p style="margin:0;font-size:11px;color:#aaa">This is an automated report from your Wellness Club Dashboard.</p>
+  </div>
+</div>
+</body></html>`;
+
+    MailApp.sendEmail({
+        to: REPORT_EMAIL,
+        subject: subject,
+        htmlBody: html
+    });
+    Logger.log('Report sent to ' + REPORT_EMAIL);
+}
+
+/** Sends daily report (today only) */
+function sendDailyReport() {
+    const data = buildReportData(1);
+    data.period = 'Daily';
+    sendEmailReport(data);
+}
+
+/** Sends weekly report (last 7 days) */
+function sendWeeklyReport() {
+    const data = buildReportData(7);
+    data.period = 'Weekly';
+    sendEmailReport(data);
+}
+
+/**
+ * Run this ONCE from the Apps Script editor to set up automated triggers.
+ * Daily report: every day at 10pm (script timezone = SGT if configured)
+ * Weekly report: every Monday at 10pm
+ */
+function setupReportTriggers() {
+    // Remove existing report triggers first to avoid duplicates
+    ScriptApp.getProjectTriggers().forEach(trigger => {
+        if (trigger.getHandlerFunction() === 'sendDailyReport' ||
+            trigger.getHandlerFunction() === 'sendWeeklyReport') {
+            ScriptApp.deleteTrigger(trigger);
+        }
+    });
+
+    // Daily at 10pm
+    ScriptApp.newTrigger('sendDailyReport')
+        .timeBased()
+        .everyDays(1)
+        .atHour(22)
+        .create();
+
+    // Weekly on Monday at 10pm
+    ScriptApp.newTrigger('sendWeeklyReport')
+        .timeBased()
+        .onWeekDay(ScriptApp.WeekDay.MONDAY)
+        .atHour(22)
+        .create();
+
+    Logger.log('✅ Report triggers created: Daily 10pm + Weekly Monday 10pm');
+}
 
 function doOptions(e) {
     return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);

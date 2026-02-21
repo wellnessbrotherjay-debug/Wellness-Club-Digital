@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
     BarChart, TrendingUp, Users,
-    Activity, CheckCircle, Clock, X, Download, Zap, ChevronDown
+    Activity, CheckCircle, Clock, X, Download, Zap, ChevronDown, Mail, Send
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
+import { APPS_SCRIPT_URL } from '../constants/config';
 
 import type { VoucherData } from '../VoucherPage';
 
@@ -21,11 +22,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
     } = useVoucherData();
 
     const [timeRange, setTimeRange] = useState<'launch' | 'week' | 'month' | 'latest' | 'all' | 'custom'>('all');
-    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Default to last 7 days
+    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
     const [showDebug, setShowDebug] = useState(false);
-    const [showHotelVouchers, setShowHotelVouchers] = useState(true); // Default to show ALL redemptions (hotel + POS)
+    const [showHotelVouchers, setShowHotelVouchers] = useState(true);
+    const [sendReportStatus, setSendReportStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+    const [showSendMenu, setShowSendMenu] = useState(false);
 
     // --- Local Activity Log Filter State ---
     const [logTimeRange, setLogTimeRange] = useState<'week' | 'month' | 'all' | 'custom'>('all');
@@ -405,6 +408,85 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         document.body.removeChild(link);
     };
 
+    const handleSendReport = async (period: 'daily' | 'weekly') => {
+        setShowSendMenu(false);
+        setSendReportStatus('sending');
+        try {
+            const res = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'sendReport', period })
+            });
+            const json = await res.json();
+            setSendReportStatus(json.status === 'success' ? 'sent' : 'error');
+        } catch {
+            setSendReportStatus('error');
+        }
+        setTimeout(() => setSendReportStatus('idle'), 4000);
+    };
+
+    const downloadReport = () => {
+        const today = new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const { dailyIssuedCounts, dailyCounts, serviceCounts, totalRedemptions, totalIssuedInPeriod, redemptionRate } = stats;
+        const redeemedMap = Object.fromEntries(dailyCounts);
+        const allDates = [...new Set([...Object.keys(dailyIssuedCounts), ...dailyCounts.map(([d]) => d)])].sort((a, b) => b.localeCompare(a));
+
+        const dailyRows = allDates.map(date => {
+            const issued = dailyIssuedCounts[date] || 0;
+            const redeemed = redeemedMap[date] || 0;
+            const rate = issued > 0 ? Math.round((redeemed / issued) * 100) : 0;
+            const d = new Date(date + 'T00:00:00');
+            const label = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+            return `<tr><td>${label}</td><td style="color:#9a7a52;font-weight:bold;text-align:center">${issued}</td><td style="color:#1a7a4a;font-weight:bold;text-align:center">${redeemed}</td><td style="text-align:center;color:${rate >= 50 ? '#1a7a4a' : '#cc8800'}">${issued > 0 ? rate + '%' : '—'}</td></tr>`;
+        }).join('');
+
+        const serviceRows = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]).map(([svc, count]) =>
+            `<tr><td>${svc}</td><td style="text-align:right;font-weight:bold;color:#1a7a4a">${count}</td></tr>`
+        ).join('');
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Wellness Voucher Report — ${today}</title>
+<style>body{font-family:Arial,sans-serif;color:#222;max-width:800px;margin:40px auto;padding:0 24px}
+h1{color:#c5a572;border-bottom:3px solid #c5a572;padding-bottom:8px}
+h2{color:#2c2420;font-size:15px;margin-top:28px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
+th{background:#f5f5f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#888}
+td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
+.kpi{display:flex;gap:16px;margin:20px 0}
+.kpi-box{flex:1;border:1px solid #e0e0e0;border-radius:8px;padding:16px;text-align:center}
+.kpi-label{font-size:11px;font-weight:bold;text-transform:uppercase;color:#888;margin:0}
+.kpi-val{font-size:36px;font-weight:bold;margin:6px 0 0}
+@media print{button{display:none}}
+</style></head><body>
+<h1>📊 No.1 Wellness Voucher Report</h1>
+<p style="color:#888;font-size:13px">Generated: ${today} &nbsp;·&nbsp; Filter: ${timeRange}</p>
+<div class="kpi">
+  <div class="kpi-box"><p class="kpi-label">Total Issued</p><p class="kpi-val" style="color:#9a7a52">${totalIssuedInPeriod}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Total Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalRedemptions}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Conversion Rate</p><p class="kpi-val" style="color:#4444bb">${redemptionRate}%</p></div>
+</div>
+<h2>📅 Daily Breakdown</h2>
+<table><thead><tr><th>Date</th><th style="text-align:center">Issued</th><th style="text-align:center">Redeemed</th><th style="text-align:center">Rate</th></tr></thead>
+<tbody>${dailyRows || '<tr><td colspan="4" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
+</table>
+<h2>✨ Services Breakdown</h2>
+<table><thead><tr><th>Service</th><th style="text-align:right">Count</th></tr></thead>
+<tbody>${serviceRows || '<tr><td colspan="2" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
+</table>
+<p style="text-align:center;margin-top:40px"><button onclick="window.print()" style="background:#c5a572;color:white;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button></p>
+</body></html>`;
+
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `wellness_report_${new Date().toISOString().split('T')[0]}.html`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+
     return (
         <div className="animate-fade-in space-y-8">
             {/* Debug Panel */}
@@ -552,11 +634,54 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
 
                     <button
                         onClick={exportToCSV}
-                        className="flex-1 md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-[#c5a572] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#b09465] transition-all shadow-md group"
+                        className="flex-1 md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-all shadow-sm group"
                     >
-                        <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
-                        Export
+                        <Download size={15} className="group-hover:translate-y-0.5 transition-transform" />
+                        CSV
                     </button>
+
+                    {/* Download Report (HTML) */}
+                    <button
+                        onClick={downloadReport}
+                        className="flex-1 md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-[#c5a572] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#b09465] transition-all shadow-md group"
+                    >
+                        <Download size={15} className="group-hover:translate-y-0.5 transition-transform" />
+                        Download Report
+                    </button>
+
+                    {/* Send Report Email */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowSendMenu(v => !v)}
+                            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all shadow-md ${sendReportStatus === 'sending' ? 'bg-blue-400 text-white cursor-wait' :
+                                    sendReportStatus === 'sent' ? 'bg-green-500 text-white' :
+                                        sendReportStatus === 'error' ? 'bg-red-500 text-white' :
+                                            'bg-[#2c2420] text-white hover:bg-black'
+                                }`}
+                            disabled={sendReportStatus === 'sending'}
+                        >
+                            {sendReportStatus === 'sending' ? <><Mail size={15} className="animate-pulse" /> Sending…</> :
+                                sendReportStatus === 'sent' ? <>✓ Report Sent!</> :
+                                    sendReportStatus === 'error' ? <>⚠ Failed</> :
+                                        <><Send size={15} /> Send Report <ChevronDown size={11} /></>}
+                        </button>
+                        {showSendMenu && sendReportStatus === 'idle' && (
+                            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden min-w-[160px] animate-scale-in">
+                                <button
+                                    onClick={() => handleSendReport('daily')}
+                                    className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest hover:bg-amber-50 text-gray-700 flex items-center gap-2"
+                                >
+                                    📅 Daily Report
+                                </button>
+                                <button
+                                    onClick={() => handleSendReport('weekly')}
+                                    className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest hover:bg-amber-50 text-gray-700 flex items-center gap-2 border-t border-gray-50"
+                                >
+                                    📊 Weekly Report
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
