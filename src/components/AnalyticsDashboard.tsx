@@ -78,19 +78,26 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
     const effectiveRedemptions = useMemo(() => {
         const baseData = redemptions.length > 0 ? redemptions : vouchers
             .filter(v => v.status === 'Redeemed')
-            .map(v => ({
-                timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
-                voucherCode: v.id,
-                guestName: v.guestName || 'Unknown Guest',
-                // CRITICAL: Prioritize serviceType (new entries) > redeemed_service > services column (manual entries)
-                // Exclude generic "15% off" text from services array
-                // CRITICAL FIX: Do not ignore services with "15%" in the name. 
-                // Many valid T-Store/Salon redemptions contain "15%".
-                serviceType: v.serviceType || v.redeemed_service || (v.services && v.services.length > 0 ? v.services[0] : 'Wellness Service'),
-                roomNumber: v.roomNumber || '',
-                isManual: false,
-                inputPath: ''
-            }));
+            .map(v => {
+                // Priority: redeemed_service (actual service used) > serviceType (if it's specific, not the generic voucher text) > services[0] fallback
+                const redeemedSvc = v.redeemed_service?.trim();
+                const svcType = v.serviceType?.trim();
+                // Avoid showing the broad voucher benefit text (e.g. "15% OFF ALL SERVICES @ NO.1...")
+                // as the redeemed service. These are typically long strings containing "@"
+                const isBroadBenefit = (s?: string) => !s || s.includes('@') || s.length > 40;
+                const serviceType = redeemedSvc
+                    || (!isBroadBenefit(svcType) ? svcType : undefined)
+                    || (v.services && v.services.length > 0 ? v.services[0] : 'Wellness Service');
+                return {
+                    timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
+                    voucherCode: v.id,
+                    guestName: v.guestName || 'Unknown Guest',
+                    serviceType,
+                    roomNumber: v.roomNumber || '',
+                    isManual: false,
+                    inputPath: ''
+                };
+            });
 
         return baseData.map(r => ({
             ...r,
