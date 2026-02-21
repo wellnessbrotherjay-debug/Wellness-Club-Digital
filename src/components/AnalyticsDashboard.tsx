@@ -815,7 +815,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                 <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
                                     <th className="pb-3 pl-4">Time</th>
                                     <th className="pb-3">Guest</th>
-                                    <th className="pb-3">Service</th>
+                                    <th className="pb-3">Service Used</th>
+                                    <th className="pb-3">Status</th>
                                     <th className="pb-3">Voucher</th>
                                 </tr>
                             </thead>
@@ -854,10 +855,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                             </td>
                                             <td className="py-4">
                                                 <div className="flex flex-col gap-1 items-start">
-                                                    <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-green-100">
-                                                        {r.serviceType}
+                                                    <span className="bg-[#f0f9f4] text-[#1a7a4a] px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-[#1a7a4a]/20">
+                                                        {r.serviceType || '—'}
                                                     </span>
                                                 </div>
+                                            </td>
+                                            <td className="py-4">
+                                                <span className="inline-flex items-center gap-1 bg-[#1a7a4a] text-white px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                                                    ✓ Redeemed
+                                                </span>
                                             </td>
                                             <td className="py-4">
                                                 <span className={`font-mono text-xs ${r.isManual ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
