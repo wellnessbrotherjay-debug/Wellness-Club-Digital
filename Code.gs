@@ -114,13 +114,28 @@ function doGet(e) {
     }
 }
 
+// Consolidated Return JSON function
 function returnJson(callback, data) {
-    const jsonString = JSON.stringify(data);
-    if (callback) {
-        const jsonp = `${callback}(${jsonString})`;
-        return ContentService.createTextOutput(jsonp).setMimeType(ContentService.MimeType.JAVASCRIPT);
-    } else {
-        return ContentService.createTextOutput(jsonString).setMimeType(ContentService.MimeType.JSON);
+    // Handle single-argument calls (from doPost or internal helpers)
+    if (arguments.length === 1) {
+        data = callback;
+        callback = null;
+    }
+    
+    try {
+        const jsonString = JSON.stringify(data);
+        if (callback) {
+            const jsonp = `${callback}(${jsonString})`;
+            return ContentService.createTextOutput(jsonp).setMimeType(ContentService.MimeType.JAVASCRIPT);
+        } else {
+            return ContentService.createTextOutput(jsonString).setMimeType(ContentService.MimeType.JSON);
+        }
+    } catch (e) {
+        return ContentService.createTextOutput(JSON.stringify({
+            status: "error",
+            message: "JSON Serialization Error",
+            details: e.toString()
+        })).setMimeType(ContentService.MimeType.JSON);
     }
 }
 
@@ -536,9 +551,7 @@ function setupStandardHeaders() {
     Logger.log('Sheet headers synchronization complete.');
 }
 
-function returnJson(data) {
-    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
-}
+// Function deleted to avoid duplicate conflicts
 
 function doOptions(e) {
     return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
