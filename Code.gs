@@ -12,18 +12,25 @@ const SHEET_ID = '1oWXJW6jl6Q-32TsG3v_kD9SpK8w8Hjhv6B0l5wgBol';
  */
 function normalizeHeaders(headers) {
     const map = {
+        'date': 'voucherCode',
         'code': 'voucherCode',
         'vouchercode': 'voucherCode',
         'voucher code': 'voucherCode',
+        'id': 'voucherCode',
+        'description': 'guestName',
         'guestname': 'guestName',
         'guest name': 'guestName',
         'username': 'guestName',
         'name': 'guestName',
+        'category': 'status',
         'roomnumber': 'roomNumber',
         'room number': 'roomNumber',
+        'room': 'roomNumber',
+        'amount': 'roomNumber',
         'checkin': 'checkIn',
         'check in': 'checkIn',
         'checked in': 'checkIn',
+        'type': 'checkIn',
         'checkout': 'checkOut',
         'check out': 'checkOut',
         'checked out': 'checkOut',
@@ -34,6 +41,7 @@ function normalizeHeaders(headers) {
         'email_sent': 'emailStatus',
         'email': 'email',
         'email address': 'email',
+        'guest email': 'email',
         'whatsapp': 'whatsapp',
         'phone': 'whatsapp',
         'phone number': 'whatsapp',
@@ -47,6 +55,7 @@ function normalizeHeaders(headers) {
         'redeemed_at': 'redeemed_at',
         'expires_at': 'checkOut',
         'pax': 'pax',
+        'guests': 'pax',
         'amount': 'amount'
     };
 
@@ -102,8 +111,8 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
 
     // --- REDEEM VOUCHER ---
-    if (data.action === 'redeem' || data.status === 'Redeemed') {
-        const voucherCode = (data.voucherCode || data.code || '').trim().toUpperCase();
+    if (data.action === 'redeem' || data.status === 'Redeemed' || data.category === 'Redeemed') {
+        const voucherCode = (data.voucherCode || data.code || data.date || '').trim().toUpperCase();
         const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
         
         if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
@@ -206,7 +215,7 @@ function doPost(e) {
         const rawHeaders = dataRange[0];
         const headers = normalizeHeaders(rawHeaders);
         
-        const voucherCode = data.voucherCode || data.code || '';
+        const voucherCode = data.voucherCode || data.code || data.date || '';
         let targetRow = -1;
         
         // Search for existing voucher
@@ -224,9 +233,27 @@ function doPost(e) {
         const getColumnIndex = (name) => {
             let idx = headers.indexOf(name);
             if (idx === -1) {
-                sheet.getRange(1, rawHeaders.length + 1).setValue(name);
+                const prettyMap = {
+                    'voucherCode': 'Date',
+                    'guestName': 'Description',
+                    'status': 'Category',
+                    'roomNumber': 'Room',
+                    'checkIn': 'Type',
+                    'checkOut': 'checkOut',
+                    'services': 'services',
+                    'pax': 'Pax',
+                    'email': 'Email',
+                    'whatsapp': 'WhatsApp',
+                    'created_at': 'created_at',
+                    'redeemed_at': 'redeemed_at',
+                    'serviceType': 'ServiceType',
+                    'emailStatus': 'EmailStatus',
+                    'inputPath': 'InputPath'
+                };
+                const prettyName = prettyMap[name] || name;
+                sheet.getRange(1, rawHeaders.length + 1).setValue(prettyName);
                 headers.push(name);
-                rawHeaders.push(name);
+                rawHeaders.push(prettyName);
                 return rawHeaders.length;
             }
             return idx + 1;
@@ -242,15 +269,15 @@ function doPost(e) {
         };
 
         setVal('voucherCode', voucherCode);
-        setVal('guestName', data.userName || data.guestName || (targetRow !== -1 ? undefined : ''));
-        setVal('status', data.status || (targetRow !== -1 ? undefined : 'Created'));
-        setVal('roomNumber', data.roomNumber || (targetRow !== -1 ? undefined : ''));
-        setVal('checkIn', data.checkIn || (targetRow !== -1 ? undefined : ''));
-        setVal('checkOut', data.checkOut || (targetRow !== -1 ? undefined : ''));
+        setVal('guestName', data.userName || data.guestName || data.description || (targetRow !== -1 ? undefined : ''));
+        setVal('status', data.status || data.category || (targetRow !== -1 ? undefined : 'Created'));
+        setVal('roomNumber', data.roomNumber || data.amount || (targetRow !== -1 ? undefined : ''));
+        setVal('checkIn', data.checkIn || data.type || (targetRow !== -1 ? undefined : ''));
+        setVal('checkOut', data.checkOut || data.checkout || (targetRow !== -1 ? undefined : ''));
         setVal('services', data.services || (targetRow !== -1 ? undefined : ''));
         setVal('pax', data.pax || (targetRow !== -1 ? undefined : 1));
-        setVal('email', data.email || (targetRow !== -1 ? undefined : ''));
-        setVal('whatsapp', data.whatsapp || (targetRow !== -1 ? undefined : ''));
+        setVal('email', data.email || data.emailAddress || (targetRow !== -1 ? undefined : ''));
+        setVal('whatsapp', data.whatsapp || data.phone || data.phoneNumber || (targetRow !== -1 ? undefined : ''));
         
         if (targetRow === -1) {
             setVal('created_at', data.created_at || data.createdAt || new Date().toISOString());
@@ -446,6 +473,48 @@ function logToRedemptions(ss, entry) {
     
     // Not found, append new
     sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.emailStatus, entry.inputPath]);
+}
+
+function setupStandardHeaders() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+    if (!sheet) {
+        Logger.log('Sheet not found');
+        return;
+    }
+    
+    const required = [
+        ['voucherCode', 'Date'],
+        ['guestName', 'Description'],
+        ['status', 'Category'],
+        ['roomNumber', 'Room'],
+        ['checkIn', 'Type'],
+        ['checkOut', 'checkOut'],
+        ['services', 'services'],
+        ['pax', 'Pax'],
+        ['email', 'Email'],
+        ['whatsapp', 'WhatsApp'],
+        ['created_at', 'created_at'],
+        ['redeemed_at', 'redeemed_at'],
+        ['serviceType', 'ServiceType'],
+        ['emailStatus', 'EmailStatus'],
+        ['inputPath', 'InputPath']
+    ];
+    
+    const values = sheet.getDataRange().getValues();
+    const rawHeaders = values[0];
+    const headers = normalizeHeaders(rawHeaders);
+    
+    required.forEach(req => {
+        const [internal, pretty] = req;
+        if (headers.indexOf(internal) === -1) {
+            sheet.getRange(1, sheet.getLastColumn() + 1).setValue(pretty);
+            headers.push(internal);
+            Logger.log('Added column: ' + pretty);
+        }
+    });
+    
+    Logger.log('Sheet headers synchronization complete.');
 }
 
 function returnJson(data) {

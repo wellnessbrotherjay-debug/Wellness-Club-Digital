@@ -1,7 +1,7 @@
 
 export default async function handler(req, res) {
     const { sheet } = req.query;
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzJz0fsw03Bc0I82KPf4xEmzCXJ7PAT3yWK_B526--ffxQTf0rI-aLXDFmIECrZLPYZ/exec';
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwmKKJQ1hNHpr5swy5yt99iAFwgFOJYttWneIfklLeYJIxz6owkDzV_xCNb6GfTOAGQ/exec';
 
     if (!sheet) {
         return res.status(400).json({ error: 'Sheet name is required' });

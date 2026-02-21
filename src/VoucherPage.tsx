@@ -50,6 +50,7 @@ import { useVoucherData } from './hooks/useVoucherData';
 const VoucherPage: React.FC = () => {
     const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null);
     const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued' | 'analytics' | 'declined'>('create');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'redeemed' | 'expired'>('active');
     const [formData, setFormData] = useState({
         guestName: '',
         roomNumber: '',
@@ -174,7 +175,7 @@ const VoucherPage: React.FC = () => {
             date: voucherId,            // Sheet col: "date" = voucher code
             description: allGuestNames, // Sheet col: "description" = guest name
             category: 'Created',        // Sheet col: "category" = status
-            amount: formData.roomNumber,// Sheet col: "amount" = room number
+            roomNumber: formData.roomNumber,// Sheet col: "roomNumber" or "Room"
             type: formData.checkIn,     // Sheet col: "type" = check-in date
             checkout: formData.checkOut,// Sheet col: "checkout" = check-out date
             imageurl: formData.imageUrl,// Sheet col: "imageurl" = image URL
@@ -398,15 +399,16 @@ const VoucherPage: React.FC = () => {
         // 2. Data Quality Filter: Hide if no guest name (causes "ROOM" error)
         if (!v.guestName || v.guestName === 'Unknown Guest') return false;
 
-        // 3. Status/Expiry Filter: If in "Active" tab, hide expired or redeemed
+        // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
         if (activeTab === 'issued') {
-            const isRedeemed = v.status === 'Redeemed';
-
-            // Check expiry against checkOut or expires_at
+            const isRedeemed = v.status === 'Redeemed' || (Array.isArray(effectiveRedemptions) && effectiveRedemptions.some(r => r.voucherCode === v.id));
             const expiryDate = v.checkOut ? new Date(v.checkOut) : (v.expires_at ? new Date(v.expires_at) : null);
             const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
 
-            return matchesQuery && !isRedeemed && !isExpired;
+            if (statusFilter === 'active') return matchesQuery && !isRedeemed && !isExpired;
+            if (statusFilter === 'redeemed') return matchesQuery && isRedeemed;
+            if (statusFilter === 'expired') return matchesQuery && isExpired;
+            return matchesQuery; // 'all'
         }
 
         return matchesQuery;
@@ -481,7 +483,7 @@ const VoucherPage: React.FC = () => {
                                 onClick={() => setActiveTab('issued')}
                                 className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'issued' ? 'border-[#c5a572] text-[#c5a572]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                             >
-                                <List size={16} /> Active
+                                <List size={16} /> Issued
                                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
                                     {recentVouchers.filter(v => {
                                         if (!v.guestName || v.guestName === 'Unknown Guest') return false;
@@ -941,10 +943,30 @@ const VoucherPage: React.FC = () => {
                                     <input
                                         type="text"
                                         placeholder="Search by name, ID or room..."
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-[#c5a572] outline-none transition-all"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-[#c5a572] outline-none transition-all text-sm"
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
                                     />
+                                </div>
+                                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 overflow-x-auto no-scrollbar">
+                                    {[
+                                        { id: 'active', label: 'Active', icon: <CheckCircle size={14} />, color: 'text-green-600' },
+                                        { id: 'redeemed', label: 'Redeemed', icon: <CheckCircle size={14} />, color: 'text-blue-600' },
+                                        { id: 'expired', label: 'Expired', icon: <XCircle size={14} />, color: 'text-amber-600' },
+                                        { id: 'all', label: 'All', icon: <List size={14} />, color: 'text-gray-600' }
+                                    ].map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            onClick={() => setStatusFilter(filter.id as any)}
+                                            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${statusFilter === filter.id
+                                                ? 'bg-white text-[#c5a572] shadow-sm'
+                                                : 'text-gray-400 hover:text-gray-600'
+                                                }`}
+                                        >
+                                            {filter.icon}
+                                            {filter.label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
@@ -1037,6 +1059,15 @@ const VoucherPage: React.FC = () => {
                                                     <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
                                                         Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
                                                     </span>
+                                                    {(() => {
+                                                        const isRedeemed = voucher.status === 'Redeemed' || (Array.isArray(effectiveRedemptions) && effectiveRedemptions.some(r => r.voucherCode === voucher.id));
+                                                        const expiryDate = voucher.checkOut ? new Date(voucher.checkOut) : (voucher.expires_at ? new Date(voucher.expires_at) : null);
+                                                        const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
+
+                                                        if (isRedeemed) return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">Redeemed</span>;
+                                                        if (isExpired) return <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-100">Expired</span>;
+                                                        return <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-green-100">Active</span>;
+                                                    })()}
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 mt-2">
                                                     {voucher.email && (

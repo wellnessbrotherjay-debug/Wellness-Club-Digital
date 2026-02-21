@@ -138,6 +138,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 setStatus('valid');
                 setSelectedServices([]); // RESET SELECTION
                 if (!manualCode) setCode('');
+                if (onRefresh) onRefresh(); // REFRESH DATA TO SHOW REDEEMED STATUS
             }, 1000);
 
         } catch (e) {
