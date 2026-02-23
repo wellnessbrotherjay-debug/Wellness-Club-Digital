@@ -6,6 +6,7 @@ import VoucherPage from './VoucherPage';
 import GuestPass from './GuestPass';
 import HelpSection from './HelpSection';
 import AdminAnalytics from './pages/AdminAnalytics';
+import ReconciliationDashboard from './pages/ReconciliationDashboard';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { VoucherProvider } from './contexts/VoucherContext';
 
@@ -19,6 +20,7 @@ function App() {
               <Route path="/v/:id" element={<GuestPass />} />
               <Route path="/help" element={<HelpSection />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/reconciliation" element={<ReconciliationDashboard />} />
               <Route path="/" element={<VoucherPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
