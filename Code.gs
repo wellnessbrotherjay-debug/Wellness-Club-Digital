@@ -65,7 +65,9 @@ function normalizeHeaders(headers) {
         'service redeemed': 'redeemed_service',
         // Pax -> pax
         'pax': 'pax',
-        'guests': 'pax'
+        'guests': 'pax',
+        // Weather
+        'weather': 'weather'
     };
 
     return headers.map(h => {
@@ -250,7 +252,8 @@ function doPost(e) {
                     serviceType: data.serviceType || '',
                     roomNumber: data.roomNumber || values[i][normalizedHeaders.indexOf('roomNumber')] || '',
                     email: data.email || values[i][normalizedHeaders.indexOf('email')] || '',
-                    whatsapp: data.whatsapp || data.phone || values[i][normalizedHeaders.indexOf('whatsapp')] || ''
+                    whatsapp: data.whatsapp || data.phone || values[i][normalizedHeaders.indexOf('whatsapp')] || '',
+                    weather: getWeatherCondition()
                 });
 
                 return returnJson({ status: "success", message: "Redeemed Successfully" });
@@ -352,7 +355,8 @@ function doPost(e) {
                 serviceType: data.serviceType || '',
                 roomNumber: data.roomNumber || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('roomNumber')] : ''),
                 email: data.email || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('email')] : ''),
-                whatsapp: data.whatsapp || data.phone || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('whatsapp')] : '')
+                whatsapp: data.whatsapp || data.phone || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('whatsapp')] : ''),
+                weather: getWeatherCondition()
             });
         } else if (data.status === 'Expired') {
             setVal('redeemed_at', ''); // Clear redeemed date if marking expired
@@ -499,7 +503,7 @@ function logToRedemptions(ss, entry) {
     let sheet = ss.getSheetByName('Redemptions');
     if (!sheet) {
         sheet = ss.insertSheet('Redemptions');
-        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'roomNumber', 'email', 'phonenumber']);
+        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'roomNumber', 'email', 'phonenumber', 'weather']);
     }
     
     const values = sheet.getDataRange().getValues();
@@ -521,6 +525,7 @@ function logToRedemptions(ss, entry) {
                         case 'email': return entry.email || '';
                         case 'phonenumber': return entry.whatsapp || entry.phone || '';
                         case 'whatsapp': return entry.whatsapp || entry.phone || '';
+                        case 'weather': return entry.weather || '';
                         default: return values[i][headers.indexOf(h)];
                     }
                 });
@@ -531,7 +536,7 @@ function logToRedemptions(ss, entry) {
     }
     
     // Not found, append new
-    sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.email || '', entry.whatsapp || entry.phone || '']);
+    sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.email || '', entry.whatsapp || entry.phone || '', entry.weather || '']);
 }
 
 function setupStandardHeaders() {
@@ -576,7 +581,32 @@ function setupStandardHeaders() {
     Logger.log('Sheet headers synchronization complete.');
 }
 
-// Function deleted to avoid duplicate conflicts
+/**
+ * Fetches the current weather condition using OpenWeather API.
+ */
+function getWeatherCondition() {
+    try {
+        const apiKey = 'd90d116d89814419220bd3000d9eb498';
+        const lat = '-8.697276';
+        const lon = '115.171634';
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+        
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+        const resCode = response.getResponseCode();
+        
+        if (resCode === 200) {
+            const data = JSON.parse(response.getContentText());
+            if (data && data.weather && data.weather.length > 0) {
+                return data.weather[0].main; // e.g., 'Rain', 'Clouds', 'Clear'
+            }
+        } else {
+            Logger.log(`Weather API returned ${resCode}: ` + response.getContentText());
+        }
+    } catch (e) {
+        Logger.log("Weather fetch error: " + e.toString());
+    }
+    return '';
+}
 
 // ============================================================
 // REPORT FUNCTIONS
