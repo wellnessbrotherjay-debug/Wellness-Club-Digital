@@ -155,7 +155,7 @@ function returnJson(callback, data) {
 
 function doPost(e) {
     const data = JSON.parse(e.postData.contents);
-    if (data.action === 'ping') return returnJson({ status: "success", message: "pong" });
+    if (data.action === 'ping') return returnJson({ status: "success", message: "pong_v2" });
 
     // --- SEND REPORT ON DEMAND ---
     if (data.action === 'sendReport') {
@@ -581,31 +581,6 @@ function setupStandardHeaders() {
     Logger.log('Sheet headers synchronization complete.');
 }
 
-/**
- * Fetches the current weather condition using OpenWeather API.
- */
-function getWeatherCondition() {
-    try {
-        const apiKey = 'd90d116d89814419220bd3000d9eb498';
-        const lat = '-8.697276';
-        const lon = '115.171634';
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
-        
-        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-        const resCode = response.getResponseCode();
-        
-        if (resCode === 200) {
-            const data = JSON.parse(response.getContentText());
-            if (data && data.weather && data.weather.length > 0) {
-                return data.weather[0].main; // e.g., 'Rain', 'Clouds', 'Clear'
-            }
-            return 'Parse Error: ' + response.getContentText();
-        } else {
-            return `API Error ${resCode}: ` + response.getContentText().substring(0, 50);
-        }
-    } catch (e) {
-        return "Fetch Error: " + e.toString();
-    }
 }
 
 // ============================================================

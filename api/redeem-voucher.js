@@ -19,6 +19,31 @@ async function writeAuditEvent(payload) {
     }
 }
 
+/**
+ * Fetches the current weather condition using OpenWeather API.
+ */
+async function getWeatherCondition() {
+    try {
+        const apiKey = 'd90d116d89814419220bd3000d9eb498';
+        const lat = '-8.697276';
+        const lon = '115.171634';
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+        
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.weather && data.weather.length > 0) {
+                return data.weather[0].main; // e.g., 'Rain', 'Clouds', 'Clear'
+            }
+        } else {
+            console.warn(`Weather API returned ${response.status}: ` + await response.text());
+        }
+    } catch (e) {
+        console.error("Weather fetch error: " + e.message);
+    }
+    return '';
+}
+
 export default async function handler(req, res) {
     // Enable CORS for all origins (or restrict to your domain) to allow mobile browser access
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -44,6 +69,11 @@ export default async function handler(req, res) {
     let scriptData = null;
 
     try {
+        // Fetch weather before sending to GAS if action is redeem
+        if (req.body.action === 'redeem') {
+            req.body.weather = await getWeatherCondition();
+        }
+
         console.log('Redeeming voucher (Payload):', req.body);
 
         // Fetch weather here to bypass Apps Script authorization limits
