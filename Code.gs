@@ -599,13 +599,13 @@ function getWeatherCondition() {
             if (data && data.weather && data.weather.length > 0) {
                 return data.weather[0].main; // e.g., 'Rain', 'Clouds', 'Clear'
             }
+            return 'Parse Error: ' + response.getContentText();
         } else {
-            Logger.log(`Weather API returned ${resCode}: ` + response.getContentText());
+            return `API Error ${resCode}: ` + response.getContentText().substring(0, 50);
         }
     } catch (e) {
-        Logger.log("Weather fetch error: " + e.toString());
+        return "Fetch Error: " + e.toString();
     }
-    return '';
 }
 
 // ============================================================
