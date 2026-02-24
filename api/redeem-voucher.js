@@ -46,6 +46,22 @@ export default async function handler(req, res) {
     try {
         console.log('Redeeming voucher (Payload):', req.body);
 
+        // Fetch weather here to bypass Apps Script authorization limits
+        try {
+            if (req.body.action === 'redeem') {
+                const weatherRes = await fetch('https://api.openweathermap.org/data/2.5/weather?lat=-8.697276&lon=115.171634&appid=d90d116d89814419220bd3000d9eb498');
+                if (weatherRes.ok) {
+                    const weatherData = await weatherRes.json();
+                    if (weatherData && weatherData.weather && weatherData.weather.length > 0) {
+                        req.body.weather = weatherData.weather[0].main;
+                        console.log('Weather attached:', req.body.weather);
+                    }
+                }
+            }
+        } catch (wErr) {
+            console.warn('Failed to fetch weather from Vercel:', wErr.message);
+        }
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             redirect: 'follow',
