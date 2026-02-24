@@ -856,3 +856,24 @@ function setupReportTriggers() {
 function doOptions(e) {
     return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
 }
+
+// --- WEATHER FUNCTION ---
+function getWeatherCondition() {
+    try {
+        const apiKey = "2ad0ce468f3a39e8019313cb8ffbc92a";
+        const lat = -8.7997; // Nusa Dua area
+        const lon = 115.2226;
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+        
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+        if (response.getResponseCode() === 200) {
+            const data = JSON.parse(response.getContentText());
+            if (data && data.weather && data.weather.length > 0) {
+                return data.weather[0].main; // e.g., "Clouds", "Rain", "Clear"
+            }
+        }
+        return '';
+    } catch(e) {
+        return '';
+    }
+}

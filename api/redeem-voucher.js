@@ -38,7 +38,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxMY-_D6XcnL_AwhQiNJ-tGQ1i-0i2qStcVyaqA8qZa1dL1gFr-nUGlnnutMIgJsGqc/exec';
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVM-JHZ9XE5Ud7nzk4ELfxWj67lotl2djs7HPyA6TbPjsJ6dFRLQpkFeStA0sqdxx7/exec';
 
     let scriptResponseText = '';
     let scriptData = null;
