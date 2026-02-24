@@ -10,6 +10,7 @@ interface RedemptionData {
     roomNumber: string;
     inputPath?: string;
     emailStatus?: string;
+    weather?: string;
 }
 
 export const useVoucherData = () => {
@@ -72,7 +73,8 @@ export const useVoucherData = () => {
         serviceType: item.serviceType || item.service_type || item.servicetype || '',
         roomNumber: item.roomNumber || item.room || '',
         inputPath: item.inputPath || item.inputpath || '',
-        emailStatus: item.emailStatus || item.emailstatus || ''
+        emailStatus: item.emailStatus || item.emailstatus || '',
+        weather: item.weather || ''
     });
 
     const fetchData = useCallback(async (isSilent: boolean = false) => {

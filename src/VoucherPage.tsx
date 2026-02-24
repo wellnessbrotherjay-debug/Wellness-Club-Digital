@@ -102,7 +102,8 @@ const VoucherPage: React.FC = () => {
                 voucherCode: v.id,
                 guestName: v.guestName,
                 serviceType: v.redeemed_service || v.serviceType || (v.services?.[0] || 'General Admission'), // Check redeemed_service first, then serviceType, then services array
-                roomNumber: v.roomNumber || ''
+                roomNumber: v.roomNumber || '',
+                weather: undefined as string | undefined
             }));
 
         // Merge with historical redemptions, prioritizing recentVouchers (which are likely more up-to-date for today's actions)
@@ -112,8 +113,11 @@ const VoucherPage: React.FC = () => {
         // Populate with history first
         redemptions.forEach(r => redemptionMap.set(r.voucherCode, r));
 
-        // Overwrite or add with recent vouchers (so if a voucher is in both, the 'recent' one from Vouchers sheet takes precedence which might have better service info)
-        recentRedemptions.forEach(r => redemptionMap.set(r.voucherCode, r));
+        // Overwrite or add with recent vouchers, but preserve fields like weather that only exist in redemptions
+        recentRedemptions.forEach(r => {
+            const existing = redemptionMap.get(r.voucherCode);
+            redemptionMap.set(r.voucherCode, existing ? { ...existing, ...r, weather: existing.weather || r.weather } : r);
+        });
 
         return Array.from(redemptionMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }, [recentVouchers, redemptions]);
@@ -776,9 +780,10 @@ const VoucherPage: React.FC = () => {
                                                                 {voucherRedemptions.map((r, i) => (
                                                                     <div key={i} className="flex flex-col gap-1 text-xs bg-green-50 p-2 rounded-lg border border-green-100">
                                                                         <span className="font-bold text-green-800">{r.serviceType}</span>
-                                                                        <span className="text-[10px] text-green-600 flex items-center gap-1">
+                                                                        <span className="text-[10px] text-green-600 flex items-center gap-1 capitalize">
                                                                             <Clock size={10} />
                                                                             {new Date(r.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                                            {r.weather && r.weather.length < 20 && <span className="ml-1 opacity-75">• {r.weather}</span>}
                                                                         </span>
                                                                     </div>
                                                                 ))}

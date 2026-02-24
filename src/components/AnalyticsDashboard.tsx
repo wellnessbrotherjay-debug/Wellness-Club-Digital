@@ -125,7 +125,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                     serviceType: resolveService(v.id, v.serviceType || ''),
                     roomNumber: v.roomNumber || '',
                     isManual: false,
-                    inputPath: ''
+                    inputPath: '',
+                    weather: ''
                 }));
 
         const withManual = baseData.map(r => ({
@@ -428,7 +429,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
 
 
     const exportToCSV = () => {
-        const headers = ["Timestamp", "Voucher Code", "Guest Name", "Room Number", "Service Type"];
+        const headers = ["Timestamp", "Voucher Code", "Guest Name", "Room Number", "Service Type", "Weather"];
         const rows = stats.allFilteredRedemptions.map(r => {
             const guest = String(r.guestName || "Guest").replace(/"/g, '""');
             const service = String(r.serviceType || "Service").replace(/"/g, '""');
@@ -437,7 +438,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                 r.voucherCode,
                 `"${guest}"`,
                 r.roomNumber || 'N/A',
-                `"${service}"`
+                `"${service}"`,
+                r.weather || 'N/A'
             ];
         });
 
@@ -1011,6 +1013,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                     <th className="pb-3">Service Used</th>
                                     <th className="pb-3">Status</th>
                                     <th className="pb-3">Voucher</th>
+                                    <th className="pb-3">Weather</th>
                                 </tr>
                             </thead>
                             <tbody className="text-sm">
@@ -1069,6 +1072,9 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                                 <span className={`font-mono text-xs ${r.isManual ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
                                                     {r.voucherCode}
                                                 </span>
+                                            </td>
+                                            <td className="py-4 text-xs font-semibold capitalize text-gray-600">
+                                                {r.weather || '-'}
                                             </td>
                                         </tr>
                                     );
@@ -1310,6 +1316,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                             <th className="py-3">Type/Service</th>
                                             <th className="py-3">Status / Method</th>
                                             <th className="py-3">Reference</th>
+                                            <th className="py-3 text-right">Weather</th>
                                             <th className="py-3 pr-6 text-right">Date</th>
                                         </tr>
                                     </thead>
@@ -1348,6 +1355,9 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                                 <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
                                                     {new Date((item.timestamp || item.created_at || new Date().toISOString())).toLocaleDateString()}
                                                 </td>
+                                                <td className="py-4 text-right text-gray-500 font-mono text-[10px] capitalize">
+                                                    {item.weather || '-'}
+                                                </td>
                                             </tr>
                                         ))}
 
@@ -1365,6 +1375,9 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                                         <td className="py-4 font-mono text-[10px]">{lastActivity?.voucherCode}</td>
                                                         <td className="py-4 pr-6 text-right text-gray-500 font-mono text-[10px]">
                                                             {new Date((lastActivity?.timestamp || new Date().toISOString())).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="py-4 text-right text-gray-500 font-mono text-[10px] capitalize">
+                                                            {lastActivity?.weather || '-'}
                                                         </td>
                                                     </tr>
                                                 );
@@ -1390,7 +1403,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div >
                 )
             }
         </div >

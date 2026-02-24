@@ -50,13 +50,24 @@ const RevenueReconciliation: React.FC = () => {
                 body: JSON.stringify({ fileUrl: data.path, date: selectedDate }),
             });
 
+            // Handle potential non-JSON error pages (like 404s from wrong dev server)
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await res.text();
+                throw new Error(res.status === 404
+                    ? "Backend API not found. If running locally, please use 'vercel dev' instead of 'npm run dev'."
+                    : `Server returned non-JSON response: ${text?.substring(0, 100)}...`);
+            }
+
             const result = await res.json();
-            if (!res.ok) throw new Error(result.error);
+            if (!res.ok) throw new Error(result.error || 'Unknown server error');
 
             setParsedTransactions(result.transactions);
             setIsProcessing(false);
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message === 'Unexpected end of JSON input'
+                ? "Server returned an empty response. Ensure you are using 'vercel dev' for local backend testing."
+                : err.message);
             console.error(err);
         } finally {
             setIsUploading(false);
@@ -70,8 +81,14 @@ const RevenueReconciliation: React.FC = () => {
 
         try {
             const res = await fetch(`/api/reconcile?date=${selectedDate}`);
+
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Backend API not found. Please ensure you are running 'vercel dev'.");
+            }
+
             const result = await res.json();
-            if (!res.ok) throw new Error(result.error);
+            if (!res.ok) throw new Error(result.error || 'Reconciliation failed');
 
             setMetrics(result);
         } catch (err: any) {
