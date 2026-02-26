@@ -25,11 +25,21 @@ export default async function handler(req, res) {
 
         if (error) {
             console.error('[Supabase GET] Error:', error);
-            return res.status(500).json({
-                status: 'error',
-                message: 'Failed to fetch data from Supabase.',
-                details: error.message
-            });
+            // Fallback to Google Sheets if Supabase fails
+            console.warn('[Supabase GET] Falling back to Google Sheets...');
+            try {
+                const fallbackResponse = await fetch(`${SCRIPT_URL}?sheet=${sheet}`);
+                const fallbackData = await fallbackResponse.json();
+                return res.status(200).json(fallbackData);
+            } catch (fallbackError) {
+                console.error('[Fallback] Google Sheets also failed:', fallbackError);
+                return res.status(500).json({
+                    status: 'error',
+                    message: 'Failed to fetch from both Supabase and Google Sheets.',
+                    supabaseError: error.message,
+                    sheetsError: fallbackError.message
+                });
+            }
         }
 
         // Return empty array if no data
