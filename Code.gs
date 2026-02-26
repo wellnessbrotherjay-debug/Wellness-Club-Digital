@@ -200,40 +200,6 @@ function doPost(e) {
 
         for (let i = 1; i < values.length; i++) {
             if (String(values[i][codeCol - 1]).toUpperCase() === voucherCode) {
-                // VALIDATE: Check if redemption is within valid stay period
-                const checkInCol = normalizedHeaders.indexOf('checkIn');
-                const checkOutCol = normalizedHeaders.indexOf('checkOut');
-
-                if (checkInCol >= 0 && checkOutCol >= 0) {
-                    const checkInValue = values[i][checkInCol];
-                    const checkOutValue = values[i][checkOutCol];
-
-                    // Only validate if both dates exist
-                    if (checkInValue && checkOutValue) {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-
-                        const checkInDate = new Date(checkInValue);
-                        checkInDate.setHours(0, 0, 0, 0);
-
-                        const checkOutDate = new Date(checkOutValue);
-                        checkOutDate.setHours(0, 0, 0, 0);
-
-                        // Block redemption if outside valid stay period
-                        if (today < checkInDate) {
-                            return returnJson({
-                                status: "error",
-                                message: "REJECTED: Voucher not yet valid. (Valid from " + checkInValue + ")"
-                            });
-                        }
-                        if (today > checkOutDate) {
-                            return returnJson({
-                                status: "error",
-                                message: "REJECTED: Voucher EXPIRED. (Valid until " + checkOutValue + ")"
-                            });
-                        }
-                    }
-                }
 
                 const redeemedAtValue = data.redeemedAt || new Date().toISOString();
                 const serviceValue = data.serviceType || '';
@@ -581,8 +547,6 @@ function setupStandardHeaders() {
     Logger.log('Sheet headers synchronization complete.');
 }
 
-}
-
 // ============================================================
 // REPORT FUNCTIONS
 // ============================================================
@@ -832,23 +796,4 @@ function doOptions(e) {
     return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
 }
 
-// --- WEATHER FUNCTION ---
-function getWeatherCondition() {
-    try {
-        const apiKey = "2ad0ce468f3a39e8019313cb8ffbc92a";
-        const lat = -8.7997; // Nusa Dua area
-        const lon = 115.2226;
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
-        
-        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-        if (response.getResponseCode() === 200) {
-            const data = JSON.parse(response.getContentText());
-            if (data && data.weather && data.weather.length > 0) {
-                return data.weather[0].main; // e.g., "Clouds", "Rain", "Clear"
-            }
-        }
-        return '';
-    } catch(e) {
-        return '';
-    }
-}
+// End of Code.gs

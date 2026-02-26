@@ -1,57 +1,38 @@
+import { supabase } from './supabase.js';
 
 export default async function handler(req, res) {
     const { sheet } = req.query;
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwOsXYyakNm75T_RXAl-ZNepfEd9fmH3MrWGEdVUlAY_kTzYmAesqcZ_fXYj5XThhuR/exec';
 
     if (!sheet) {
         return res.status(400).json({ error: 'Sheet name is required' });
     }
 
     try {
-        console.log(`[Proxy GET] Fetching ${sheet} from Apps Script...`);
-        const response = await fetch(`${SCRIPT_URL}?sheet=${sheet}`);
-        const text = await response.text();
-        console.log(`[Proxy GET] Raw response snippet for ${sheet}:`, text.substring(0, 100));
-
-        // Apps Script might return JSONP or JSON
-        // If it starts with "cb(" or similar, it's JSONP
-        // But if we call it without callback param, it *should* return JSON if handled by Apps Script correctly.
-        // However, many existing GAS scripts always wrap if a param exists.
-
-        let data;
-        let parseError = null;
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            parseError = e;
-            // Try to extract from JSONP if it returned JSONP anyway (e.g. callback wrapping)
-            const match = text.match(/^[^(]*\((.*)\)[^)]*$/);
-            if (match && match[1]) {
-                try {
-                    data = JSON.parse(match[1]);
-                    parseError = null;
-                } catch (pe) {
-                    console.error('Failed to parse inner JSONP content:', pe);
-                }
-            }
+        console.log(`[Proxy GET] Fetching ${sheet} from Supabase...`);
+        
+        // Map sheet names to table names
+        let tableName = 'vouchers';
+        if (sheet.toLowerCase() === 'redemptions') {
+            tableName = 'redemptions';
         }
 
-        if (parseError) {
-            console.error('[Proxy GET] Parse error:', parseError);
-            return res.status(200).json({
+        const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            // Optionally, order by created_at or timestamp descending to get newest first
+            .order(tableName === 'redemptions' ? 'timestamp' : 'created_at', { ascending: false });
+
+        if (error) {
+            console.error('[Supabase GET] Error:', error);
+            return res.status(500).json({
                 status: 'error',
-                message: 'Failed to parse Apps Script response. It might be returning HTML or an error message.',
-                rawData: text.substring(0, 500)
+                message: 'Failed to fetch data from Supabase.',
+                details: error.message
             });
         }
 
-        // Final safety check: if we didn't get an array, return an empty array or handle error
-        if (!Array.isArray(data)) {
-            console.warn(`[Proxy GET] Final data for ${sheet} is not an array:`, typeof data);
-            // If it's an error object from GAS, return it so the frontend can show the message
-            if (data && typeof data === 'object' && data.status === 'error') {
-                return res.status(200).json(data);
-            }
+        // Return empty array if no data
+        if (!data || !Array.isArray(data)) {
             return res.status(200).json([]);
         }
 
@@ -60,7 +41,7 @@ export default async function handler(req, res) {
         console.error(`[Proxy GET Error] ${sheet}:`, error);
         return res.status(502).json({
             status: 'error',
-            message: `Failed to fetch ${sheet} from Apps Script. Check deployment permissions.`,
+            message: `Failed to fetch ${sheet}. Check deployment permissions.`,
             details: error.message
         });
     }

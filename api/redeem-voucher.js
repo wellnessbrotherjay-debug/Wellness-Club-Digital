@@ -1,12 +1,10 @@
 import { Resend } from 'resend';
+import { supabase } from './supabase.js';
 
 const AUDIT_URL = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}/api/audit-log`
     : 'https://wellness-club-digital.vercel.app/api/audit-log';
 
-/**
- * Fire-and-forget POST to the audit log. Never throws.
- */
 async function writeAuditEvent(payload) {
     try {
         await fetch(AUDIT_URL, {
@@ -19,9 +17,6 @@ async function writeAuditEvent(payload) {
     }
 }
 
-/**
- * Fetches the current weather condition using OpenWeather API.
- */
 async function getWeatherCondition() {
     try {
         const apiKey = 'd90d116d89814419220bd3000d9eb498';
@@ -33,10 +28,8 @@ async function getWeatherCondition() {
         if (response.ok) {
             const data = await response.json();
             if (data && data.weather && data.weather.length > 0) {
-                return data.weather[0].main; // e.g., 'Rain', 'Clouds', 'Clear'
+                return data.weather[0].main; 
             }
-        } else {
-            console.warn(`Weather API returned ${response.status}: ` + await response.text());
         }
     } catch (e) {
         console.error("Weather fetch error: " + e.message);
@@ -45,7 +38,6 @@ async function getWeatherCondition() {
 }
 
 export default async function handler(req, res) {
-    // Enable CORS for all origins (or restrict to your domain) to allow mobile browser access
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -64,56 +56,134 @@ export default async function handler(req, res) {
     }
 
     const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwOsXYyakNm75T_RXAl-ZNepfEd9fmH3MrWGEdVUlAY_kTzYmAesqcZ_fXYj5XThhuR/exec';
-
-    let scriptResponseText = '';
-    let scriptData = null;
+    let scriptData = { status: 'success', message: 'Handled by Supabase' };
 
     try {
-        // Fetch weather before sending to GAS if action is redeem
-        if (req.body.action === 'redeem') {
-            req.body.weather = await getWeatherCondition();
-        }
+        console.log('Action received:', req.body.action, 'Payload:', req.body);
+        let supabaseError = null;
 
-        console.log('Redeeming voucher (Payload):', req.body);
+        // 1. Primary Logic: Supabase
+        if (req.body.action === 'create' || req.body.action === 'manual') {
+            const { error } = await supabase.from('vouchers').upsert({
+                voucher_code: req.body.voucherCode?.toUpperCase(),
+                guest_name: req.body.guestName || req.body.userName,
+                status: req.body.status || 'Created',
+                room_number: req.body.roomNumber,
+                check_in: req.body.checkIn,
+                check_out: req.body.checkOut,
+                service_type: req.body.serviceType,
+                email: req.body.email,
+                whatsapp: req.body.whatsapp || req.body.phone,
+                pax: req.body.pax || 1,
+                created_at: req.body.created_at || new Date().toISOString()
+            }, { onConflict: 'voucher_code' });
+            supabaseError = error;
+        } 
+        else if (req.body.action === 'redeem') {
+            // Fetch voucher from Supabase to validate dates
+            const { data: voucherData, error: fetchError } = await supabase
+                .from('vouchers')
+                .select('check_in, check_out, status')
+                .eq('voucher_code', req.body.voucherCode?.toUpperCase())
+                .single();
 
-        // Fetch weather here to bypass Apps Script authorization limits
-        try {
-            if (req.body.action === 'redeem') {
-                const weatherRes = await fetch('https://api.openweathermap.org/data/2.5/weather?lat=-8.697276&lon=115.171634&appid=d90d116d89814419220bd3000d9eb498');
-                if (weatherRes.ok) {
-                    const weatherData = await weatherRes.json();
-                    if (weatherData && weatherData.weather && weatherData.weather.length > 0) {
-                        req.body.weather = weatherData.weather[0].main;
-                        console.log('Weather attached:', req.body.weather);
-                    }
+            if (fetchError || !voucherData) {
+                return res.status(400).json({ status: 'error', message: 'Voucher not found in Supabase' });
+            }
+
+            if (voucherData.status === 'Redeemed') {
+                return res.status(400).json({ status: 'error', message: 'Voucher already redeemed' });
+            }
+
+            // Date validation
+            if (voucherData.check_in && voucherData.check_out) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const checkInDate = new Date(voucherData.check_in);
+                checkInDate.setHours(0, 0, 0, 0);
+
+                const checkOutDate = new Date(voucherData.check_out);
+                checkOutDate.setHours(0, 0, 0, 0);
+
+                if (today < checkInDate) {
+                    return res.status(400).json({ status: "error", message: "REJECTED: Voucher not yet valid. (Valid from " + voucherData.check_in + ")" });
+                }
+                if (today > checkOutDate) {
+                    return res.status(400).json({ status: "error", message: "REJECTED: Voucher EXPIRED. (Valid until " + voucherData.check_out + ")" });
                 }
             }
-        } catch (wErr) {
-            console.warn('Failed to fetch weather from Vercel:', wErr.message);
+
+            req.body.weather = await getWeatherCondition();
+            const redeemedAt = req.body.redeemedAt || new Date().toISOString();
+            
+            // Update Voucher
+            const { error: updateError } = await supabase.from('vouchers')
+                .update({ 
+                    status: 'Redeemed', 
+                    redeemed_at: redeemedAt,
+                    redeemed_service: req.body.serviceType,
+                    email: req.body.email,
+                    whatsapp: req.body.whatsapp || req.body.phone
+                })
+                .eq('voucher_code', req.body.voucherCode?.toUpperCase());
+            
+            // Insert Redemption Log
+            if (!updateError) {
+                const { error: insertError } = await supabase.from('redemptions').insert({
+                    timestamp: redeemedAt,
+                    voucher_code: req.body.voucherCode?.toUpperCase(),
+                    guest_name: req.body.guestName || req.body.userName,
+                    service_type: req.body.serviceType,
+                    room_number: req.body.roomNumber,
+                    email: req.body.email,
+                    whatsapp: req.body.whatsapp || req.body.phone,
+                    weather: req.body.weather
+                });
+                supabaseError = insertError;
+            } else {
+                supabaseError = updateError;
+            }
+        }
+        else if (req.body.action === 'deleteVoucher') {
+            const { error } = await supabase.from('vouchers')
+                .delete()
+                .eq('voucher_code', req.body.voucherCode?.toUpperCase());
+            supabaseError = error;
+        }
+        else if (req.body.action === 'deleteTests') {
+            // Soft-match deletion using ilike
+            const { error } = await supabase.from('vouchers')
+                .delete()
+                .or('voucher_code.ilike.%test%,guest_name.ilike.%test%,email.ilike.%sbodyfit%,email.ilike.%wellnessbrotherjay%');
+            supabaseError = error;
         }
 
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            redirect: 'follow',
-            headers: { 'Content-Type': 'application/plain' },
-            body: JSON.stringify(req.body)
-        });
+        if (supabaseError) {
+            console.error('Supabase Error:', supabaseError);
+            return res.status(500).json({ status: 'error', message: 'Database operation failed', details: supabaseError.message });
+        }
 
-        scriptResponseText = await response.text();
-        console.log('Script Raw Response:', scriptResponseText);
-
+        // 2. Backup Logic: Apps Script
         try {
-            scriptData = JSON.parse(scriptResponseText);
-        } catch (e) {
-            console.warn('Script response was not JSON, treating as success if text exists.');
-            scriptData = { status: scriptResponseText ? 'success' : 'error', message: scriptResponseText };
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: { 'Content-Type': 'application/plain' },
+                body: JSON.stringify(req.body)
+            });
+            const scriptResponseText = await response.text();
+            try { scriptData = JSON.parse(scriptResponseText); } 
+            catch (e) { scriptData = { status: 'success', message: scriptResponseText }; }
+        } catch (gasError) {
+            console.warn('Google Sheets Backup Failed:', gasError.message);
         }
 
-        // ── AUDIT LOG (fire-and-forget, always runs for redeem actions) ─────
+        // 3. Audit Log
         if (req.body.action === 'redeem') {
             const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
             writeAuditEvent({
-                action: scriptData?.status === 'error' ? 'REDEEM_FAILED' : 'REDEEMED',
+                action: 'REDEEMED',
                 voucherCode: req.body.voucherCode,
                 guestName: req.body.guestName,
                 serviceType: req.body.serviceType || req.body.redeemed_service || '',
@@ -127,51 +197,34 @@ export default async function handler(req, res) {
             });
         }
 
-        // --- EMAIL NOTIFICATION LOGIC (Only for redemptions) ---
-        if (req.body.action === 'redeem' && scriptData.status !== 'error' && process.env.RESEND_API_KEY) {
-            let emailStatus = 'Sent';
+        // 4. Email Notification
+        if (req.body.action === 'redeem' && process.env.RESEND_API_KEY) {
             try {
                 const resend = new Resend(process.env.RESEND_API_KEY);
                 const { voucherCode, serviceType, guestName, inputPath } = req.body;
-
-                const emailResult = await resend.emails.send({
+                await resend.emails.send({
                     from: 'No.1 Wellness <notifications@resend.dev>',
                     to: ['wellnessbrotherjay@gmail.com'],
                     subject: `Voucher Redeemed: ${guestName} (${voucherCode})`,
                     html: `
                         <div style="font-family: sans-serif; color: #2c2420; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                            <h2 style="border-bottom: 2px solid #c5a572; padding-bottom: 10px;">New Voucher Redemption</h2>
+                            <h2 style="border-bottom: 2px solid #c5a572; padding-bottom: 10px;">New Voucher Redemption (Supabase)</h2>
                             <p><strong>Guest Name:</strong> ${guestName || 'Unknown'}</p>
                             <p><strong>Voucher Code:</strong> ${voucherCode}</p>
                             <p><strong>Service Redeemed:</strong> <span style="color: #c5a572; font-weight: bold;">${serviceType || 'General Use'}</span></p>
                             <p><strong>Redemption Path:</strong> <code>${inputPath || '/'}</code></p>
-                            <p><strong>Time:</strong> ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Makassar' })} (WITA)</p>
-                            <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;" />
-                            <p style="text-align: center;"><a href="https://wellness-club-digital.vercel.app/admin/analytics" style="background: #2c2420; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Analytics Board</a></p>
                         </div>
                     `
                 });
-
-                if (emailResult.error) {
-                    console.error('Resend API Error:', emailResult.error);
-                    emailStatus = 'Failed: ' + emailResult.error.message;
-                } else {
-                    console.log('Notification email sent successfully:', voucherCode);
-                }
             } catch (emailError) {
-                console.error('Critical Error sending notification:', emailError);
-                emailStatus = 'Error: ' + emailError.message;
+                console.error('Error sending notification:', emailError);
             }
-
-            // Update email status in the background if it's not 'Sent'
-            // In a real prod env, we'd update the sheet again with the failure if needed
-            req.body.emailStatus = emailStatus;
         }
 
-        return res.status(200).json(scriptData);
+        return res.status(200).json({ status: 'success', message: 'Action completed successfully' });
 
     } catch (error) {
         console.error('Proxy Error:', error);
-        return res.status(500).json({ error: 'Failed to redeem voucher', details: error.message });
+        return res.status(500).json({ error: 'Failed to process request', details: error.message });
     }
 }
