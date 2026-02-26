@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     // Actually Vercel Cron uses a separate header usually but we can skip complex auth for now as the user requested functionality.
 
     // Hardcoded Script URL    // Make sure to match your active Apps Script URL
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbykGD5vTD4g0TwaXrdyGB0qygHN_oK0SFiNNN5mxr0LapXxKtb4vQ8Udarz8uhuqCm6/exec';
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
 
     try {
         console.log('Fetching weekly report data...');

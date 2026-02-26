@@ -23,12 +23,12 @@ async function getWeatherCondition() {
         const lat = '-8.697276';
         const lon = '115.171634';
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
-        
+
         const response = await fetch(url);
         if (response.ok) {
             const data = await response.json();
             if (data && data.weather && data.weather.length > 0) {
-                return data.weather[0].main; 
+                return data.weather[0].main;
             }
         }
     } catch (e) {
@@ -55,7 +55,8 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwOsXYyakNm75T_RXAl-ZNepfEd9fmH3MrWGEdVUlAY_kTzYmAesqcZ_fXYj5XThhuR/exec';
+    // Canonical URL for Google Sheets backup
+    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
     let scriptData = { status: 'success', message: 'Handled by Supabase' };
 
     try {
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
                 created_at: req.body.created_at || new Date().toISOString()
             }, { onConflict: 'voucher_code' });
             supabaseError = error;
-        } 
+        }
         else if (req.body.action === 'redeem') {
             // Fetch voucher from Supabase to validate dates
             const { data: voucherData, error: fetchError } = await supabase
@@ -116,18 +117,18 @@ export default async function handler(req, res) {
 
             req.body.weather = await getWeatherCondition();
             const redeemedAt = req.body.redeemedAt || new Date().toISOString();
-            
+
             // Update Voucher
             const { error: updateError } = await supabase.from('vouchers')
-                .update({ 
-                    status: 'Redeemed', 
+                .update({
+                    status: 'Redeemed',
                     redeemed_at: redeemedAt,
                     redeemed_service: req.body.serviceType,
                     email: req.body.email,
                     whatsapp: req.body.whatsapp || req.body.phone
                 })
                 .eq('voucher_code', req.body.voucherCode?.toUpperCase());
-            
+
             // Insert Redemption Log
             if (!updateError) {
                 const { error: insertError } = await supabase.from('redemptions').insert({
@@ -173,7 +174,7 @@ export default async function handler(req, res) {
                 body: JSON.stringify(req.body)
             });
             const scriptResponseText = await response.text();
-            try { scriptData = JSON.parse(scriptResponseText); } 
+            try { scriptData = JSON.parse(scriptResponseText); }
             catch (e) { scriptData = { status: 'success', message: scriptResponseText }; }
         } catch (gasError) {
             console.warn('Google Sheets Backup Failed:', gasError.message);

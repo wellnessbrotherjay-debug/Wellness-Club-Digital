@@ -1,1 +1,2 @@
-export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOsXYyakNm75T_RXAl-ZNepfEd9fmH3MrWGEdVUlAY_kTzYmAesqcZ_fXYj5XThhuR/exec';
+// Canonical Google Apps Script URL - matches .env.local APPS_SCRIPT_URL
+export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
