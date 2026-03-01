@@ -191,11 +191,16 @@ const VoucherPage: React.FC = () => {
         });
 
         try {
-            await fetch('/api/redeem-voucher', {
+            const response = await fetch('/api/redeem-voucher', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: payload,
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to sync with database');
+            }
 
             const newVoucher: VoucherData = {
                 id: voucherId,
