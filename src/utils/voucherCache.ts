@@ -35,13 +35,13 @@ export const VoucherCache = {
 
     merge: (fetchedVouchers: VoucherData[]): VoucherData[] => {
         const cache = VoucherCache.getAll();
+        const fetchedIds = new Set(fetchedVouchers.map(v => v.id));
 
-        return fetchedVouchers.map(v => {
+        // 1. Process fetched vouchers and merge with cached data
+        const merged = fetchedVouchers.map(v => {
             const cached = cache[v.id];
             if (!cached) return v;
 
-            // Merge: If fetched is missing critical fields but cache has them, use cache.
-            // But prefer fetched for status/redemption updates.
             return {
                 ...v,
                 email: v.email || cached.email || '',
@@ -49,13 +49,16 @@ export const VoucherCache = {
                 pax: v.pax || cached.pax || 1,
                 checkIn: v.checkIn || cached.checkIn || '',
                 checkOut: v.checkOut || cached.checkOut || '',
-                // Keep status from backend if it exists and is updated (e.g. Redeemed)
-                // If backend status is missing/empty, fallback to cache
                 status: (v.status && v.status !== 'Created') ? v.status : (cached.status || v.status),
-                // Merge services list if one is fuller? Maybe just trust backend for that.
-                // Critical contact info wins from cache if backend is empty.
             };
         });
+
+        // 2. Add vouchers from cache that are NOT in the fetched list yet
+        // (This happens between creation and first backend success)
+        const pending = Object.values(cache).filter(cached => !fetchedIds.has(cached.id));
+
+        // Return combined list, pending first for immediate visibility
+        return [...pending, ...merged];
     },
 
     delete: (id: string | string[]) => {
