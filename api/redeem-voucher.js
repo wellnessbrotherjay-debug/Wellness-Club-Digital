@@ -1,6 +1,20 @@
 import { Resend } from 'resend';
 import { supabase } from './supabase.js';
 
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
+
+// Fire-and-forget to Google Sheets for mirroring
+async function mirrorToGoogleSheets(payload) {
+    try {
+        fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }).catch(err => console.warn('[Mirror] Google Sheets error:', err.message));
+    } catch (e) {
+        console.warn('[Mirror] Failed to send to Sheets:', e.message);
+    }
+}
+
 const AUDIT_URL = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}/api/audit-log`
     : 'https://wellness-club-digital.vercel.app/api/audit-log';
@@ -75,6 +89,11 @@ export default async function handler(req, res) {
                 created_at: req.body.created_at || new Date().toISOString()
             }, { onConflict: 'voucher_code' });
             supabaseError = error;
+            
+            // Mirror to Google Sheets
+            if (!error) {
+                mirrorToGoogleSheets(req.body);
+            }
         }
         else if (req.body.action === 'redeem') {
             // Fetch voucher from Supabase to validate dates
@@ -138,6 +157,11 @@ export default async function handler(req, res) {
                     weather: req.body.weather
                 });
                 supabaseError = insertError;
+                
+                // Mirror to Google Sheets
+                if (!insertError) {
+                    mirrorToGoogleSheets(req.body);
+                }
             } else {
                 supabaseError = updateError;
             }
