@@ -24,10 +24,19 @@ export default async function handler(req, res) {
         const { data, error } = await query;
         if (error) {
             console.error('[Supabase GET] Error:', error);
+            
+            // Extract diagnostic info from client if possible
+            const clientUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "fallback";
+            // Get just the first and last 5 characters of the key used to verify if it's the right one
+            const envKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "none";
+            const keyPrefix = envKey.substring(0, 15);
+            
             return res.status(502).json({
                 status: 'error',
                 message: 'Failed to fetch from Supabase.',
-                details: error.message
+                details: error.message,
+                diagnosticUrl: clientUrl,
+                diagnosticKeyPrefix: keyPrefix
             });
         }
 
