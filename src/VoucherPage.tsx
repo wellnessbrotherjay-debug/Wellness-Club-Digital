@@ -11,7 +11,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
 import { COUNTRY_CODES } from './data/countryCodes';
 
-import { APPS_SCRIPT_URL } from './constants/config';
+
 import { LoginScreen } from './components/LoginScreen';
 import { VoucherCache } from './utils/voucherCache';
 
@@ -1038,7 +1038,7 @@ const VoucherPage: React.FC = () => {
                                         <p className="text-[10px] text-gray-500 font-mono">Redemption Length: {redemptions.length}</p>
                                         <p className="text-[10px] text-gray-500 font-mono">Status: {isFetchingHistory ? 'Fetching...' : 'Idle'}</p>
                                         <p className="text-[10px] text-gray-500 font-mono">Error: {fetchError ? 'Yes' : 'No'}</p>
-                                        <p className="text-[10px] text-gray-500 font-mono truncate">Endpoint: {APPS_SCRIPT_URL}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono truncate">Endpoint: Supabase API</p>
                                     </div>
                                 </div>
                             ) : (
