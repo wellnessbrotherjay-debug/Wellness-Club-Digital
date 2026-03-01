@@ -56,7 +56,7 @@ const GuestPass: React.FC = () => {
             }
 
             const currentItem = items.find((i: any) =>
-                String(i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === voucherId.toUpperCase()
+                String(i.voucher_code || i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === voucherId.toUpperCase()
             );
 
             if (!currentItem) {
@@ -108,7 +108,7 @@ const GuestPass: React.FC = () => {
                     const items = await vRes.json();
                     if (Array.isArray(items)) {
                         const currentItem = items.find((i: any) =>
-                            String(i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === id.toUpperCase()
+                            String(i.voucher_code || i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === id.toUpperCase()
                         );
                         if (currentItem) {
                             const today = new Date().toISOString().split('T')[0];
