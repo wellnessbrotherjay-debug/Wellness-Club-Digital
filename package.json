@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
     "clsx": "^2.1.1",
+    "csv-parser": "^3.2.0",
     "dotenv": "^17.2.4",
     "framer-motion": "^12.29.0",
     "html-to-image": "^1.11.13",
