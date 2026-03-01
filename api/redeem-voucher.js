@@ -66,26 +66,27 @@ export default async function handler(req, res) {
         // 1. Primary Logic: Supabase
         if (req.body.action === 'create' || req.body.action === 'manual') {
             const { error } = await supabase.from('vouchers').upsert({
-                voucher_code: req.body.voucherCode?.toUpperCase(),
-                guest_name: req.body.guestName || req.body.userName,
-                status: req.body.status || 'Created',
-                room_number: req.body.roomNumber,
-                check_in: req.body.checkIn,
-                check_out: req.body.checkOut,
-                service_type: req.body.serviceType,
+                voucher_code: (req.body.voucherCode || req.body.code || req.body.date || req.body.id || '').toUpperCase(),
+                guest_name: req.body.guestName || req.body.userName || req.body.description || req.body.name,
+                status: req.body.status || req.body.category || 'Created',
+                room_number: req.body.roomNumber || req.body.room || req.body.amount,
+                check_in: req.body.checkIn || req.body.checkin || req.body.type,
+                check_out: req.body.checkOut || req.body.checkout,
+                service_type: req.body.serviceType || req.body.services,
                 email: req.body.email,
                 whatsapp: req.body.whatsapp || req.body.phone,
                 pax: req.body.pax || 1,
-                created_at: req.body.created_at || new Date().toISOString()
+                created_at: req.body.created_at || req.body.timestamp || new Date().toISOString()
             }, { onConflict: 'voucher_code' });
             supabaseError = error;
         }
         else if (req.body.action === 'redeem') {
             // Fetch voucher from Supabase to validate dates
+            const voucherCode = (req.body.voucherCode || req.body.code || req.body.date || req.body.id || '').toUpperCase();
             const { data: voucherData, error: fetchError } = await supabase
                 .from('vouchers')
                 .select('check_in, check_out, status')
-                .eq('voucher_code', req.body.voucherCode?.toUpperCase())
+                .eq('voucher_code', voucherCode)
                 .single();
 
             if (fetchError || !voucherData) {
@@ -127,13 +128,13 @@ export default async function handler(req, res) {
                     email: req.body.email,
                     whatsapp: req.body.whatsapp || req.body.phone
                 })
-                .eq('voucher_code', req.body.voucherCode?.toUpperCase());
+                .eq('voucher_code', voucherCode);
 
             // Insert Redemption Log
             if (!updateError) {
                 const { error: insertError } = await supabase.from('redemptions').insert({
                     timestamp: redeemedAt,
-                    voucher_code: req.body.voucherCode?.toUpperCase(),
+                    voucher_code: voucherCode,
                     guest_name: req.body.guestName || req.body.userName,
                     service_type: req.body.serviceType,
                     room_number: req.body.roomNumber,
@@ -202,7 +203,12 @@ export default async function handler(req, res) {
         if (req.body.action === 'redeem' && process.env.RESEND_API_KEY) {
             try {
                 const resend = new Resend(process.env.RESEND_API_KEY);
-                const { voucherCode, serviceType, guestName, inputPath } = req.body;
+                const { voucherCode, serviceType, guestName, inputPath } = {
+                    voucherCode: (req.body.voucherCode || req.body.code || req.body.date || req.body.id || '').toUpperCase(),
+                    serviceType: req.body.serviceType || req.body.services || '',
+                    guestName: req.body.guestName || req.body.userName || req.body.description || req.body.name || 'Unknown',
+                    inputPath: req.body.inputPath || '/'
+                };
                 await resend.emails.send({
                     from: 'No.1 Wellness <notifications@resend.dev>',
                     to: ['wellnessbrotherjay@gmail.com'],

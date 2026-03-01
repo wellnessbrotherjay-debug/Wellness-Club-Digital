@@ -47,8 +47,8 @@ export const useVoucherData = () => {
 
         return {
             id: String(item.voucher_code || item.voucherCode || item.code || item.id || item.voucherid || item.date || ''),
-            guestName: String(item.guestName || item.userName || item.name || item.description || ''),
-            roomNumber: String(item.roomNumber || item.room || item.amount || ''),
+            guestName: String(item.guest_name || item.guestName || item.userName || item.name || item.description || ''),
+            roomNumber: String(item.room_number || item.roomNumber || item.room || item.amount || ''),
             checkIn: safeDate(item.checkIn || item.checkin || item.check_in || item.CheckIn || item.type),
             checkOut: safeDate(item.checkOut || item.checkout || item.check_out || item.CheckOut),
             status: String(item.status || item.category || ''),
