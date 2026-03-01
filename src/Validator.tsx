@@ -98,6 +98,9 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                     voucherCode: targetCode,
                     serviceType: serviceType,
                     guestName: voucher?.guestName || 'Unknown Guest',
+                    roomNumber: voucher?.roomNumber || '',
+                    email: voucher?.email || '',
+                    whatsapp: voucher?.whatsapp || '',
                     redeemedAt: new Date().toISOString(),
                     inputPath: window.location.pathname
                 })

@@ -89,62 +89,62 @@ export default async function handler(req, res) {
                 .eq('voucher_code', voucherCode)
                 .single();
 
+            let canUpdateSupabase = false;
             if (fetchError || !voucherData) {
-                return res.status(400).json({ status: 'error', message: 'Voucher not found in Supabase' });
-            }
-
-            if (voucherData.status === 'Redeemed') {
+                console.warn(`[Supabase Redeem] Voucher ${voucherCode} not found for redemption. Skipping Supabase sync, falling back to Sheets.`);
+            } else if (voucherData.status === 'Redeemed') {
                 return res.status(400).json({ status: 'error', message: 'Voucher already redeemed' });
-            }
+            } else {
+                // Date validation only if found in Supabase
+                if (voucherData.check_in && voucherData.check_out) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const checkInDate = new Date(voucherData.check_in);
+                    const checkOutDate = new Date(voucherData.check_out);
+                    checkInDate.setHours(0, 0, 0, 0);
+                    checkOutDate.setHours(0, 0, 0, 0);
 
-            // Date validation
-            if (voucherData.check_in && voucherData.check_out) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                const checkInDate = new Date(voucherData.check_in);
-                checkInDate.setHours(0, 0, 0, 0);
-
-                const checkOutDate = new Date(voucherData.check_out);
-                checkOutDate.setHours(0, 0, 0, 0);
-
-                if (today < checkInDate) {
-                    return res.status(400).json({ status: "error", message: "REJECTED: Voucher not yet valid. (Valid from " + voucherData.check_in + ")" });
+                    if (today < checkInDate) {
+                        return res.status(400).json({ status: "error", message: "REJECTED: Voucher not yet valid. (Valid from " + voucherData.check_in + ")" });
+                    }
+                    if (today > checkOutDate) {
+                        return res.status(400).json({ status: "error", message: "REJECTED: Voucher EXPIRED. (Valid until " + voucherData.check_out + ")" });
+                    }
                 }
-                if (today > checkOutDate) {
-                    return res.status(400).json({ status: "error", message: "REJECTED: Voucher EXPIRED. (Valid until " + voucherData.check_out + ")" });
-                }
+                canUpdateSupabase = true;
             }
 
             req.body.weather = await getWeatherCondition();
             const redeemedAt = req.body.redeemedAt || new Date().toISOString();
 
-            // Update Voucher
-            const { error: updateError } = await supabase.from('vouchers')
-                .update({
-                    status: 'Redeemed',
-                    redeemed_at: redeemedAt,
-                    redeemed_service: req.body.serviceType,
-                    email: req.body.email,
-                    whatsapp: req.body.whatsapp || req.body.phone
-                })
-                .eq('voucher_code', voucherCode);
+            if (canUpdateSupabase) {
+                // Update Voucher
+                const { error: updateError } = await supabase.from('vouchers')
+                    .update({
+                        status: 'Redeemed',
+                        redeemed_at: redeemedAt,
+                        redeemed_service: req.body.serviceType,
+                        email: req.body.email,
+                        whatsapp: req.body.whatsapp || req.body.phone
+                    })
+                    .eq('voucher_code', voucherCode);
 
-            // Insert Redemption Log
-            if (!updateError) {
-                const { error: insertError } = await supabase.from('redemptions').insert({
-                    timestamp: redeemedAt,
-                    voucher_code: voucherCode,
-                    guest_name: req.body.guestName || req.body.userName,
-                    service_type: req.body.serviceType,
-                    room_number: req.body.roomNumber,
-                    email: req.body.email,
-                    whatsapp: req.body.whatsapp || req.body.phone,
-                    weather: req.body.weather
-                });
-                supabaseError = insertError;
-            } else {
-                supabaseError = updateError;
+                // Insert Redemption Log
+                if (!updateError) {
+                    const { error: insertError } = await supabase.from('redemptions').insert({
+                        timestamp: redeemedAt,
+                        voucher_code: voucherCode,
+                        guest_name: req.body.guestName || req.body.userName,
+                        service_type: req.body.serviceType,
+                        room_number: req.body.roomNumber,
+                        email: req.body.email,
+                        whatsapp: req.body.whatsapp || req.body.phone,
+                        weather: req.body.weather
+                    });
+                    supabaseError = insertError;
+                } else {
+                    supabaseError = updateError;
+                }
             }
         }
         else if (req.body.action === 'deleteVoucher') {
