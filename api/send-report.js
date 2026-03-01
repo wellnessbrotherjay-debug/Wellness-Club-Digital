@@ -1,37 +1,47 @@
 import { Resend } from 'resend';
-import { supabase } from '../supabase.js';
-
-export const config = {
-    maxDuration: 60, // limits execution time
-};
+import { supabase } from './supabase.js';
 
 export default async function handler(req, res) {
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     try {
-        console.log('Fetching weekly report data...');
+        const { period } = req.body; // 'daily' or 'weekly'
+        
+        const daysToSubtract = period === 'weekly' ? 7 : 1;
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() - daysToSubtract);
+        targetDate.setHours(0, 0, 0, 0);
 
-        // Filter for the last 7 days
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        // Reset time to start of day for clarity, or just exact timestamp
-        sevenDaysAgo.setHours(0, 0, 0, 0);
-
-        // Fetch Redemptions from Supabase
-        const { data: recentRedemptions, error } = await supabase
+        const { data: redemptions, error: fetchError } = await supabase
             .from('redemptions')
             .select('*')
-            .gte('timestamp', sevenDaysAgo.toISOString())
+            .gte('timestamp', targetDate.toISOString())
             .order('timestamp', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching redemptions from Supabase:', error);
-            return res.status(500).json({ error: "Failed to fetch from Supabase" });
+        if (fetchError) {
+            console.error('Failed to fetch redemptions:', fetchError);
+            return res.status(500).json({ error: 'Failed to fetch redemption data.' });
         }
 
-        const total = recentRedemptions.length;
-
-        // Generate Report Data
+        const total = redemptions.length;
         const byService = {};
-        recentRedemptions.forEach(r => {
+        
+        redemptions.forEach(r => {
             const service = r.service_type || 'Unknown';
             byService[service] = (byService[service] || 0) + 1;
         });
@@ -40,23 +50,21 @@ export default async function handler(req, res) {
             .map(([service, count]) => `<li style="margin-bottom: 5px;"><strong>${service}:</strong> ${count}</li>`)
             .join('');
 
-        console.log(`Found ${total} redemptions in the last week.`);
-
-        // Send Email via Resend
         if (process.env.RESEND_API_KEY) {
             const resend = new Resend(process.env.RESEND_API_KEY);
+            const periodStr = period === 'weekly' ? 'Weekly' : 'Daily';
 
             await resend.emails.send({
-                from: 'No.1 Wellness <notifications@resend.dev>', // Update if custom domain is available
+                from: 'No.1 Wellness <notifications@resend.dev>',
                 to: ['wellnessbrotherjay@gmail.com'],
-                subject: `Weekly Wellness Report: ${total} Redemptions`,
+                subject: `${periodStr} Wellness Report: ${total} Redemptions`,
                 html: `
                      <div style="font-family: sans-serif; color: #2c2420; max-width: 600px; margin: 0 auto;">
                          <div style="text-align: center; padding: 20px 0;">
                              <img src="https://wellness-club-digital.vercel.app/htf-logo.png" alt="No.1 Wellness" style="height: 50px;" />
                          </div>
-                         <h1 style="color: #2c2420; text-align: center;">Weekly Redemption Update</h1>
-                         <p style="text-align: center; color: #666;">Summary for the past 7 days</p>
+                         <h1 style="color: #2c2420; text-align: center;">${periodStr} Redemption Update</h1>
+                         <p style="text-align: center; color: #666;">Summary for the past ${daysToSubtract} day(s)</p>
                          
                          <div style="background: #f8f8f8; padding: 30px; border-radius: 12px; margin: 20px 0; text-align: center;">
                              <div style="font-size: 48px; font-weight: bold; color: #c5a572; margin-bottom: 10px;">${total}</div>
@@ -65,33 +73,24 @@ export default async function handler(req, res) {
                          
                          <div style="margin-top: 30px;">
                              <h3 style="border-bottom: 1px solid #eee; padding-bottom: 10px;">Service Breakdown</h3>
-                             <ul style="list-style: none; padding: 0;">${serviceHtml || '<li style="color: #999; font-style: italic;">No redemptions this week.</li>'}</ul>
+                             <ul style="list-style: none; padding: 0;">${serviceHtml || '<li style="color: #999; font-style: italic;">No redemptions in this period.</li>'}</ul>
                          </div>
                          
                          <div style="margin-top: 40px; text-align: center;">
                              <a href="https://wellness-club-digital.vercel.app/admin/analytics" style="background-color: #2c2420; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Analytics Board</a>
                          </div>
-                         
-                         <p style="margin-top: 40px; text-align: center; font-size: 12px; color: #ccc;">
-                             Sent automatically by Wellness Club Digital
-                         </p>
                      </div>
                  `
             });
-
-            console.log('Weekly report sent.');
+            console.log(`${periodStr} report sent successfully.`);
         } else {
-            console.log('Skipping email: RESEND_API_KEY not found.');
+            console.warn('RESEND_API_KEY is missing, skipping email.');
         }
 
-        return res.status(200).json({
-            success: true,
-            count: total,
-            breakdown: byService
-        });
+        return res.status(200).json({ status: 'success', message: 'Report processed' });
 
-    } catch (error) {
-        console.error('Weekly Report Error:', error);
-        return res.status(500).json({ error: error.message });
+    } catch (err) {
+        console.error('Unhandled server error in send-report:', err);
+        return res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
 }
