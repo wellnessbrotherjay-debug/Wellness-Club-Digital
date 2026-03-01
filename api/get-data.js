@@ -20,31 +20,21 @@ export default async function handler(req, res) {
         const { data, error } = await supabase
             .from(tableName)
             .select('*')
-            // Optionally, order by created_at or timestamp descending to get newest first
             .order(tableName === 'redemptions' ? 'timestamp' : 'created_at', { ascending: false });
 
-        if (error) {
-            console.error('[Supabase GET] Error:', error);
-            // Fallback to Google Sheets if Supabase fails
-            console.warn('[Supabase GET] Falling back to Google Sheets...');
+        // Fallback to Google Sheets if Supabase is empty, fails, or returns error
+        if (error || !data || data.length === 0) {
+            if (error) console.error('[Supabase GET] Error:', error);
+            console.warn(`[Supabase GET] ${error ? 'Error' : 'No data'}. Falling back to Google Sheets...`);
             try {
                 const fallbackResponse = await fetch(`${SCRIPT_URL}?sheet=${sheet}`);
                 const fallbackData = await fallbackResponse.json();
                 return res.status(200).json(fallbackData);
             } catch (fallbackError) {
                 console.error('[Fallback] Google Sheets also failed:', fallbackError);
-                return res.status(500).json({
-                    status: 'error',
-                    message: 'Failed to fetch from both Supabase and Google Sheets.',
-                    supabaseError: error.message,
-                    sheetsError: fallbackError.message
-                });
+                // If even fallback fails, return the original Supabase error or empty data
+                return res.status(error ? 500 : 200).json(data || []);
             }
-        }
-
-        // Return empty array if no data
-        if (!data || !Array.isArray(data)) {
-            return res.status(200).json([]);
         }
 
         return res.status(200).json(data);

@@ -162,8 +162,8 @@ export default async function handler(req, res) {
         }
 
         if (supabaseError) {
-            console.error('Supabase Error:', supabaseError);
-            return res.status(500).json({ status: 'error', message: 'Database operation failed', details: supabaseError.message });
+            console.error('Supabase Error (Non-blocking):', supabaseError);
+            // We continue to Google Sheets backup even if Supabase failed
         }
 
         // 2. Backup Logic: Apps Script
