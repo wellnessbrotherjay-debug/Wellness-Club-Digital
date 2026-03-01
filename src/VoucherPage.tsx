@@ -11,7 +11,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
 import { COUNTRY_CODES } from './data/countryCodes';
 
-import { APPS_SCRIPT_URL } from './constants/config';
+
 import { LoginScreen } from './components/LoginScreen';
 import { VoucherCache } from './utils/voucherCache';
 
@@ -300,12 +300,10 @@ const VoucherPage: React.FC = () => {
         const finalReason = reason === 'Custom' ? customReason : reason;
 
         try {
-            await fetch(APPS_SCRIPT_URL, {
+            await fetch('/api/log-insight', {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    action: 'log_non_issuance',
                     roomNumber: roomNumber,
                     duration: duration,
                     reason: finalReason,
@@ -455,7 +453,7 @@ const VoucherPage: React.FC = () => {
                         <div className="hidden md:flex flex-col items-end mr-4">
                             <span className="text-xs font-bold">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
                             <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.9 • {recentVouchers.length} Total • {fetchError ? 'Err' : 'OK'}</span>
-                            <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">{APPS_SCRIPT_URL}</span>
+                            <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">Supabase API Active</span>
                         </div>
                         <button
                             onClick={() => window.location.href = '/help'}
@@ -1045,7 +1043,7 @@ const VoucherPage: React.FC = () => {
                                         <p className="text-[10px] text-gray-500 font-mono">Redemption Length: {redemptions.length}</p>
                                         <p className="text-[10px] text-gray-500 font-mono">Status: {isFetchingHistory ? 'Fetching...' : 'Idle'}</p>
                                         <p className="text-[10px] text-gray-500 font-mono">Error: {fetchError ? 'Yes' : 'No'}</p>
-                                        <p className="text-[10px] text-gray-500 font-mono truncate">Endpoint: {APPS_SCRIPT_URL}</p>
+                                        <p className="text-[10px] text-gray-500 font-mono truncate">Endpoint: Supabase API</p>
                                     </div>
                                 </div>
                             ) : (

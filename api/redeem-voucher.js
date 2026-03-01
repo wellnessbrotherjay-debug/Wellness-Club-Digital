@@ -55,10 +55,6 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Canonical URL for Google Sheets backup
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
-    let scriptData = { status: 'success', message: 'Handled by Supabase' };
-
     try {
         console.log('Action received:', req.body.action, 'Payload:', req.body);
         let supabaseError = null;
@@ -164,21 +160,6 @@ export default async function handler(req, res) {
         if (supabaseError) {
             console.error('Supabase Error (Non-blocking):', supabaseError);
             // We continue to Google Sheets backup even if Supabase failed
-        }
-
-        // 2. Backup Logic: Apps Script
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                redirect: 'follow',
-                headers: { 'Content-Type': 'application/plain' },
-                body: JSON.stringify(req.body)
-            });
-            const scriptResponseText = await response.text();
-            try { scriptData = JSON.parse(scriptResponseText); }
-            catch (e) { scriptData = { status: 'success', message: scriptResponseText }; }
-        } catch (gasError) {
-            console.warn('Google Sheets Backup Failed:', gasError.message);
         }
 
         // 3. Audit Log

@@ -49,14 +49,14 @@ export const useVoucherData = () => {
             id: String(item.voucher_code || item.voucherCode || item.code || item.id || item.voucherid || item.date || ''),
             guestName: String(item.guest_name || item.guestName || item.userName || item.name || item.description || ''),
             roomNumber: String(item.room_number || item.roomNumber || item.room || item.amount || ''),
-            checkIn: safeDate(item.checkIn || item.checkin || item.check_in || item.CheckIn || item.type),
-            checkOut: safeDate(item.checkOut || item.checkout || item.check_out || item.CheckOut),
+            checkIn: safeDate(item.check_in || item.checkIn || item.checkin || item.CheckIn || item.type),
+            checkOut: safeDate(item.check_out || item.checkOut || item.checkout || item.CheckOut),
             status: String(item.status || item.category || ''),
             created_at: String(item.created_at || item.createdAt || item.timestamp || ''),
             redeemed_at: String(item.redeemed_at || item.redeemedAt || ''),
             imageUrl: String(item.imageUrl || item.imageurl || ''),
             services: servicesArr,
-            serviceType: String(item.serviceType || item.service_type || item.servicetype || ''),
+            serviceType: String(item.service_type || item.serviceType || item.servicetype || ''),
             redeemed_service: String(item.redeemed_service || item.redeemedService || ''),
             redemptions: [],
             pax: item.pax ? parseInt(item.pax as any) : 1,
@@ -68,10 +68,10 @@ export const useVoucherData = () => {
 
     const mapRedemption = (item: any): RedemptionData => ({
         timestamp: item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString(),
-        voucherCode: item.voucherCode || item.code || item.id || '',
-        guestName: item.guestName || item.name || '',
-        serviceType: item.serviceType || item.service_type || item.servicetype || '',
-        roomNumber: item.roomNumber || item.room || '',
+        voucherCode: item.voucher_code || item.voucherCode || item.code || item.id || '',
+        guestName: item.guest_name || item.guestName || item.name || '',
+        serviceType: item.service_type || item.serviceType || item.servicetype || '',
+        roomNumber: item.room_number || item.roomNumber || item.room || '',
         inputPath: item.inputPath || item.inputpath || '',
         emailStatus: item.emailStatus || item.emailstatus || '',
         weather: item.weather || ''
@@ -91,13 +91,6 @@ export const useVoucherData = () => {
 
             const vData = await vResponse.json();
             const rData = await rResponse.json();
-
-            // Handling Apps Script Errors
-            if (vData && vData.status === 'error') {
-                console.error('GAS Error (Vouchers):', vData.message);
-                setFetchError(true);
-                return;
-            }
 
             if (Array.isArray(vData)) {
                 const mappedVouchers = vData.map(mapVoucher).reverse().filter(v => v.id);

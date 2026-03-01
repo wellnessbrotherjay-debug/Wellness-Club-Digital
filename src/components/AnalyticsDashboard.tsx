@@ -4,7 +4,6 @@ import {
     Activity, CheckCircle, Clock, X, Download, Zap, ChevronDown, Mail, Send
 } from 'lucide-react';
 import { useVoucherData } from '../hooks/useVoucherData';
-import { APPS_SCRIPT_URL } from '../constants/config';
 
 import type { VoucherData } from '../VoucherPage';
 
@@ -463,10 +462,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
         setShowSendMenu(false);
         setSendReportStatus('sending');
         try {
-            const res = await fetch(APPS_SCRIPT_URL, {
+            const res = await fetch('/api/send-report', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'sendReport', period })
+                body: JSON.stringify({ period })
             });
             const json = await res.json();
             setSendReportStatus(json.status === 'success' ? 'sent' : 'error');

@@ -2,7 +2,6 @@ import { supabase } from './supabase.js';
 
 export default async function handler(req, res) {
     const { sheet } = req.query;
-    const SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
 
     if (!sheet) {
         return res.status(400).json({ error: 'Sheet name is required' });
@@ -17,23 +16,43 @@ export default async function handler(req, res) {
             tableName = 'redemptions';
         }
 
-        const { data, error } = await supabase
-            .from(tableName)
-            .select('*')
-            .order(tableName === 'redemptions' ? 'timestamp' : 'created_at', { ascending: false });
+        const query = supabase.from(tableName).select('*');
+        if (tableName === 'redemptions') {
+            query.order('timestamp', { ascending: false });
+        } else {
+            query.order('created_at', { ascending: false });
+        }
+
+        const { data, error } = await query;
 
         // Fallback to Google Sheets if Supabase is empty, fails, or returns error
         if (error || !data || data.length === 0) {
             if (error) console.error('[Supabase GET] Error:', error);
             console.warn(`[Supabase GET] ${error ? 'Error' : 'No data'}. Falling back to Google Sheets...`);
+
             try {
-                const fallbackResponse = await fetch(`${SCRIPT_URL}?sheet=${sheet}`);
+                // Constants like SCRIPT_URL should be defined or available in scope. 
+                // Assuming it's defined elsewhere or we keep it as is if it was working.
+                const fallbackResponse = await fetch(`${process.env.SCRIPT_URL}?sheet=${sheet}`);
                 const fallbackData = await fallbackResponse.json();
                 return res.status(200).json(fallbackData);
             } catch (fallbackError) {
                 console.error('[Fallback] Google Sheets also failed:', fallbackError);
-                // If even fallback fails, return the original Supabase error or empty data
-                return res.status(error ? 500 : 200).json(data || []);
+
+                if (error) {
+                    const clientUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "fallback";
+                    const envKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "none";
+                    const keyPrefix = envKey.substring(0, 15);
+
+                    return res.status(502).json({
+                        status: 'error',
+                        message: 'Failed to fetch from Supabase and Fallback.',
+                        details: error.message,
+                        diagnosticUrl: clientUrl,
+                        diagnosticKeyPrefix: keyPrefix
+                    });
+                }
+                return res.status(200).json(data || []);
             }
         }
 

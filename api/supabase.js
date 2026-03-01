@@ -14,9 +14,6 @@ const getClientUrl = () => {
 
 const getClientKey = () => {
   const envKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-  // If the URL is ignored, the key should be too. 
-  // We can check if the key matches the broken project ref in its JWT payload if needed, 
-  // but checking the URL is usually enough.
   return envKey;
 };
 

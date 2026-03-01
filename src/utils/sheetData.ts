@@ -1,4 +1,3 @@
-import { APPS_SCRIPT_URL } from '../constants';
 
 /**
  * Submit a class booking to Google Sheets
@@ -33,10 +32,9 @@ export const submitBooking = async (bookingData: {
     };
 
     try {
-        await fetch(APPS_SCRIPT_URL, {
+        await fetch('/api/bookings', {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         return { success: true, bookingId };
@@ -68,10 +66,9 @@ export const submitStaff = async (staffData: {
     };
 
     try {
-        await fetch(APPS_SCRIPT_URL, {
+        await fetch('/api/staff', {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         return { success: true, staffId };
@@ -84,55 +81,27 @@ export const submitStaff = async (staffData: {
 /**
  * Fetch bookings from Google Sheets
  */
-export const fetchBookings = (): Promise<any[]> => {
-    return new Promise((resolve, reject) => {
-        const callbackName = `loadBookings${Date.now()}`;
-
-        (window as any)[callbackName] = (data: any) => {
-            delete (window as any)[callbackName];
-            resolve(data);
-        };
-
-        const script = document.createElement('script');
-        script.src = `${APPS_SCRIPT_URL}?callback=${callbackName}&sheet=Bookings&t=${Date.now()}`;
-        document.body.appendChild(script);
-
-        script.onerror = () => {
-            document.body.removeChild(script);
-            delete (window as any)[callbackName];
-            reject(new Error('Failed to fetch bookings'));
-        };
-
-        script.onload = () => {
-            document.body.removeChild(script);
-        };
-    });
+export const fetchBookings = async (): Promise<any[]> => {
+    try {
+        const res = await fetch('/api/bookings');
+        if (!res.ok) throw new Error('Failed to fetch bookings');
+        return await res.json();
+    } catch (error) {
+        console.error('Fetch bookings error:', error);
+        return [];
+    }
 };
 
 /**
  * Fetch staff from Google Sheets
  */
-export const fetchStaff = (): Promise<any[]> => {
-    return new Promise((resolve, reject) => {
-        const callbackName = `loadStaff${Date.now()}`;
-
-        (window as any)[callbackName] = (data: any) => {
-            delete (window as any)[callbackName];
-            resolve(data);
-        };
-
-        const script = document.createElement('script');
-        script.src = `${APPS_SCRIPT_URL}?callback=${callbackName}&sheet=Staff&t=${Date.now()}`;
-        document.body.appendChild(script);
-
-        script.onerror = () => {
-            document.body.removeChild(script);
-            delete (window as any)[callbackName];
-            reject(new Error('Failed to fetch staff'));
-        };
-
-        script.onload = () => {
-            document.body.removeChild(script);
-        };
-    });
+export const fetchStaff = async (): Promise<any[]> => {
+    try {
+        const res = await fetch('/api/staff');
+        if (!res.ok) throw new Error('Failed to fetch staff');
+        return await res.json();
+    } catch (error) {
+        console.error('Fetch staff error:', error);
+        return [];
+    }
 };
