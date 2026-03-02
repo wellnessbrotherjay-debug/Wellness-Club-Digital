@@ -34,8 +34,8 @@ async function writeAuditEvent(payload) {
 async function getWeatherCondition() {
     try {
         const apiKey = 'd90d116d89814419220bd3000d9eb498';
-        const lat = '-8.697276';
-        const lon = '115.171634';
+        const lat = '-8.6478'; // Canggu, Bali
+        const lon = '115.1385'; // Canggu, Bali
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
 
         const controller = new AbortController();
@@ -170,7 +170,7 @@ export default async function handler(req, res) {
                     });
                     supabaseError = insertError;
 
-                    // Mirror to Google Sheets
+                    // Mirror to Google Sheets AFTER weather is attached
                     if (!insertError) {
                         mirrorToGoogleSheets(req.body);
                     }

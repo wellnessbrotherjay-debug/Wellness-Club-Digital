@@ -297,7 +297,7 @@ const GuestPass: React.FC = () => {
                                         <span className="text-[#1a1a1a] font-bold">{redeem.serviceType}</span>
                                         <span className="text-gray-400 text-[10px] capitalize">
                                             {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            {redeem.weather && redeem.weather.length < 20 && <span className="ml-1 opacity-75">• {redeem.weather}</span>}
+                                            {redeem.weather && redeem.weather.length < 50 && <span className="ml-1 opacity-75">• {redeem.weather}</span>}
                                         </span>
                                     </div>
                                 ))}
