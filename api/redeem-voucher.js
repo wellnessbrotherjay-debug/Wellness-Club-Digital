@@ -24,7 +24,12 @@ async function getWeatherCondition() {
         const lon = '115.171634';
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
 
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout for weather
+
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
         if (response.ok) {
             const data = await response.json();
             if (data && data.weather && data.weather.length > 0) {
@@ -32,7 +37,7 @@ async function getWeatherCondition() {
             }
         }
     } catch (e) {
-        console.error("Weather fetch error: " + e.message);
+        console.warn("[Weather] Fetch failed or timed out:", e.message);
     }
     return '';
 }
@@ -110,7 +115,14 @@ export default async function handler(req, res) {
                 canUpdateSupabase = true;
             }
 
-            req.body.weather = await getWeatherCondition();
+            // Start weather fetch but don't await yet if we want to be truly non-blocking.
+            // However, it's safer to just wrap it and let it timeout quickly.
+            try {
+                req.body.weather = await getWeatherCondition();
+            } catch (e) {
+                req.body.weather = '';
+            }
+
             const redeemedAt = req.body.redeemedAt || new Date().toISOString();
 
             if (canUpdateSupabase) {
@@ -162,9 +174,10 @@ export default async function handler(req, res) {
             // We continue to Google Sheets backup even if Supabase failed
         }
 
-        // 3. Audit Log
+        // 3. Audit Log - Make fire-and-forget
         if (req.body.action === 'redeem') {
             const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+            // Fire and forget, don't await
             writeAuditEvent({
                 action: 'REDEEMED',
                 voucherCode: req.body.voucherCode,
@@ -177,7 +190,7 @@ export default async function handler(req, res) {
                 sessionId: req.body.sessionId || '',
                 userAgent: req.body.userAgent || req.headers['user-agent'] || '',
                 ipAddress: ip,
-            });
+            }).catch(e => console.warn('[AuditLog] Deferred error:', e.message));
         }
 
         // 4. Email Notification

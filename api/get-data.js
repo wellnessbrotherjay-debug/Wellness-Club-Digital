@@ -31,13 +31,25 @@ export default async function handler(req, res) {
             console.warn(`[Supabase GET] ${error ? 'Error' : 'No data'}. Falling back to Google Sheets...`);
 
             try {
-                // Constants like SCRIPT_URL should be defined or available in scope. 
-                // Assuming it's defined elsewhere or we keep it as is if it was working.
-                const fallbackResponse = await fetch(`${process.env.SCRIPT_URL}?sheet=${sheet}`);
+                // Use AbortController for timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                const scriptUrl = process.env.APPS_SCRIPT_URL || process.env.SCRIPT_URL;
+                if (!scriptUrl) {
+                    throw new Error('Fallback URL (APPS_SCRIPT_URL) not configured');
+                }
+
+                console.log(`[Fallback] Fetching from Google Sheets: ${scriptUrl.substring(0, 30)}...`);
+                const fallbackResponse = await fetch(`${scriptUrl}?sheet=${sheet}`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 const fallbackData = await fallbackResponse.json();
                 return res.status(200).json(fallbackData);
             } catch (fallbackError) {
-                console.error('[Fallback] Google Sheets also failed:', fallbackError);
+                console.error('[Fallback] Google Sheets also failed or timed out:', fallbackError.message);
 
                 if (error) {
                     const clientUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "fallback";
@@ -49,7 +61,8 @@ export default async function handler(req, res) {
                         message: 'Failed to fetch from Supabase and Fallback.',
                         details: error.message,
                         diagnosticUrl: clientUrl,
-                        diagnosticKeyPrefix: keyPrefix
+                        diagnosticKeyPrefix: keyPrefix,
+                        fallbackError: fallbackError.message
                     });
                 }
                 return res.status(200).json(data || []);
