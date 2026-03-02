@@ -109,33 +109,6 @@ export default async function handler(req, res) {
                 .eq('voucher_code', voucherCode)
                 .single();
 
-            let canUpdateSupabase = false;
-            if (fetchError || !voucherData) {
-                console.warn(`[Supabase Redeem] Voucher ${voucherCode} not found for redemption. Skipping Supabase sync, falling back to Sheets.`);
-            } else if (voucherData.status === 'Redeemed') {
-                return res.status(400).json({ status: 'error', message: 'Voucher already redeemed' });
-            } else {
-                // Date validation only if found in Supabase
-                if (voucherData.check_in && voucherData.check_out) {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const checkInDate = new Date(voucherData.check_in);
-                    const checkOutDate = new Date(voucherData.check_out);
-                    checkInDate.setHours(0, 0, 0, 0);
-                    checkOutDate.setHours(0, 0, 0, 0);
-
-                    if (today < checkInDate) {
-                        return res.status(400).json({ status: "error", message: "REJECTED: Voucher not yet valid. (Valid from " + voucherData.check_in + ")" });
-                    }
-                    if (today > checkOutDate) {
-                        return res.status(400).json({ status: "error", message: "REJECTED: Voucher EXPIRED. (Valid until " + voucherData.check_out + ")" });
-                    }
-                }
-                canUpdateSupabase = true;
-            }
-
-            // Start weather fetch but don't await yet if we want to be truly non-blocking.
-            // However, it's safer to just wrap it and let it timeout quickly.
             try {
                 req.body.weather = await getWeatherCondition();
             } catch (e) {
@@ -144,47 +117,48 @@ export default async function handler(req, res) {
 
             const redeemedAt = req.body.redeemedAt || new Date().toISOString();
 
-            if (canUpdateSupabase) {
-                // Update Voucher
-                const { error: updateError } = await supabase.from('vouchers')
-                    .update({
-                        status: 'Redeemed',
-                        redeemed_at: redeemedAt,
-                        redeemed_service: req.body.serviceType,
-                        email: req.body.email,
-                        whatsapp: req.body.whatsapp || req.body.phone,
-                        weather: req.body.weather
-                    })
-                    .eq('voucher_code', voucherCode);
+            // 1. Update Voucher (Upsert to ensure it exists in Supabase primary)
+            const { error: upsertError } = await supabase.from('vouchers').upsert({
+                voucher_code: voucherCode,
+                status: 'Redeemed',
+                redeemed_at: redeemedAt,
+                redeemed_service: req.body.serviceType,
+                guest_name: req.body.guestName,
+                room_number: req.body.roomNumber,
+                email: req.body.email,
+                whatsapp: req.body.whatsapp || req.body.phone,
+                weather: req.body.weather
+            }, { onConflict: 'voucher_code' });
 
-                // Insert Redemption Log
-                if (!updateError) {
-                    const { error: insertError } = await supabase.from('redemptions').insert({
-                        timestamp: redeemedAt,
-                        voucher_code: voucherCode,
-                        guest_name: req.body.guestName || req.body.userName,
-                        service_type: req.body.serviceType,
-                        room_number: req.body.roomNumber,
-                        email: req.body.email,
-                        whatsapp: req.body.whatsapp || req.body.phone,
-                        weather: req.body.weather
-                    });
-                    supabaseError = insertError;
-
-                    // Mirror to Google Sheets AFTER weather is attached
-                    if (!insertError) {
-                        mirrorToGoogleSheets(req.body);
-                    }
-                } else {
-                    supabaseError = updateError;
-                }
+            if (upsertError) {
+                console.error('[Supabase Redeem] Upsert Error:', upsertError);
             }
+
+            // 2. Insert Redemption Log
+            const { error: insertError } = await supabase.from('redemptions').insert({
+                timestamp: redeemedAt,
+                voucher_code: voucherCode,
+                guest_name: req.body.guestName || req.body.userName,
+                service_type: req.body.serviceType,
+                room_number: req.body.roomNumber,
+                email: req.body.email,
+                whatsapp: req.body.whatsapp || req.body.phone,
+                weather: req.body.weather
+            });
+
+            if (insertError) {
+                console.error('[Supabase Redeem] Log Error:', insertError);
+            }
+
+            // 3. Mirror to Google Sheets ALWAYS (Secondary)
+            mirrorToGoogleSheets(req.body);
         }
         else if (req.body.action === 'deleteVoucher') {
             const { error } = await supabase.from('vouchers')
                 .delete()
                 .eq('voucher_code', req.body.voucherCode?.toUpperCase());
             supabaseError = error;
+            if (!error) mirrorToGoogleSheets(req.body);
         }
         else if (req.body.action === 'deleteTests') {
             // Soft-match deletion using ilike
@@ -192,6 +166,7 @@ export default async function handler(req, res) {
                 .delete()
                 .or('voucher_code.ilike.%test%,guest_name.ilike.%test%,email.ilike.%sbodyfit%,email.ilike.%wellnessbrotherjay%');
             supabaseError = error;
+            if (!error) mirrorToGoogleSheets(req.body);
         }
 
         if (supabaseError) {
