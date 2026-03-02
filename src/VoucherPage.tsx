@@ -786,7 +786,7 @@ const VoucherPage: React.FC = () => {
                                                                         <span className="text-[10px] text-green-600 flex items-center gap-1 capitalize">
                                                                             <Clock size={10} />
                                                                             {new Date(r.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                                                            {r.weather && r.weather.length < 20 && <span className="ml-1 opacity-75">• {r.weather}</span>}
+                                                                            {r.weather && r.weather.length < 50 && <span className="ml-1 opacity-75">• {r.weather}</span>}
                                                                         </span>
                                                                     </div>
                                                                 ))}
