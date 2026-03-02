@@ -152,7 +152,8 @@ export default async function handler(req, res) {
                         redeemed_at: redeemedAt,
                         redeemed_service: req.body.serviceType,
                         email: req.body.email,
-                        whatsapp: req.body.whatsapp || req.body.phone
+                        whatsapp: req.body.whatsapp || req.body.phone,
+                        weather: req.body.weather
                     })
                     .eq('voucher_code', voucherCode);
 

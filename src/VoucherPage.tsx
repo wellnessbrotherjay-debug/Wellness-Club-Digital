@@ -35,6 +35,7 @@ export interface VoucherData {
     secondGuestName?: string;
     email?: string;
     whatsapp?: string;
+    weather?: string;
 }
 
 interface RedemptionData {
@@ -103,7 +104,7 @@ const VoucherPage: React.FC = () => {
                 guestName: v.guestName,
                 serviceType: v.redeemed_service || v.serviceType || (v.services?.[0] || 'General Admission'), // Check redeemed_service first, then serviceType, then services array
                 roomNumber: v.roomNumber || '',
-                weather: undefined as string | undefined
+                weather: v.weather
             }));
 
         // Merge with historical redemptions, prioritizing recentVouchers (which are likely more up-to-date for today's actions)
@@ -113,10 +114,12 @@ const VoucherPage: React.FC = () => {
         // Populate with history first
         redemptions.forEach(r => redemptionMap.set(r.voucherCode, r));
 
-        // Overwrite or add with recent vouchers, but preserve fields like weather that only exist in redemptions
+        // Overwrite or add with recent vouchers, ensuring weather is preserved from whichever source has it
         recentRedemptions.forEach(r => {
             const existing = redemptionMap.get(r.voucherCode);
-            redemptionMap.set(r.voucherCode, existing ? { ...existing, ...r, weather: existing.weather || r.weather } : r);
+            // The recentVoucher row 'r' now contains weather if it was just redeemed in this session
+            const weather = r.weather || (existing ? existing.weather : undefined);
+            redemptionMap.set(r.voucherCode, existing ? { ...existing, ...r, weather } : { ...r, weather });
         });
 
         return Array.from(redemptionMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());

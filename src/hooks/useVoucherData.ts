@@ -62,7 +62,8 @@ export const useVoucherData = () => {
             pax: item.pax ? parseInt(item.pax as any) : 1,
             secondGuestName: String(item.secondGuestName || ''),
             email: String(item.email || ''),
-            whatsapp: String(item.whatsapp || '')
+            whatsapp: String(item.whatsapp || ''),
+            weather: String(item.weather || '')
         };
     };
 

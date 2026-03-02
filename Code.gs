@@ -528,7 +528,8 @@ function setupStandardHeaders() {
         ['redeemed_at', 'redeemed_at'],
         ['serviceType', 'ServiceType'],
         ['emailStatus', 'EmailStatus'],
-        ['inputPath', 'InputPath']
+        ['inputPath', 'InputPath'],
+        ['weather', 'Weather']
     ];
     
     const values = sheet.getDataRange().getValues();
