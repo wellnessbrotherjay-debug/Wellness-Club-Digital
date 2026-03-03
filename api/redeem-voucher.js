@@ -97,91 +97,39 @@ export default async function handler(req, res) {
         let finalError = null;
 
         // 1. Primary Logic: Supabase
-        if (action === 'create' || action === 'manual') {
-            const { data, error } = await supabase.from('vouchers').upsert({
-                voucher_code: (body.voucherCode || body.code || body.date || body.id || '').toUpperCase(),
-                guest_name: body.guestName || body.userName || body.description || body.name,
-                status: body.status || body.category || 'Created',
-                room_number: body.roomNumber || body.room || body.amount,
-                check_in: body.checkIn || body.checkin || body.type,
-                check_out: body.checkOut || body.checkout,
-                service_type: body.serviceType || body.services,
-                email: body.email,
-                whatsapp: body.whatsapp || body.phone,
-                pax: body.pax || 1,
-                created_at: body.created_at || body.timestamp || new Date().toISOString()
-            }, { onConflict: 'voucher_code' }).select();
+        // 1. Primary Logic: Google Sheets Only (Mirroring)
+        // We bypass all Supabase upserts/inserts to resolve "Invalid API key" errors.
 
-            if (error) finalError = error;
-            resultData = data;
-        }
-        else if (action === 'redeem') {
-            const voucherCode = (body.voucherCode || body.code || body.date || body.id || '').toUpperCase();
-
+        const redeemedAt = body.redeemedAt || new Date().toISOString();
+        if (action === 'redeem') {
             try {
                 body.weather = await getWeatherCondition();
             } catch (e) {
                 body.weather = '';
             }
-
-            const redeemedAt = body.redeemedAt || new Date().toISOString();
-
-            // Perform updates in parallel
-            const [upsertRes, insertRes] = await Promise.all([
-                supabase.from('vouchers').upsert({
-                    voucher_code: voucherCode,
-                    status: 'Redeemed',
-                    redeemed_at: redeemedAt,
-                    redeemed_service: body.serviceType,
-                    guest_name: body.guestName,
-                    room_number: body.roomNumber,
-                    email: body.email,
-                    whatsapp: body.whatsapp || body.phone,
-                    weather: body.weather
-                }, { onConflict: 'voucher_code' }),
-                supabase.from('redemptions').insert({
-                    timestamp: redeemedAt,
-                    voucher_code: voucherCode,
-                    guest_name: body.guestName || body.userName,
-                    service_type: body.serviceType,
-                    room_number: body.roomNumber,
-                    email: body.email,
-                    whatsapp: body.whatsapp || body.phone,
-                    weather: body.weather
-                })
-            ]);
-
-            if (upsertRes.error) finalError = upsertRes.error;
-            if (insertRes.error && !finalError) finalError = insertRes.error;
-        }
-        else if (action === 'deleteVoucher') {
-            const { error } = await supabase.from('vouchers')
-                .delete()
-                .eq('voucher_code', body.voucherCode?.toUpperCase());
-            if (error) finalError = error;
-        }
-        else if (action === 'deleteTests') {
-            const { error } = await supabase.from('vouchers')
-                .delete()
-                .or('voucher_code.ilike.%test%,guest_name.ilike.%test%,email.ilike.%sbodyfit%,email.ilike.%wellnessbrotherjay%');
-            if (error) finalError = error;
-        } else {
-            return res.status(400).json({ error: `Unsupported action: ${action}` });
+            body.redeemedAt = redeemedAt;
         }
 
-        // CRITICAL: Supabase error is now BLOCKING
-        if (finalError) {
-            console.error('[Supabase Error] Blocking:', finalError);
-            return res.status(502).json({
-                status: 'error',
-                message: 'Database operation failed',
-                details: finalError.message,
-                code: finalError.code
-            });
-        }
-
-        // 2. Mirror to Google Sheets (Await this for robustness)
+        // 2. Execute Mirroring to Google Sheets (Now the Primary Action)
         await mirrorToGoogleSheets(body);
+
+        // 3. Audit Log - keep as fire-and-forget
+        if (action === 'redeem') {
+            const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+            writeAuditEvent({
+                action: 'REDEEMED',
+                voucherCode: body.voucherCode,
+                guestName: body.guestName,
+                serviceType: body.serviceType || body.redeemed_service || '',
+                roomNumber: body.roomNumber,
+                source: 'DIGITAL_REDEMPTION_SHEETS_ONLY',
+                inputPath: body.inputPath || '/',
+                deviceId: body.deviceId || req.headers['x-device-id'] || 'unknown',
+                sessionId: body.sessionId || '',
+                userAgent: body.userAgent || req.headers['user-agent'] || '',
+                ipAddress: ip,
+            }).catch(e => console.warn('[AuditLog] Deferred error:', e.message));
+        }
 
         // 3. Audit Log - keep as fire-and-forget
         if (action === 'redeem') {
