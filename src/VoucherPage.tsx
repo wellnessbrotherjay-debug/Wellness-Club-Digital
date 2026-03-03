@@ -38,11 +38,12 @@ export interface VoucherData {
     weather?: string;
 }
 
-interface RedemptionData {
+export interface RedemptionData {
     timestamp: string;
     voucherCode: string;
     guestName: string;
     serviceType: string;
+    roomNumber: string;
 }
 
 import { ENTITLEMENTS } from './constants/services';
@@ -1205,14 +1206,19 @@ const VoucherPage: React.FC = () => {
 
                 {activeTab === 'analytics' && (
                     <AnalyticsDashboard
-                        onViewVoucher={(voucher) => {
-                            setCurrentVoucher(voucher);
-                            setEmail(voucher.email || '');
-                            setWaStatus('idle');
-                            setEmailStatus('idle');
-                            setShowCreateForm(false);
-                            setActiveTab('create');
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        vouchers={recentVouchers}
+                        redemptions={redemptions}
+                        onViewVoucher={(voucherId) => {
+                            const voucher = recentVouchers.find(v => v.id === voucherId);
+                            if (voucher) {
+                                setCurrentVoucher(voucher);
+                                setEmail(voucher.email || '');
+                                setWaStatus('idle');
+                                setEmailStatus('idle');
+                                setShowCreateForm(false);
+                                setActiveTab('create');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }
                         }}
                     />
                 )}

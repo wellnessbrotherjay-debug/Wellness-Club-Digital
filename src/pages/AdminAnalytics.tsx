@@ -5,7 +5,7 @@ import { useVoucherData } from '../hooks/useVoucherData';
 import { Loader2 } from 'lucide-react';
 
 const AdminAnalytics: React.FC = () => {
-    const { vouchers, redemptions, isFetching, hasLoaded } = useVoucherData();
+    const { vouchers, redemptions, isFetching } = useVoucherData();
 
     return (
         <div className="min-h-screen bg-[#f8f8f8] text-[#2c2420] font-sans pb-20">

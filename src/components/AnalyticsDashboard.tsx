@@ -7,33 +7,7 @@ import {
     Download,
     Tag
 } from 'lucide-react';
-
-interface VoucherData {
-    id: string;
-    guestName: string;
-    roomNumber: string;
-    status: string;
-    serviceType: string;
-    created_at?: string;
-    redeemed_at?: string;
-    pax?: number;
-    checkIn?: string;
-    checkOut?: string;
-    expires_at?: string;
-    redeemed_service?: string;
-    category?: string;
-    is_test?: string;
-}
-
-interface RedemptionData {
-    timestamp: string;
-    voucherCode: string;
-    guestName: string;
-    serviceType: string;
-    roomNumber: string;
-    isManual?: boolean;
-    category?: string;
-}
+import type { VoucherData, RedemptionData } from '../VoucherPage';
 
 interface AnalyticsDashboardProps {
     vouchers: VoucherData[];
@@ -87,7 +61,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
                 };
             })
             : vouchers
-                .filter(v => v.status === 'Redeemed')
+                .filter(v => v.status === 'Redeemed' || v.redeemed_at)
                 .map(v => ({
                     timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
                     voucherCode: v.id,
@@ -211,8 +185,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v3.4</h4>
-                    <span className="text-[10px] text-gray-500">Mode: Unified Digital Flow</span>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v3.5</h4>
+                    <span className="text-[10px] text-gray-500">Mode: Typed Digital Flow</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
                     <div>
