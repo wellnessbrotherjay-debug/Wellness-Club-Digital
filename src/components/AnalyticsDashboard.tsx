@@ -4,19 +4,8 @@ import {
     TrendingUp,
     Users,
     Zap,
-    ChevronDown,
     Download,
-    Mail,
-    Send,
-    ArrowRight,
-    Search,
-    Calendar,
-    RefreshCw,
-    Info,
-    CheckCircle2,
-    Clock,
-    Tag,
-    Lock
+    Tag
 } from 'lucide-react';
 
 interface VoucherData {
@@ -55,8 +44,8 @@ interface AnalyticsDashboardProps {
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redemptions, onViewVoucher }) => {
     // --- State ---
     const [timeRange, setTimeRange] = useState<'all' | 'week' | 'month' | 'launch' | 'custom'>('all');
-    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [startDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const [endDate] = useState(new Date().toISOString().split('T')[0]);
     const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
 
     const EXCLUDE_NAMES = useMemo(() => [

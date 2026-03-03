@@ -1,8 +1,12 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
+import { useVoucherData } from '../hooks/useVoucherData';
+import { Loader2 } from 'lucide-react';
 
 const AdminAnalytics: React.FC = () => {
+    const { vouchers, redemptions, isFetching, hasLoaded } = useVoucherData();
+
     return (
         <div className="min-h-screen bg-[#f8f8f8] text-[#2c2420] font-sans pb-20">
             <Helmet>
@@ -21,11 +25,20 @@ const AdminAnalytics: React.FC = () => {
                             Real-time Redemption Insights
                         </p>
                     </div>
+                    {isFetching && (
+                        <div className="flex items-center gap-2 text-[#c5a572] animate-pulse">
+                            <Loader2 size={16} className="animate-spin" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Refreshing Data...</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
             <main className="max-w-7xl mx-auto px-6 py-8">
-                <AnalyticsDashboard />
+                <AnalyticsDashboard
+                    vouchers={vouchers}
+                    redemptions={redemptions}
+                />
             </main>
         </div>
     );
