@@ -53,7 +53,7 @@ const VoucherPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'create' | 'validate' | 'issued' | 'analytics' | 'declined'>('create');
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'redeemed' | 'expired'>('all'); // DEFAULT TO ALL TO AVOID EMPTY LIST CONFUSION
     const [formData, setFormData] = useState({
-        guestName: '',
+        guestNames: [''],
         roomNumber: '',
         checkIn: new Date().toISOString().split('T')[0],
         checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
@@ -189,7 +189,8 @@ const VoucherPage: React.FC = () => {
             ENTITLEMENTS.WELLNESS_ALL
         ];
 
-        const allGuestNames = formData.isTest ? `[TEST] ${formData.guestName}` : formData.guestName;
+        const joinedNames = formData.guestNames.filter(n => n.trim()).join(' & ') || 'Unknown Guest';
+        const allGuestNames = formData.isTest ? `[TEST] ${joinedNames}` : joinedNames;
 
         const cleanWA = formData.whatsapp.replace(/\D/g, '').replace(/^0+/, '');
         const prefix = formData.countryCode.replace(/\D/g, '');
@@ -255,7 +256,7 @@ const VoucherPage: React.FC = () => {
 
     const resetForm = () => {
         setFormData({
-            guestName: '',
+            guestNames: [''],
             roomNumber: '',
             checkIn: new Date().toISOString().split('T')[0],
             checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0],
@@ -558,17 +559,26 @@ const VoucherPage: React.FC = () => {
 
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Name & Surname</label>
-                                            <input
-                                                type="text"
-                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                                placeholder="e.g. John Smith"
-                                                value={formData.guestName}
-                                                onChange={e => setFormData({ ...formData, guestName: e.target.value })}
-                                            />
+                                        <div className="space-y-4 md:col-span-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Guest Names ({formData.pax} Pax)</label>
+                                            </div>
+                                            {formData.guestNames.map((name, index) => (
+                                                <input
+                                                    key={index}
+                                                    type="text"
+                                                    className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                                                    placeholder={formData.pax > 1 ? `Guest ${index + 1} Name & Surname` : "Guest Name & Surname"}
+                                                    value={name}
+                                                    onChange={e => {
+                                                        const newNames = [...formData.guestNames];
+                                                        newNames[index] = e.target.value;
+                                                        setFormData({ ...formData, guestNames: newNames });
+                                                    }}
+                                                />
+                                            ))}
                                         </div>
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 md:col-span-2">
                                             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Room Number</label>
                                             <input
                                                 type="text"
@@ -608,7 +618,10 @@ const VoucherPage: React.FC = () => {
                                             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Number of Guests (Pax)</label>
                                             <div className="flex items-center gap-4 bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-2">
                                                 <button
-                                                    onClick={() => setFormData(prev => ({ ...prev, pax: Math.max(1, prev.pax - 1) }))}
+                                                    onClick={() => setFormData(prev => {
+                                                        const newPax = Math.max(1, prev.pax - 1);
+                                                        return { ...prev, pax: newPax, guestNames: prev.guestNames.slice(0, newPax) };
+                                                    })}
                                                     className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                                                 >
                                                     <XCircle size={16} className="text-gray-400 rotate-45" /> {/* Use X as - */}
@@ -617,10 +630,18 @@ const VoucherPage: React.FC = () => {
                                                     type="number"
                                                     className="w-16 text-center bg-transparent border-none focus:outline-none font-black text-xl text-[#2c2420]"
                                                     value={formData.pax}
-                                                    onChange={e => setFormData({ ...formData, pax: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                    onChange={e => setFormData(prev => {
+                                                        const newPax = Math.max(1, parseInt(e.target.value) || 1);
+                                                        const newNames = Array(newPax).fill('').map((_, i) => prev.guestNames[i] || '');
+                                                        return { ...prev, pax: newPax, guestNames: newNames };
+                                                    })}
                                                 />
                                                 <button
-                                                    onClick={() => setFormData(prev => ({ ...prev, pax: prev.pax + 1 }))}
+                                                    onClick={() => setFormData(prev => {
+                                                        const newPax = prev.pax + 1;
+                                                        const newNames = [...prev.guestNames, ''];
+                                                        return { ...prev, pax: newPax, guestNames: newNames };
+                                                    })}
                                                     className="w-10 h-10 rounded-lg bg-[#c5a572]/10 flex items-center justify-center hover:bg-[#c5a572]/20 transition-colors"
                                                 >
                                                     <Plus size={16} className="text-[#c5a572]" />
@@ -704,7 +725,7 @@ const VoucherPage: React.FC = () => {
 
                                 <button
                                     onClick={handleGenerate}
-                                    disabled={status === 'generating' || !formData.guestName || !formData.roomNumber}
+                                    disabled={status === 'generating' || formData.guestNames.some(n => !n.trim()) || !formData.roomNumber}
                                     className="w-full bg-[#2c2420] text-white h-16 rounded-xl font-bold tracking-[.2em] uppercase hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-8 group"
                                 >
                                     {status === 'generating' ? (
