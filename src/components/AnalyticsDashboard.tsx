@@ -43,6 +43,14 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         return 'wellness';
     }, []);
 
+    const smartPax = useCallback((pax: any, name: string) => {
+        const p = Number(pax);
+        if (pax && !isNaN(p) && p > 0) return p;
+        const n = String(name || '').toLowerCase();
+        if (n.includes('&') || n.includes(' and ') || n.includes('+')) return 2;
+        return 1;
+    }, []);
+
     // --- Core Analytics Logic ---
     const effectiveRedemptions = useMemo(() => {
         const voucherMap = new Map(vouchers.map(v => [v.id?.toUpperCase(), v]));
@@ -98,7 +106,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         const now = new Date();
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const launchDate = new Date('2026-02-04');
+        const launchDate = new Date('2026-02-01');
 
         const parseDate = (dateStr: string) => {
             if (!dateStr) return null;
@@ -128,6 +136,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
             );
         }
 
+        const voucherMap = new Map(vouchers.map(v => [v.id?.toUpperCase(), v]));
+
         // 2. Issued Vouchers Pool (The total number of vouchers ever created in this category)
         const realVouchers = vouchers.filter(v =>
             (v as any).is_test !== 'TRUE' &&
@@ -141,10 +151,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         };
 
         const totalVouchersPool = realVouchers.length;
-        const totalPaxPool = realVouchers.reduce((sum, v) => sum + (v.pax || 1), 0);
+        const totalPaxPool = realVouchers.reduce((sum, v) => sum + smartPax(v.pax, v.guestName), 0);
 
         // Map for looking up Pax during redemptions
-        const voucherPaxMap = new Map(realVouchers.map(v => [v.id, v.pax || 1]));
+        const voucherPaxMap = new Map(realVouchers.map(v => [v.id, smartPax(v.pax, v.guestName)]));
 
         // Shop Redeemed Totals (Subset of Issued)
         const shopTotals = {
@@ -188,7 +198,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         });
 
         const totalRedemptions = filteredRedemptions.length;
-        const totalPaxRedeemed = filteredRedemptions.reduce((sum, r) => sum + (voucherPaxMap.get(r.voucherCode) || 1), 0);
+        const totalPaxRedeemed = filteredRedemptions.reduce((sum, r) => {
+            const v = voucherMap.get(r.voucherCode?.toUpperCase());
+            return sum + (voucherPaxMap.get(r.voucherCode) || smartPax((r as any).pax, r.guestName || (v as any)?.guestName || ''));
+        }, 0);
         const redemptionRate = totalVouchersPool > 0 ? Math.round((totalRedemptions / totalVouchersPool) * 100) : 0;
         const paxRedemptionRate = totalPaxPool > 0 ? Math.round((totalPaxRedeemed / totalPaxPool) * 100) : 0;
 

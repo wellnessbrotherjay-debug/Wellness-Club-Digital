@@ -60,6 +60,7 @@ const VoucherPage: React.FC = () => {
         imageUrl: '',
         email: '',
         whatsapp: '',
+        pax: 1,
         countryCode: '+62',
         isTest: false,
     });
@@ -187,7 +188,7 @@ const VoucherPage: React.FC = () => {
             imageurl: formData.imageUrl,// Sheet col: "imageurl" = image URL
             services: services.join(', '),
             created_at: new Date().toISOString(),
-            pax: 1,
+            pax: formData.pax,
             email: formData.email,
             whatsapp: formData.whatsapp ? finalWA : '',
             is_test: formData.isTest ? 'TRUE' : 'FALSE'
@@ -214,7 +215,7 @@ const VoucherPage: React.FC = () => {
                 imageUrl: formData.imageUrl,
                 services: services,
                 created_at: new Date().toISOString(),
-                pax: 1,
+                pax: formData.pax,
                 secondGuestName: '',
                 email: formData.email,
                 whatsapp: formData.whatsapp ? finalWA : ''
@@ -242,6 +243,7 @@ const VoucherPage: React.FC = () => {
             imageUrl: '',
             email: '',
             whatsapp: '',
+            pax: 1,
             countryCode: '+62',
             isTest: false,
         });
@@ -578,6 +580,30 @@ const VoucherPage: React.FC = () => {
                                             />
                                         </div>
 
+                                        <div className="space-y-2 md:col-span-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Number of Guests (Pax)</label>
+                                            <div className="flex items-center gap-4 bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-2">
+                                                <button
+                                                    onClick={() => setFormData(prev => ({ ...prev, pax: Math.max(1, prev.pax - 1) }))}
+                                                    className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                                                >
+                                                    <XCircle size={16} className="text-gray-400 rotate-45" /> {/* Use X as - */}
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    className="w-16 text-center bg-transparent border-none focus:outline-none font-black text-xl text-[#2c2420]"
+                                                    value={formData.pax}
+                                                    onChange={e => setFormData({ ...formData, pax: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                />
+                                                <button
+                                                    onClick={() => setFormData(prev => ({ ...prev, pax: prev.pax + 1 }))}
+                                                    className="w-10 h-10 rounded-lg bg-[#c5a572]/10 flex items-center justify-center hover:bg-[#c5a572]/20 transition-colors"
+                                                >
+                                                    <Plus size={16} className="text-[#c5a572]" />
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <div className="space-y-2 md:col-span-2 flex items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100">
                                             <input
                                                 type="checkbox"
@@ -709,7 +735,7 @@ const VoucherPage: React.FC = () => {
                                             <div className="text-right">
                                                 <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#c5a572] mb-0.5">Voucher ID</p>
                                                 <p className="text-sm font-mono font-black text-[#2c2420]">{currentVoucher.id}</p>
-                                                <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">{currentVoucher.pax || 1} Pax</p>
+                                                <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">{currentVoucher.pax} Pax</p>
                                             </div>
                                         </div>
 
