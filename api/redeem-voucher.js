@@ -75,120 +75,128 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log('Action received:', req.body.action, 'Payload:', req.body);
-        let supabaseError = null;
+        // 0. Robust Body Parsing (Vercel sometimes passes body as string if content-type mismatch)
+        let body = req.body;
+        if (typeof body === 'string') {
+            try {
+                body = JSON.parse(body);
+            } catch (e) {
+                console.error('[API] Failed to parse body string:', e.message);
+                return res.status(400).json({ error: 'Invalid JSON body' });
+            }
+        }
+
+        const action = body.action || (body.status === 'Redeemed' ? 'redeem' : '');
+        console.log('[API] Action:', action, 'Payload:', JSON.stringify(body).substring(0, 200));
+
+        if (!action) {
+            return res.status(400).json({ error: 'Missing action in request body' });
+        }
+
+        let resultData = null;
+        let finalError = null;
 
         // 1. Primary Logic: Supabase
-        if (req.body.action === 'create' || req.body.action === 'manual') {
-            const { error } = await supabase.from('vouchers').upsert({
-                voucher_code: (req.body.voucherCode || req.body.code || req.body.date || req.body.id || '').toUpperCase(),
-                guest_name: req.body.guestName || req.body.userName || req.body.description || req.body.name,
-                status: req.body.status || req.body.category || 'Created',
-                room_number: req.body.roomNumber || req.body.room || req.body.amount,
-                check_in: req.body.checkIn || req.body.checkin || req.body.type,
-                check_out: req.body.checkOut || req.body.checkout,
-                service_type: req.body.serviceType || req.body.services,
-                email: req.body.email,
-                whatsapp: req.body.whatsapp || req.body.phone,
-                pax: req.body.pax || 1,
-                created_at: req.body.created_at || req.body.timestamp || new Date().toISOString()
-            }, { onConflict: 'voucher_code' });
-            supabaseError = error;
+        if (action === 'create' || action === 'manual') {
+            const { data, error } = await supabase.from('vouchers').upsert({
+                voucher_code: (body.voucherCode || body.code || body.date || body.id || '').toUpperCase(),
+                guest_name: body.guestName || body.userName || body.description || body.name,
+                status: body.status || body.category || 'Created',
+                room_number: body.roomNumber || body.room || body.amount,
+                check_in: body.checkIn || body.checkin || body.type,
+                check_out: body.checkOut || body.checkout,
+                service_type: body.serviceType || body.services,
+                email: body.email,
+                whatsapp: body.whatsapp || body.phone,
+                pax: body.pax || 1,
+                created_at: body.created_at || body.timestamp || new Date().toISOString()
+            }, { onConflict: 'voucher_code' }).select();
 
-            // Mirror to Google Sheets
-            if (!error) {
-                mirrorToGoogleSheets(req.body);
-            }
+            if (error) finalError = error;
+            resultData = data;
         }
-        else if (req.body.action === 'redeem') {
-            // Fetch voucher from Supabase to validate dates
-            const voucherCode = (req.body.voucherCode || req.body.code || req.body.date || req.body.id || '').toUpperCase();
-            const { data: voucherData, error: fetchError } = await supabase
-                .from('vouchers')
-                .select('check_in, check_out, status')
-                .eq('voucher_code', voucherCode)
-                .single();
+        else if (action === 'redeem') {
+            const voucherCode = (body.voucherCode || body.code || body.date || body.id || '').toUpperCase();
 
             try {
-                req.body.weather = await getWeatherCondition();
+                body.weather = await getWeatherCondition();
             } catch (e) {
-                req.body.weather = '';
+                body.weather = '';
             }
 
-            const redeemedAt = req.body.redeemedAt || new Date().toISOString();
+            const redeemedAt = body.redeemedAt || new Date().toISOString();
 
-            // 1. Update Voucher (Upsert to ensure it exists in Supabase primary)
-            const { error: upsertError } = await supabase.from('vouchers').upsert({
-                voucher_code: voucherCode,
-                status: 'Redeemed',
-                redeemed_at: redeemedAt,
-                redeemed_service: req.body.serviceType,
-                guest_name: req.body.guestName,
-                room_number: req.body.roomNumber,
-                email: req.body.email,
-                whatsapp: req.body.whatsapp || req.body.phone,
-                weather: req.body.weather
-            }, { onConflict: 'voucher_code' });
+            // Perform updates in parallel
+            const [upsertRes, insertRes] = await Promise.all([
+                supabase.from('vouchers').upsert({
+                    voucher_code: voucherCode,
+                    status: 'Redeemed',
+                    redeemed_at: redeemedAt,
+                    redeemed_service: body.serviceType,
+                    guest_name: body.guestName,
+                    room_number: body.roomNumber,
+                    email: body.email,
+                    whatsapp: body.whatsapp || body.phone,
+                    weather: body.weather
+                }, { onConflict: 'voucher_code' }),
+                supabase.from('redemptions').insert({
+                    timestamp: redeemedAt,
+                    voucher_code: voucherCode,
+                    guest_name: body.guestName || body.userName,
+                    service_type: body.serviceType,
+                    room_number: body.roomNumber,
+                    email: body.email,
+                    whatsapp: body.whatsapp || body.phone,
+                    weather: body.weather
+                })
+            ]);
 
-            if (upsertError) {
-                console.error('[Supabase Redeem] Upsert Error:', upsertError);
-            }
-
-            // 2. Insert Redemption Log
-            const { error: insertError } = await supabase.from('redemptions').insert({
-                timestamp: redeemedAt,
-                voucher_code: voucherCode,
-                guest_name: req.body.guestName || req.body.userName,
-                service_type: req.body.serviceType,
-                room_number: req.body.roomNumber,
-                email: req.body.email,
-                whatsapp: req.body.whatsapp || req.body.phone,
-                weather: req.body.weather
-            });
-
-            if (insertError) {
-                console.error('[Supabase Redeem] Log Error:', insertError);
-            }
-
-            // 3. Mirror to Google Sheets ALWAYS (Secondary)
-            mirrorToGoogleSheets(req.body);
+            if (upsertRes.error) finalError = upsertRes.error;
+            if (insertRes.error && !finalError) finalError = insertRes.error;
         }
-        else if (req.body.action === 'deleteVoucher') {
+        else if (action === 'deleteVoucher') {
             const { error } = await supabase.from('vouchers')
                 .delete()
-                .eq('voucher_code', req.body.voucherCode?.toUpperCase());
-            supabaseError = error;
-            if (!error) mirrorToGoogleSheets(req.body);
+                .eq('voucher_code', body.voucherCode?.toUpperCase());
+            if (error) finalError = error;
         }
-        else if (req.body.action === 'deleteTests') {
-            // Soft-match deletion using ilike
+        else if (action === 'deleteTests') {
             const { error } = await supabase.from('vouchers')
                 .delete()
                 .or('voucher_code.ilike.%test%,guest_name.ilike.%test%,email.ilike.%sbodyfit%,email.ilike.%wellnessbrotherjay%');
-            supabaseError = error;
-            if (!error) mirrorToGoogleSheets(req.body);
+            if (error) finalError = error;
+        } else {
+            return res.status(400).json({ error: `Unsupported action: ${action}` });
         }
 
-        if (supabaseError) {
-            console.error('Supabase Error (Non-blocking):', supabaseError);
-            // We continue to Google Sheets backup even if Supabase failed
+        // CRITICAL: Supabase error is now BLOCKING
+        if (finalError) {
+            console.error('[Supabase Error] Blocking:', finalError);
+            return res.status(502).json({
+                status: 'error',
+                message: 'Database operation failed',
+                details: finalError.message,
+                code: finalError.code
+            });
         }
 
-        // 3. Audit Log - Make fire-and-forget
-        if (req.body.action === 'redeem') {
+        // 2. Mirror to Google Sheets (Await this for robustness)
+        await mirrorToGoogleSheets(body);
+
+        // 3. Audit Log - keep as fire-and-forget
+        if (action === 'redeem') {
             const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
-            // Fire and forget, don't await
             writeAuditEvent({
                 action: 'REDEEMED',
-                voucherCode: req.body.voucherCode,
-                guestName: req.body.guestName,
-                serviceType: req.body.serviceType || req.body.redeemed_service || '',
-                roomNumber: req.body.roomNumber,
+                voucherCode: body.voucherCode,
+                guestName: body.guestName,
+                serviceType: body.serviceType || body.redeemed_service || '',
+                roomNumber: body.roomNumber,
                 source: 'DIGITAL_REDEMPTION',
-                inputPath: req.body.inputPath || '/',
-                deviceId: req.body.deviceId || req.headers['x-device-id'] || 'unknown',
-                sessionId: req.body.sessionId || '',
-                userAgent: req.body.userAgent || req.headers['user-agent'] || '',
+                inputPath: body.inputPath || '/',
+                deviceId: body.deviceId || req.headers['x-device-id'] || 'unknown',
+                sessionId: body.sessionId || '',
+                userAgent: body.userAgent || req.headers['user-agent'] || '',
                 ipAddress: ip,
             }).catch(e => console.warn('[AuditLog] Deferred error:', e.message));
         }

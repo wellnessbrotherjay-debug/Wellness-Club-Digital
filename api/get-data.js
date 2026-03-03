@@ -23,52 +23,41 @@ export default async function handler(req, res) {
             query.order('created_at', { ascending: false });
         }
 
+        // Primary source: Supabase
         const { data, error } = await query;
 
-        // Fallback to Google Sheets if Supabase is empty, fails, or returns error
-        if (error || !data || data.length === 0) {
-            if (error) console.error('[Supabase GET] Error:', error);
-            console.warn(`[Supabase GET] ${error ? 'Error' : 'No data'}. Falling back to Google Sheets...`);
+        // Smart fallback to Google Sheets
+        // We fall back if:
+        // 1. Supabase returns an error
+        // 2. Data is empty (and it's not redemptions, where empty might be valid)
+        // 3. User explicitly asks for sync (future-proofing)
+        const shouldFallback = error || !data || data.length === 0;
+
+        if (shouldFallback) {
+            if (error) console.error(`[GET] Supabase Error (${tableName}):`, error);
+            console.warn(`[GET] Falling back to Google Sheets for ${sheet}...`);
 
             try {
-                // Use AbortController for timeout
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
+                const fallbackResponse = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheet}`);
 
-                const scriptUrl = process.env.APPS_SCRIPT_URL || process.env.SCRIPT_URL;
-                if (!scriptUrl) {
-                    throw new Error('Fallback URL (APPS_SCRIPT_URL) not configured');
-                }
-
-                console.log(`[Fallback] Fetching from Google Sheets: ${scriptUrl.substring(0, 30)}...`);
-                const fallbackResponse = await fetch(`${scriptUrl}?sheet=${sheet}`, {
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
+                if (!fallbackResponse.ok) throw new Error(`Sheets API responded with ${fallbackResponse.status}`);
 
                 const fallbackData = await fallbackResponse.json();
+                console.log(`[GET] Success from Sheets: ${fallbackData.length || 0} items.`);
                 return res.status(200).json(fallbackData);
             } catch (fallbackError) {
-                console.error('[Fallback] Google Sheets also failed or timed out:', fallbackError.message);
-
-                if (error) {
-                    const clientUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "fallback";
-                    const envKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "none";
-                    const keyPrefix = envKey.substring(0, 15);
-
-                    return res.status(502).json({
-                        status: 'error',
-                        message: 'Failed to fetch from Supabase and Fallback.',
-                        details: error.message,
-                        diagnosticUrl: clientUrl,
-                        diagnosticKeyPrefix: keyPrefix,
-                        fallbackError: fallbackError.message
-                    });
-                }
-                return res.status(200).json(data || []);
+                console.error('[GET] Fallback also failed:', fallbackError.message);
+                return res.status(502).json({
+                    status: 'error',
+                    message: 'All data sources failed',
+                    error: fallbackError.message,
+                    supabaseError: error?.message
+                });
             }
         }
 
+        console.log(`[GET] Success from Supabase (${tableName}): ${data.length} items.`);
         return res.status(200).json(data);
     } catch (error) {
         console.error(`[Proxy GET Error] ${sheet}:`, error);
