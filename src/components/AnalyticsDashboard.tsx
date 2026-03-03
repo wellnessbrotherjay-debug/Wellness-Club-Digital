@@ -249,11 +249,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         const now = new Date();
         const today = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         const { dailyIssuedCounts, dailyCounts, serviceCounts, totalRedemptions, totalPaxRedeemed, totalVouchersPool, totalPaxPool, redemptionRate, paxRedemptionRate } = stats;
+        const issuedMap = Object.fromEntries(dailyIssuedCounts);
         const redeemedMap = Object.fromEntries(dailyCounts);
-        const allDates = [...new Set([...Object.keys(dailyIssuedCounts), ...dailyCounts.map(([d]) => d)])].sort((a, b) => b.localeCompare(a));
+        const allDates = [...new Set([...Object.keys(issuedMap), ...Object.keys(redeemedMap)])].sort((a, b) => b.localeCompare(a));
 
         const dailyRows = allDates.map(date => {
-            const issued = (dailyIssuedCounts as any)[date] || 0;
+            const issued = (issuedMap as any)[date] || 0;
             const redeemed = (redeemedMap as any)[date] || 0;
             const rate = issued > 0 ? Math.round((redeemed / issued) * 100) : 0;
             const d = new Date(date + 'T00:00:00');
@@ -335,7 +336,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.6</h4>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.7</h4>
                     <span className="text-[10px] text-gray-500">Mode: Total Pax & Digital Uni</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
