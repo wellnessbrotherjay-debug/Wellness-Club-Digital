@@ -23,7 +23,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
     const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
 
     const EXCLUDE_NAMES = useMemo(() => [
-        'jay', 'sam', 'sammy', 'idc prodons', 'wellness brother',
         'test', 'test weather', 'fix verification', 'diag test', 'agent diagnostic'
     ], []);
 
@@ -130,7 +129,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         }
 
         // 2. Issued Vouchers Pool (The total number of vouchers ever created in this category)
-        const realVouchers = vouchers.filter(v => !isTestAccount(v.guestName || '', v.id || ''));
+        const realVouchers = vouchers.filter(v =>
+            (v as any).is_test !== 'TRUE' &&
+            !isTestAccount(v.guestName || '', v.id || '')
+        );
 
         const shopIssued = {
             fashion: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as any).category) === 'fashion').length,
