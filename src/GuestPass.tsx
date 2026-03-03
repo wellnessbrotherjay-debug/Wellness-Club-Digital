@@ -63,10 +63,18 @@ const GuestPass: React.FC = () => {
                 setStatus('error');
                 setStatusMessage('Voucher not found in system.');
             } else {
+                // Support both Supabase (snake_case) and Sheet (camelCase/descriptive)
+                const checkOut = currentItem.check_out || currentItem.checkout || currentItem.checkOut || '';
+                const guestName = currentItem.guest_name || currentItem.description || currentItem.guestName || '';
+                const roomNumber = currentItem.room_number || currentItem.amount || currentItem.roomNumber || '';
+                const servicesRaw = currentItem.service_type || currentItem.services || '';
+                const imageUrl = currentItem.image_url || currentItem.imageurl || currentItem.imageUrl || '';
+                const createdAt = currentItem.created_at || '';
+
                 const today = new Date().toISOString().split('T')[0];
                 let isExpired = false;
-                if (currentItem.checkOut) {
-                    const expiry = currentItem.checkOut.split('T')[0];
+                if (checkOut) {
+                    const expiry = new Date(checkOut).toISOString().split('T')[0];
                     if (expiry < today) isExpired = true;
                 }
 
@@ -77,15 +85,13 @@ const GuestPass: React.FC = () => {
                 }
 
                 if (needsHydration) {
-                    // API returns: date=ID, description=guestName, category=status,
-                    // type=checkIn, checkout=checkOut, imageurl=imageUrl
                     setData({
-                        guestName: currentItem.description || currentItem.guestName || '',
-                        roomNumber: currentItem.amount || currentItem.roomNumber || '',
-                        checkOut: currentItem.checkout ? new Date(currentItem.checkout).toISOString().split('T')[0] : '',
-                        services: currentItem.services ? String(currentItem.services).split(/,\s*/g) : [],
-                        imageUrl: currentItem.imageurl || currentItem.imageUrl || '',
-                        created_at: currentItem.created_at || ''
+                        guestName,
+                        roomNumber,
+                        checkOut: checkOut ? new Date(checkOut).toISOString().split('T')[0] : '',
+                        services: servicesRaw ? String(servicesRaw).split(/,\s*/g) : [],
+                        imageUrl,
+                        created_at: createdAt
                     });
                 }
             }
