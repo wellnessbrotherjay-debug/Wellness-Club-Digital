@@ -65,6 +65,25 @@ const VoucherPage: React.FC = () => {
         isTest: false,
     });
 
+    const EXCLUDE_NAMES = useMemo(() => [
+        'test', 'samual', 'jay', 'diag', 'agent', 'fix'
+    ], []);
+
+    const isTestAccount = (name: string, code: string) => {
+        const n = String(name || '').toLowerCase();
+        const c = String(code || '').toLowerCase();
+        if (c.startsWith('test-')) return true;
+
+        // Exact whole-word matching for 'jay' and 'samual' to avoid matching 'Wijaya'
+        return EXCLUDE_NAMES.some(tn => {
+            if (tn === 'jay' || tn === 'samual') {
+                const regex = new RegExp(`\\b${tn}\\b`, 'i');
+                return regex.test(n);
+            }
+            return n.includes(tn);
+        });
+    };
+
     const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
     const [currentVoucher, setCurrentVoucher] = useState<VoucherData | null>(null);
     const [showCreateForm, setShowCreateForm] = useState(true);
@@ -401,7 +420,12 @@ const VoucherPage: React.FC = () => {
             String(v.roomNumber || '').toLowerCase().includes(query)
         );
 
-        // 2. Data Quality Filter: Relaxed to show row even if name is missing during debug
+        // 2. Global Test Exclusion (Golden Rule)
+        if (isTestAccount(v.guestName || '', v.id || '') || (v as any).is_test === 'TRUE') {
+            return false;
+        }
+
+        // 3. Data Quality Filter: Relaxed to show row even if name is missing during debug
         if (v.guestName === 'Unknown Guest' && !query) return false;
 
         // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
@@ -493,7 +517,7 @@ const VoucherPage: React.FC = () => {
                                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
                                     {recentVouchers.filter(v => {
                                         if (!v.guestName || v.guestName === 'Unknown Guest') return false;
-                                        // Show TOTAL count of valid vouchers since we are in "All" mode by default now
+                                        if (isTestAccount(v.guestName || '', v.id || '') || (v as any).is_test === 'TRUE') return false;
                                         return true;
                                     }).length}
                                 </span>

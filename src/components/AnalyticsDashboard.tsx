@@ -23,14 +23,22 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
     const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
 
     const EXCLUDE_NAMES = useMemo(() => [
-        'test', 'test weather', 'fix verification', 'diag test', 'agent diagnostic'
+        'test', 'samual', 'jay', 'diag', 'agent', 'fix'
     ], []);
 
     const isTestAccount = useCallback((name: string, code: string) => {
         const n = String(name || '').toLowerCase();
         const c = String(code || '').toLowerCase();
         if (c.startsWith('test-')) return true;
-        return EXCLUDE_NAMES.some(tn => n.includes(tn));
+
+        // Exact whole-word matching for 'jay' and 'samual' to avoid matching 'Wijaya'
+        return EXCLUDE_NAMES.some(tn => {
+            if (tn === 'jay' || tn === 'samual') {
+                const regex = new RegExp(`\\b${tn}\\b`, 'i');
+                return regex.test(n);
+            }
+            return n.includes(tn);
+        });
     }, [EXCLUDE_NAMES]);
 
     // Precise Category Matching
@@ -327,7 +335,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.4</h4>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.5</h4>
                     <span className="text-[10px] text-gray-500">Mode: Total Pax & Digital Uni</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
