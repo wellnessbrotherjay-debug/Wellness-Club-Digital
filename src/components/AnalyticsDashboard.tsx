@@ -45,10 +45,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
 
     const smartPax = useCallback((pax: any, name: string) => {
         const p = Number(pax);
-        if (pax && !isNaN(p) && p > 0) return p;
+        // If explicit pax is > 1, we trust it (e.g. 12 Pax for Mrs Sanlie Dewi)
+        if (pax && !isNaN(p) && p > 1) return p;
+
+        // If pax is missing or 1, we check the guest name for separators (&, and, +)
         const n = String(name || '').toLowerCase();
         if (n.includes('&') || n.includes(' and ') || n.includes('+')) return 2;
-        return 1;
+
+        // Fallback to the numeric value if provided, or 1
+        return (pax && !isNaN(p) && p > 0) ? p : 1;
     }, []);
 
     // --- Core Analytics Logic ---
@@ -318,7 +323,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.2</h4>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.3</h4>
                     <span className="text-[10px] text-gray-500">Mode: Total Pax & Digital Uni</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
