@@ -67,7 +67,14 @@ function normalizeHeaders(headers) {
         'pax': 'pax',
         'guests': 'pax',
         // Weather
-        'weather': 'weather'
+        'weather': 'weather',
+        // NEW FIELDS
+        'category_id': 'category',
+        'category': 'category',
+        'is_test': 'is_test',
+        'test': 'is_test',
+        'transaction_id': 'transactionId',
+        'transactionid': 'transactionId'
     };
 
     return headers.map(h => {
@@ -192,6 +199,8 @@ function doPost(e) {
         const emailCol = normalizedHeaders.indexOf('email') + 1;
         const phoneCol = normalizedHeaders.indexOf('whatsapp') + 1;
         const codeCol = normalizedHeaders.indexOf('voucherCode') + 1;
+        const categoryCol = normalizedHeaders.indexOf('category') + 1;
+        const testCol = normalizedHeaders.indexOf('is_test') + 1;
 
         // Validate required columns exist
         if (codeCol === 0) return returnJson({ status: "error", message: "Missing 'Date' column (voucherCode)" });
@@ -210,12 +219,15 @@ function doPost(e) {
                 if (redeemedServiceCol > 0) sheet.getRange(i + 1, redeemedServiceCol).setValue(serviceValue);
                 if (emailCol > 0 && data.email) sheet.getRange(i + 1, emailCol).setValue(data.email);
                 if (phoneCol > 0 && data.phone) sheet.getRange(i + 1, phoneCol).setValue(data.phone);
+                if (categoryCol > 0 && data.category) sheet.getRange(i + 1, categoryCol).setValue(data.category);
 
                 logToRedemptions(ss, {
                     timestamp: redeemedAtValue,
                     voucherCode: voucherCode,
                     guestName: data.userName || data.guestName || values[i][normalizedHeaders.indexOf('guestName')] || '',
                     serviceType: data.serviceType || '',
+                    category: data.category || '',
+                    transactionId: data.transactionId || '',
                     roomNumber: data.roomNumber || values[i][normalizedHeaders.indexOf('roomNumber')] || '',
                     email: data.email || values[i][normalizedHeaders.indexOf('email')] || '',
                     whatsapp: data.whatsapp || data.phone || values[i][normalizedHeaders.indexOf('whatsapp')] || '',
@@ -234,7 +246,7 @@ function doPost(e) {
         
         // Ensure header row exists
         if (sheet.getLastRow() === 0) {
-            sheet.appendRow(['voucherCode', 'guestName', 'status', 'roomNumber', 'checkIn', 'checkOut', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'redeemed_service', 'pax', 'email', 'whatsapp']);
+            sheet.appendRow(['voucherCode', 'guestName', 'status', 'is_test', 'roomNumber', 'checkIn', 'checkOut', 'serviceType', 'emailStatus', 'inputPath', 'created_at', 'redeemed_at', 'redeemed_service', 'pax', 'email', 'whatsapp', 'category']);
         }
         
         const dataRange = sheet.getDataRange().getValues();
@@ -274,7 +286,10 @@ function doPost(e) {
                     'redeemed_service': 'redeemed_service',
                     'serviceType': 'ServiceType',
                     'emailStatus': 'EmailStatus',
-                    'inputPath': 'InputPath'
+                    'inputPath': 'InputPath',
+                    'is_test': 'IsTest',
+                    'category': 'Category',
+                    'transactionId': 'TransactionID'
                 };
                 const prettyName = prettyMap[name] || name;
                 sheet.getRange(1, rawHeaders.length + 1).setValue(prettyName);
@@ -304,6 +319,8 @@ function doPost(e) {
         setVal('pax', data.pax || (targetRow !== -1 ? undefined : 1));
         setVal('email', data.email || data.emailAddress || (targetRow !== -1 ? undefined : ''));
         setVal('whatsapp', data.whatsapp || data.phone || data.phoneNumber || (targetRow !== -1 ? undefined : ''));
+        setVal('is_test', data.is_test || (targetRow !== -1 ? undefined : 'FALSE'));
+        setVal('category', data.category || (targetRow !== -1 ? undefined : ''));
         
         if (targetRow === -1) {
             setVal('created_at', data.created_at || data.createdAt || new Date().toISOString());
@@ -469,7 +486,7 @@ function logToRedemptions(ss, entry) {
     let sheet = ss.getSheetByName('Redemptions');
     if (!sheet) {
         sheet = ss.insertSheet('Redemptions');
-        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'roomNumber', 'email', 'phonenumber', 'weather']);
+        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'category', 'transactionId', 'roomNumber', 'email', 'phonenumber', 'weather']);
     }
     
     const values = sheet.getDataRange().getValues();
@@ -487,6 +504,8 @@ function logToRedemptions(ss, entry) {
                         case 'voucherCode': return entry.voucherCode;
                         case 'guestName': return entry.guestName;
                         case 'serviceType': return entry.serviceType;
+                        case 'category': return entry.category || '';
+                        case 'transactionId': return entry.transactionId || '';
                         case 'roomNumber': return entry.roomNumber;
                         case 'email': return entry.email || '';
                         case 'phonenumber': return entry.whatsapp || entry.phone || '';
@@ -502,7 +521,23 @@ function logToRedemptions(ss, entry) {
     }
     
     // Not found, append new
-    sheet.appendRow([entry.timestamp, entry.voucherCode, entry.guestName, entry.serviceType, entry.roomNumber, entry.email || '', entry.whatsapp || entry.phone || '', entry.weather || '']);
+    const newRow = headers.map(h => {
+        switch(h) {
+            case 'timestamp': return entry.timestamp;
+            case 'voucherCode': return entry.voucherCode;
+            case 'guestName': return entry.guestName;
+            case 'serviceType': return entry.serviceType;
+            case 'category': return entry.category || '';
+            case 'transactionId': return entry.transactionId || '';
+            case 'roomNumber': return entry.roomNumber;
+            case 'email': return entry.email || '';
+            case 'phonenumber': return entry.whatsapp || entry.phone || '';
+            case 'whatsapp': return entry.whatsapp || entry.phone || '';
+            case 'weather': return entry.weather || '';
+            default: return '';
+        }
+    });
+    sheet.appendRow(newRow);
 }
 
 function setupStandardHeaders() {
@@ -529,7 +564,10 @@ function setupStandardHeaders() {
         ['serviceType', 'ServiceType'],
         ['emailStatus', 'EmailStatus'],
         ['inputPath', 'InputPath'],
-        ['weather', 'Weather']
+        ['weather', 'Weather'],
+        ['is_test', 'IsTest'],
+        ['category', 'Category'],
+        ['transactionId', 'TransactionID']
     ];
     
     const values = sheet.getDataRange().getValues();
@@ -578,7 +616,7 @@ function buildReportData(days) {
         const obj = {};
         headers.forEach((h, i) => obj[h] = row[i]);
         return obj;
-    }).filter(r => r.voucherCode && r.guestName);
+    }).filter(r => r.voucherCode && r.guestName && r.is_test !== 'TRUE');
 
     // Issued in period
     const issuedInPeriod = allRows.filter(r => {

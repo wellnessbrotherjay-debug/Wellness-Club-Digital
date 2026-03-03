@@ -23,6 +23,7 @@ export const SERVICES_LIST = [
 export const SERVICE_GROUPS = [
     {
         label: 'Massage & Spa (No.1 Wellness)',
+        category: 'spa',
         items: [
             { value: 'Signature Massage', label: 'No.1 Signature Massage' },
             { value: 'Slimming Massage', label: 'No.1 Slimming Massage' },
@@ -34,6 +35,7 @@ export const SERVICE_GROUPS = [
     },
     {
         label: 'IV Therapy',
+        category: 'spa',
         items: [
             { value: 'IV Immune Booster', label: 'IV Immune Booster' },
             { value: 'IV Recovery & Detox', label: 'IV Recovery & Detox' },
@@ -43,6 +45,7 @@ export const SERVICE_GROUPS = [
     },
     {
         label: 'TS Salon Services',
+        category: 'hair',
         items: [
             { value: 'Hair Cut', label: 'Hair Cut / Styling' },
             { value: 'Manicure/Pedicure', label: 'Manicure / Pedicure' },
@@ -52,6 +55,7 @@ export const SERVICE_GROUPS = [
     },
     {
         label: 'T Store Shopping',
+        category: 'store',
         items: [
             { value: 'Apparel', label: 'Apparel / Clothing' },
             { value: 'Accessories', label: 'Accessories' },
@@ -60,6 +64,7 @@ export const SERVICE_GROUPS = [
     },
     {
         label: 'Fitness & Wellness',
+        category: 'spa',
         items: [
             { value: 'Reformer Pilates', label: 'Reformer Pilates' },
             { value: 'Pilates Class', label: 'Mat Pilates Class' },
@@ -74,6 +79,7 @@ export const SERVICE_GROUPS = [
     },
     {
         label: 'Other',
+        category: 'other',
         items: [
             { value: '15% off All Services @ No.1 (F&B, Classes, Massage, etc)', label: '15% off All Services @ No.1 (F&B, Classes, Massage, etc)' },
             { value: 'Food & Beverage', label: 'Standard Food & Beverage' },

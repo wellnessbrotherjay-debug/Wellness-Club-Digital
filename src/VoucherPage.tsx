@@ -63,6 +63,7 @@ const VoucherPage: React.FC = () => {
         countryCode: '+62',
         pax: 1,
         additionalGuests: [] as string[],
+        isTest: false,
     });
 
     const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
@@ -170,7 +171,8 @@ const VoucherPage: React.FC = () => {
             ENTITLEMENTS.WELLNESS_ALL
         ];
 
-        const allGuestNames = [formData.guestName, ...formData.additionalGuests].filter(Boolean).join(' & ');
+        const rawGuestName = [formData.guestName, ...formData.additionalGuests].filter(Boolean).join(' & ');
+        const allGuestNames = formData.isTest ? `[TEST] ${rawGuestName}` : rawGuestName;
 
         const cleanWA = formData.whatsapp.replace(/\D/g, '').replace(/^0+/, '');
         const prefix = formData.countryCode.replace(/\D/g, '');
@@ -190,7 +192,8 @@ const VoucherPage: React.FC = () => {
             created_at: new Date().toISOString(),
             pax: formData.pax,
             email: formData.email,
-            whatsapp: formData.whatsapp ? finalWA : ''
+            whatsapp: formData.whatsapp ? finalWA : '',
+            is_test: formData.isTest ? 'TRUE' : 'FALSE'
         });
 
         try {
@@ -249,6 +252,7 @@ const VoucherPage: React.FC = () => {
             countryCode: '+62',
             pax: 1,
             additionalGuests: [],
+            isTest: false,
         });
 
         setCurrentVoucher(null);
@@ -633,6 +637,19 @@ const VoucherPage: React.FC = () => {
                                                 value={formData.email}
                                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                                             />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2 flex items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100">
+                                            <input
+                                                type="checkbox"
+                                                id="testMode"
+                                                className="w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                                checked={formData.isTest}
+                                                onChange={e => setFormData({ ...formData, isTest: e.target.checked })}
+                                            />
+                                            <label htmlFor="testMode" className="text-sm font-bold text-amber-800 cursor-pointer">
+                                                Enable Test Mode (Excludes from Analytics)
+                                            </label>
                                         </div>
                                     </div>
 

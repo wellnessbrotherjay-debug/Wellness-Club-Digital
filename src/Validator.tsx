@@ -87,9 +87,19 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         const redeemedAt = new Date().toISOString();
 
         try {
-            // Find voucher to get guest name for email notification
             const voucher = vouchers.find(v => v.id === targetCode);
             const serviceType = selectedServices.join(', ');
+
+            // Calculate primary category based on the first selected service's group
+            let primaryCategory = 'other';
+            for (const group of SERVICE_GROUPS) {
+                if (group.items.some(item => selectedServices.includes(item.value))) {
+                    primaryCategory = (group as any).category || 'other';
+                    break;
+                }
+            }
+
+            const transactionId = `${targetCode}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
             // Use our own API proxy to handle Email Notifications + Google Sheet Update
             const response = await fetch('/api/redeem-voucher', {
@@ -99,6 +109,8 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                     action: 'redeem',
                     voucherCode: targetCode,
                     serviceType: serviceType,
+                    category: primaryCategory,
+                    transactionId: transactionId,
                     guestName: voucher?.guestName || 'Unknown Guest',
                     roomNumber: voucher?.roomNumber || '',
                     email: voucher?.email || '',
