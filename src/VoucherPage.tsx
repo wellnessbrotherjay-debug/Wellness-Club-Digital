@@ -62,8 +62,6 @@ const VoucherPage: React.FC = () => {
         email: '',
         whatsapp: '',
         countryCode: '+62',
-        pax: 1,
-        additionalGuests: [] as string[],
         isTest: false,
     });
 
@@ -172,8 +170,7 @@ const VoucherPage: React.FC = () => {
             ENTITLEMENTS.WELLNESS_ALL
         ];
 
-        const rawGuestName = [formData.guestName, ...formData.additionalGuests].filter(Boolean).join(' & ');
-        const allGuestNames = formData.isTest ? `[TEST] ${rawGuestName}` : rawGuestName;
+        const allGuestNames = formData.isTest ? `[TEST] ${formData.guestName}` : formData.guestName;
 
         const cleanWA = formData.whatsapp.replace(/\D/g, '').replace(/^0+/, '');
         const prefix = formData.countryCode.replace(/\D/g, '');
@@ -191,7 +188,7 @@ const VoucherPage: React.FC = () => {
             imageurl: formData.imageUrl,// Sheet col: "imageurl" = image URL
             services: services.join(', '),
             created_at: new Date().toISOString(),
-            pax: formData.pax,
+            pax: 1,
             email: formData.email,
             whatsapp: formData.whatsapp ? finalWA : '',
             is_test: formData.isTest ? 'TRUE' : 'FALSE'
@@ -218,8 +215,8 @@ const VoucherPage: React.FC = () => {
                 imageUrl: formData.imageUrl,
                 services: services,
                 created_at: new Date().toISOString(),
-                pax: formData.pax,
-                secondGuestName: formData.additionalGuests[0] || '',
+                pax: 1,
+                secondGuestName: '',
                 email: formData.email,
                 whatsapp: formData.whatsapp ? finalWA : ''
             };
@@ -251,8 +248,6 @@ const VoucherPage: React.FC = () => {
             email: '',
             whatsapp: '',
             countryCode: '+62',
-            pax: 1,
-            additionalGuests: [],
             isTest: false,
         });
 
@@ -553,56 +548,6 @@ const VoucherPage: React.FC = () => {
                                                 value={formData.guestName}
                                                 onChange={e => setFormData({ ...formData, guestName: e.target.value })}
                                             />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pax (Guests)</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                                                value={formData.pax}
-                                                onChange={e => setFormData({ ...formData, pax: parseInt(e.target.value) || 1 })}
-                                            />
-                                        </div>
-                                        <div className="space-y-4 md:col-span-1">
-                                            <div className="flex justify-between items-center">
-                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Additional Guests</label>
-                                                <button
-                                                    onClick={() => setFormData({ ...formData, additionalGuests: [...formData.additionalGuests, ''] })}
-                                                    className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors font-bold uppercase"
-                                                >
-                                                    + Add
-                                                </button>
-                                            </div>
-                                            <div className="space-y-3">
-                                                {formData.additionalGuests.map((name, idx) => (
-                                                    <div key={idx} className="flex gap-2">
-                                                        <input
-                                                            type="text"
-                                                            className="flex-1 bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-[#c5a572] transition-all text-sm font-medium"
-                                                            placeholder={`Guest ${idx + 2} Name`}
-                                                            value={name}
-                                                            onChange={e => {
-                                                                const newGuests = [...formData.additionalGuests];
-                                                                newGuests[idx] = e.target.value;
-                                                                setFormData({ ...formData, additionalGuests: newGuests });
-                                                            }}
-                                                        />
-                                                        <button
-                                                            onClick={() => {
-                                                                const newGuests = formData.additionalGuests.filter((_, i) => i !== idx);
-                                                                setFormData({ ...formData, additionalGuests: newGuests });
-                                                            }}
-                                                            className="text-red-400 hover:text-red-600 transition-colors p-2"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                {formData.additionalGuests.length === 0 && (
-                                                    <p className="text-[10px] text-gray-300 italic">No additional guests added.</p>
-                                                )}
-                                            </div>
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Room Number</label>

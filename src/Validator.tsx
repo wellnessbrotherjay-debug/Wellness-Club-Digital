@@ -16,6 +16,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
     const [showScanner, setShowScanner] = useState(false);
     const [expireDate, setExpireDate] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [showManual, setShowManual] = useState(false);
 
     const [isSyncing, setIsSyncing] = useState(false);
 
@@ -203,18 +204,31 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                         <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Voucher Code</label>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Enter ID (e.g. NW-X7Z2)"
-                                value={code}
-                                onChange={(e) => {
-                                    setCode(e.target.value.toUpperCase());
-                                    setStatus('idle');
-                                    setExpireDate('');
-                                }}
-                                onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
-                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-mono tracking-widest font-bold"
-                            />
+                            {!showManual ? (
+                                <div className="w-full bg-gray-50 border border-dashed border-gray-200 rounded-xl px-12 py-4 h-[58px] flex items-center justify-between">
+                                    <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Scanner Active</span>
+                                    <button
+                                        onClick={() => setShowManual(true)}
+                                        className="text-[10px] font-bold text-[#c5a572] underline uppercase tracking-widest"
+                                    >
+                                        Enter Manually
+                                    </button>
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    placeholder="Enter ID (e.g. NW-X7Z2)"
+                                    autoFocus
+                                    value={code}
+                                    onChange={(e) => {
+                                        setCode(e.target.value.toUpperCase());
+                                        setStatus('idle');
+                                        setExpireDate('');
+                                    }}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
+                                    className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-mono tracking-widest font-bold"
+                                />
+                            )}
                         </div>
                         {vouchers.find(v => v.id === code.trim().toUpperCase()) && (
                             <div className="mt-3 bg-[#c5a572]/10 border border-[#c5a572]/20 rounded-lg p-4 flex flex-col gap-2 animate-fade-in">
@@ -231,15 +245,8 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                                 </div>
                                 <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572]">
                                     <span className="flex items-center gap-1">
-                                        <span className="text-sm">👥</span>
-                                        {vouchers.find(v => v.id === code.trim().toUpperCase())?.pax || 1} Pax
+                                        Voucher Valid for Digital Redemption
                                     </span>
-                                    {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName && (
-                                        <span className="flex items-center gap-1 border-l border-[#c5a572]/20 pl-4">
-                                            <span className="text-sm">👤</span>
-                                            {vouchers.find(v => v.id === code.trim().toUpperCase())?.secondGuestName}
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         )}
