@@ -226,7 +226,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
                 room: r.roomNumber
             }))
         };
-    }, [vouchers, timeRange, startDate, endDate, serviceCategory, getCategoryStrict, effectiveRedemptions, isTestAccount]);
+    }, [vouchers, timeRange, startDate, endDate, serviceCategory, getCategoryStrict, smartPax, effectiveRedemptions, isTestAccount]);
 
     const downloadReport = () => {
         const now = new Date();
@@ -318,7 +318,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.0</h4>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.2</h4>
                     <span className="text-[10px] text-gray-500">Mode: Total Pax & Digital Uni</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
