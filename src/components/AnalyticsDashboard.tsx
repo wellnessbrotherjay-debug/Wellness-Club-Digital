@@ -151,6 +151,40 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
             wellness: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as any).explicitCategory) === 'wellness').length
         };
 
+        // --- Daily Redemptions ---
+        const dailyCounts: Record<string, number> = {};
+        filteredRedemptions.forEach(r => {
+            const d = parseDate(r.timestamp);
+            if (d) {
+                const key = d.toISOString().split('T')[0];
+                dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+            }
+        });
+
+        // --- Daily Issued Counts ---
+        const dailyIssuedCounts: Record<string, number> = {};
+        realVouchers.forEach(v => {
+            const d = parseDate(v.created_at || '');
+            if (!d) return;
+            if (timeRange === 'week' && d < oneWeekAgo) return;
+            if (timeRange === 'month' && d < oneMonthAgo) return;
+            if (timeRange === 'launch' && d < launchDate) return;
+            if (timeRange === 'custom') {
+                const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+                const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+                if (d < start || d > end) return;
+            }
+            const key = d.toISOString().split('T')[0];
+            dailyIssuedCounts[key] = (dailyIssuedCounts[key] || 0) + 1;
+        });
+
+        // --- Service Counts ---
+        const serviceCounts: Record<string, number> = {};
+        filteredRedemptions.forEach(r => {
+            const svc = r.serviceType || 'Voucher';
+            serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
+        });
+
         const redemptionRate = totalVouchersPool > 0 ? Math.round((effectiveRedemptions.length / totalVouchersPool) * 100) : 0;
 
         return {
@@ -160,9 +194,73 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             shopTotals,
             shopIssued,
+            serviceCounts,
+            dailyCounts: Object.entries(dailyCounts).sort((a, b) => b[0].localeCompare(a[0])),
+            dailyIssuedCounts,
             recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         };
     }, [vouchers, timeRange, startDate, endDate, serviceCategory, getCategoryStrict, effectiveRedemptions, isTestAccount]);
+
+    const downloadReport = () => {
+        const today = new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const { dailyIssuedCounts, dailyCounts, serviceCounts, totalRedemptions, totalIssuedPool, redemptionRate } = stats;
+        const redeemedMap = Object.fromEntries(dailyCounts);
+        const allDates = [...new Set([...Object.keys(dailyIssuedCounts), ...dailyCounts.map(([d]) => d)])].sort((a, b) => b.localeCompare(a));
+
+        const dailyRows = allDates.map(date => {
+            const issued = dailyIssuedCounts[date] || 0;
+            const redeemed = redeemedMap[date] || 0;
+            const rate = issued > 0 ? Math.round((redeemed / issued) * 100) : 0;
+            const d = new Date(date + 'T00:00:00');
+            const label = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+            return `<tr><td>${label}</td><td style="color:#9a7a52;font-weight:bold;text-align:center">${issued}</td><td style="color:#1a7a4a;font-weight:bold;text-align:center">${redeemed}</td><td style="text-align:center;color:${rate >= 50 ? '#1a7a4a' : '#cc8800'}">${issued > 0 ? rate + '%' : '—'}</td></tr>`;
+        }).join('');
+
+        const serviceRows = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]).map(([svc, count]) =>
+            `<tr><td>${svc}</td><td style="text-align:right;font-weight:bold;color:#1a7a4a">${count}</td></tr>`
+        ).join('');
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Wellness Voucher Report — ${today}</title>
+<style>body{font-family:Arial,sans-serif;color:#222;max-width:800px;margin:40px auto;padding:0 24px}
+h1{color:#c5a572;border-bottom:3px solid #c5a572;padding-bottom:8px}
+h2{color:#2c2420;font-size:15px;margin-top:28px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
+th{background:#f5f5f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#888}
+td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
+.kpi{display:flex;gap:16px;margin:20px 0}
+.kpi-box{flex:1;border:1px solid #e0e0e0;border-radius:8px;padding:16px;text-align:center}
+.kpi-label{font-size:11px;font-weight:bold;text-transform:uppercase;color:#888;margin:0}
+.kpi-val{font-size:36px;font-weight:bold;margin:6px 0 0}
+@media print{button{display:none}}
+</style></head><body>
+<h1>📊 No.1 Wellness Voucher Report</h1>
+<p style="color:#888;font-size:13px">Generated: ${today} &nbsp;·&nbsp; Filter: {timeRange}</p>
+<div class="kpi">
+  <div class="kpi-box"><p class="kpi-label">Total Issued (Selected Period)</p><p class="kpi-val" style="color:#9a7a52">${totalIssuedPool}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Total Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalRedemptions}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Conversion Rate</p><p class="kpi-val" style="color:#4444bb">${redemptionRate}%</p></div>
+</div>
+<h2>📅 Daily Breakdown</h2>
+<table><thead><tr><th>Date</th><th style="text-align:center">Issued</th><th style="text-align:center">Redeemed</th><th style="text-align:center">Rate</th></tr></thead>
+<tbody>${dailyRows || '<tr><td colspan="4" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
+</table>
+<h2>✨ Services Breakdown</h2>
+<table><thead><tr><th>Service</th><th style="text-align:right">Count</th></tr></thead>
+<tbody>${serviceRows || '<tr><td colspan="2" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
+</table>
+<p style="text-align:center;margin-top:40px"><button onclick="window.print()" style="background:#c5a572;color:white;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button></p>
+</body></html>`;
+
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `wellness_report_${new Date().toISOString().split('T')[0]}.html`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     const exportToCSV = () => {
         const headers = ['Voucher Code', 'Guest Name', 'Room', 'Date', 'Type'];
@@ -227,7 +325,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
 
                 <div className="flex items-center gap-3">
                     <button onClick={exportToCSV} className="bg-gray-100 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 hover:bg-gray-200 transition-colors">
-                        <Download size={14} /> CSV Export
+                        <Download size={14} /> CSV
+                    </button>
+                    <button onClick={downloadReport} className="bg-[#c5a572] text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 hover:bg-[#b09465] transition-all shadow-md">
+                        <Download size={14} /> PDF Report
                     </button>
                 </div>
             </div>
