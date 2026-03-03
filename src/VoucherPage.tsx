@@ -13,7 +13,6 @@ import { COUNTRY_CODES } from './data/countryCodes';
 
 
 import { LoginScreen } from './components/LoginScreen';
-import { VoucherCache } from './utils/voucherCache';
 
 export interface VoucherData {
     id: string;
@@ -222,11 +221,7 @@ const VoucherPage: React.FC = () => {
             };
 
             setCurrentVoucher(newVoucher);
-            setCurrentVoucher(newVoucher);
             setRecentVouchers(prev => [newVoucher, ...prev]);
-
-            // CRITICAL: Cache locally to ensure WhatsApp/Email persist even if backend sync lags
-            VoucherCache.save(newVoucher);
 
             setEmail(formData.email);
             setStatus('success');
@@ -331,9 +326,8 @@ const VoucherPage: React.FC = () => {
     };
 
     const clearHistory = () => {
-        if (window.confirm("Are you sure you want to clear all local voucher history? This doesn't affect the Google Sheet.")) {
+        if (window.confirm("Are you sure you want to clear your local view? (This won't delete backend data)")) {
             setRecentVouchers([]);
-            VoucherCache.clear();
         }
     };
 
@@ -364,7 +358,6 @@ const VoucherPage: React.FC = () => {
 
             setRecentVouchers(prev => prev.filter(v => !idList.includes(v.id)));
             if (isBulk) setSelectedIds([]);
-            VoucherCache.delete(idList);
 
             await fetch('/api/redeem-voucher', {
                 method: 'POST',

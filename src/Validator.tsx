@@ -1,6 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
 import { Search, CheckCircle, XCircle, Loader2, ChevronDown, Camera, AlertTriangle } from 'lucide-react';
-import { VoucherCache } from './utils/voucherCache';
 import QRScanner from './QRScanner';
 import type { VoucherData } from './VoucherPage';
 
@@ -128,19 +127,6 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
             // Artificial delay so the user can see the "Redeeming" status on mobile
             setTimeout(() => {
                 setStatus('valid');
-
-                // CRITICAL: Update local cache immediately so the UI reflects the redemption 
-                // even if the background fetch hasn't completed yet.
-                if (voucher) {
-                    const updatedVoucher = {
-                        ...voucher,
-                        status: 'Redeemed',
-                        redeemed_at: redeemedAt,
-                        redeemed_service: serviceType
-                    };
-                    VoucherCache.save(updatedVoucher);
-                    console.log(`[Validator] Local cache updated for ${targetCode}`);
-                }
 
                 setSelectedServices([]); // RESET SELECTION
                 if (!manualCode) setCode('');

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { VoucherData } from '../VoucherPage';
-import { VoucherCache } from '../utils/voucherCache';
 
 interface RedemptionData {
     timestamp: string;
@@ -90,12 +89,14 @@ export const useVoucherData = () => {
                 fetch('/api/get-data?sheet=Redemptions')
             ]);
 
-            const vData = await vResponse.json();
-            const rData = await rResponse.json();
+            const [vData, rData] = [
+                vResponse.ok ? await vResponse.json() : [],
+                rResponse.ok ? await rResponse.json() : []
+            ];
 
             if (Array.isArray(vData)) {
                 const mappedVouchers = vData.map(mapVoucher).reverse().filter(v => v.id);
-                setRecentVouchers(VoucherCache.merge(mappedVouchers));
+                setRecentVouchers(mappedVouchers);
             }
 
             if (Array.isArray(rData)) {

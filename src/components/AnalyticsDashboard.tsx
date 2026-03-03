@@ -140,9 +140,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
             wellness: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as any).category) === 'wellness').length
         };
 
-        // If time range is NOT 'all', we might want to filter Issued by creation date too?
-        // But the user said "192 issued", so they clearly want the total Pool.
         const totalVouchersPool = realVouchers.length;
+        const totalPaxPool = realVouchers.reduce((sum, v) => sum + (v.pax || 1), 0);
+
+        // Map for looking up Pax during redemptions
+        const voucherPaxMap = new Map(realVouchers.map(v => [v.id, v.pax || 1]));
 
         // Shop Redeemed Totals (Subset of Issued)
         const shopTotals = {
@@ -185,31 +187,44 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
             serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
         });
 
-        const redemptionRate = totalVouchersPool > 0 ? Math.round((effectiveRedemptions.length / totalVouchersPool) * 100) : 0;
+        const totalRedemptions = filteredRedemptions.length;
+        const totalPaxRedeemed = filteredRedemptions.reduce((sum, r) => sum + (voucherPaxMap.get(r.voucherCode) || 1), 0);
+        const redemptionRate = totalVouchersPool > 0 ? Math.round((totalRedemptions / totalVouchersPool) * 100) : 0;
+        const paxRedemptionRate = totalPaxPool > 0 ? Math.round((totalPaxRedeemed / totalPaxPool) * 100) : 0;
 
         return {
-            totalRedemptions: filteredRedemptions.length,
-            totalIssuedPool: totalVouchersPool,
+            totalRedemptions,
+            totalPaxRedeemed,
+            totalVouchersPool,
+            totalPaxPool,
             redemptionRate,
+            paxRedemptionRate,
             uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
             shopTotals,
             shopIssued,
             serviceCounts,
-            dailyCounts: Object.entries(dailyCounts).sort((a, b) => b[0].localeCompare(a[0])),
-            dailyIssuedCounts,
-            recentActivity: [...filteredRedemptions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
+            dailyIssuedCounts: Object.entries(dailyIssuedCounts).sort((a, b) => a[0].localeCompare(b[0])), // Renamed from dailyCreatedCounts to match existing variable
+            recentActivity: filteredRedemptions.slice(0, 10).map(r => ({
+                id: r.voucherCode,
+                guest: r.guestName,
+                service: r.serviceType,
+                time: r.timestamp,
+                room: r.roomNumber
+            }))
         };
     }, [vouchers, timeRange, startDate, endDate, serviceCategory, getCategoryStrict, effectiveRedemptions, isTestAccount]);
 
     const downloadReport = () => {
-        const today = new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        const { dailyIssuedCounts, dailyCounts, serviceCounts, totalRedemptions, totalIssuedPool, redemptionRate } = stats;
+        const now = new Date();
+        const today = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const { dailyIssuedCounts, dailyCounts, serviceCounts, totalRedemptions, totalPaxRedeemed, totalVouchersPool, totalPaxPool, redemptionRate, paxRedemptionRate } = stats;
         const redeemedMap = Object.fromEntries(dailyCounts);
         const allDates = [...new Set([...Object.keys(dailyIssuedCounts), ...dailyCounts.map(([d]) => d)])].sort((a, b) => b.localeCompare(a));
 
         const dailyRows = allDates.map(date => {
-            const issued = dailyIssuedCounts[date] || 0;
-            const redeemed = redeemedMap[date] || 0;
+            const issued = (dailyIssuedCounts as any)[date] || 0;
+            const redeemed = (redeemedMap as any)[date] || 0;
             const rate = issued > 0 ? Math.round((redeemed / issued) * 100) : 0;
             const d = new Date(date + 'T00:00:00');
             const label = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
@@ -228,18 +243,23 @@ h2{color:#2c2420;font-size:15px;margin-top:28px;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
 th{background:#f5f5f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#888}
 td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
-.kpi{display:flex;gap:16px;margin:20px 0}
-.kpi-box{flex:1;border:1px solid #e0e0e0;border-radius:8px;padding:16px;text-align:center}
-.kpi-label{font-size:11px;font-weight:bold;text-transform:uppercase;color:#888;margin:0}
-.kpi-val{font-size:36px;font-weight:bold;margin:6px 0 0}
+.kpi{display:flex;gap:12px;margin:20px 0;flex-wrap:wrap}
+.kpi-box{flex:1;min-width:140px;border:1px solid #e0e0e0;border-radius:8px;padding:12px;text-align:center}
+.kpi-label{font-size:9px;font-weight:bold;text-transform:uppercase;color:#888;margin:0}
+.kpi-val{font-size:24px;font-weight:bold;margin:4px 0 0}
 @media print{button{display:none}}
 </style></head><body>
 <h1>📊 No.1 Wellness Voucher Report</h1>
-<p style="color:#888;font-size:13px">Generated: ${today} &nbsp;·&nbsp; Filter: {timeRange}</p>
+<p style="color:#888;font-size:13px">Generated: ${today} &nbsp;·&nbsp; Filter: ${timeRange}</p>
 <div class="kpi">
-  <div class="kpi-box"><p class="kpi-label">Total Issued (Selected Period)</p><p class="kpi-val" style="color:#9a7a52">${totalIssuedPool}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Total Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalRedemptions}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Conversion Rate</p><p class="kpi-val" style="color:#4444bb">${redemptionRate}%</p></div>
+  <div class="kpi-box"><p class="kpi-label">Vouchers Issued</p><p class="kpi-val" style="color:#9a7a52">${totalVouchersPool}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Vouchers Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalRedemptions}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Voucher Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${redemptionRate}%</p></div>
+</div>
+<div class="kpi">
+  <div class="kpi-box"><p class="kpi-label">Total Pax Issued</p><p class="kpi-val" style="color:#9a7a52">${totalPaxPool}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Total Pax Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalPaxRedeemed}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Pax Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${paxRedemptionRate}%</p></div>
 </div>
 <h2>📅 Daily Breakdown</h2>
 <table><thead><tr><th>Date</th><th style="text-align:center">Issued</th><th style="text-align:center">Redeemed</th><th style="text-align:center">Rate</th></tr></thead>
@@ -285,17 +305,17 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v3.5</h4>
-                    <span className="text-[10px] text-gray-500">Mode: Typed Digital Flow</span>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.0</h4>
+                    <span className="text-[10px] text-gray-500">Mode: Total Pax & Digital Uni</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
                     <div>
-                        <p className="text-gray-400">Total Vouchers (Real): {stats.totalIssuedPool}</p>
-                        <p className="text-gray-400">Total Redemptions (Real): {effectiveRedemptions.length}</p>
+                        <p className="text-gray-400">Total Vouchers: {stats.totalVouchersPool}</p>
+                        <p className="text-gray-400">Total Pax Issued: {stats.totalPaxPool}</p>
                     </div>
                     <div className="text-right">
                         <p className="text-cyan-400">Filter: {timeRange} | {serviceCategory}</p>
-                        <p className="text-amber-400">Global Rate: {stats.redemptionRate}%</p>
+                        <p className="text-amber-400">Pax Rate: {stats.paxRedemptionRate}%</p>
                     </div>
                 </div>
             </div>
@@ -308,14 +328,14 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                         <span className="text-xs font-bold uppercase tracking-widest">Performance</span>
                     </div>
 
-                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase">
+                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
                         <option value="all">All Time</option>
                         <option value="launch">Since Launch</option>
                         <option value="month">This Month</option>
                         <option value="week">This Week</option>
                     </select>
 
-                    <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase">
+                    <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
                         <option value="all">All Units</option>
                         <option value="wellness">Wellness</option>
                         <option value="fashion">T Store</option>
@@ -362,27 +382,34 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                 ))}
             </div>
 
-            {/* Global Stats */}
+            {/* Global Stats - Updated with Pax */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-green-500 opacity-20 group-hover:opacity-100 transition-opacity" />
                     <TrendingUp size={20} className="mx-auto mb-3 text-green-500" />
                     <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Redeemed</p>
-                    <h3 className="text-2xl font-serif font-bold">{stats.totalRedemptions}</h3>
+                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.totalRedemptions}</h3>
+                    <p className="text-[10px] text-green-600 font-bold mt-1">{stats.totalPaxRedeemed} Pax</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500 opacity-20 group-hover:opacity-100 transition-opacity" />
                     <Zap size={20} className="mx-auto mb-3 text-orange-500" />
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Conv. Rate</p>
-                    <h3 className="text-2xl font-serif font-bold">{stats.redemptionRate}%</h3>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Voucher Rate</p>
+                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.redemptionRate}%</h3>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-20 group-hover:opacity-100 transition-opacity" />
                     <Tag size={20} className="mx-auto mb-3 text-blue-500" />
                     <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Pool</p>
-                    <h3 className="text-2xl font-serif font-bold">{stats.totalIssuedPool}</h3>
+                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.totalVouchersPool}</h3>
+                    <p className="text-[10px] text-blue-600 font-bold mt-1">{stats.totalPaxPool} Pax Issued</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 opacity-20 group-hover:opacity-100 transition-opacity" />
                     <Users size={20} className="mx-auto mb-3 text-purple-500" />
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Unique Guests</p>
-                    <h3 className="text-2xl font-serif font-bold">{stats.uniqueGuests}</h3>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Pax Conv. Rate</p>
+                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.paxRedemptionRate}%</h3>
+                    <p className="text-[10px] text-purple-600 font-bold mt-1">{stats.uniqueGuests} Unique</p>
                 </div>
             </div>
 
@@ -406,19 +433,19 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                             {stats.recentActivity.slice(0, 20).map((r, i) => (
                                 <tr key={i} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="px-6 py-4">
-                                        <div className="font-bold text-gray-900 text-xs">{r.guestName}</div>
-                                        <div className="text-[10px] text-gray-400">Room {r.roomNumber}</div>
+                                        <div className="font-bold text-gray-900 text-xs">{r.guest}</div>
+                                        <div className="text-[10px] text-gray-400">Room {r.room}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button onClick={() => onViewVoucher?.(r.voucherCode)} className="text-xs font-mono font-bold text-[#c5a572] hover:underline uppercase">
-                                            {r.voucherCode}
+                                        <button onClick={() => onViewVoucher?.(r.id)} className="text-xs font-mono font-bold text-[#c5a572] hover:underline uppercase">
+                                            {r.id}
                                         </button>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="text-[10px] border border-gray-200 px-2 py-0.5 rounded font-bold uppercase text-gray-500">{r.serviceType}</span>
+                                        <span className="text-[10px] border border-gray-200 px-2 py-0.5 rounded font-bold uppercase text-gray-500">{r.service}</span>
                                     </td>
                                     <td className="px-6 py-4 text-[10px] text-gray-400">
-                                        {new Date(r.timestamp).toLocaleString()}
+                                        {new Date(r.time).toLocaleString()}
                                     </td>
                                 </tr>
                             ))}
