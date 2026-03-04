@@ -3,16 +3,22 @@ import { supabase } from './supabase.js';
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
 
-// Fire-and-forget to Google Sheets for mirroring
-async function mirrorToGoogleSheets(payload) {
-    try {
-        fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        }).catch(err => console.warn('[Mirror] Google Sheets error:', err.message));
-    } catch (e) {
-        console.warn('[Mirror] Failed to send to Sheets:', e.message);
+async function mirrorToGoogleSheets(payload, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            if (response.ok) return true;
+            console.warn(`[Mirror] Attempt ${i + 1} failed: ${response.status}`);
+        } catch (e) {
+            console.warn(`[Mirror] Attempt ${i + 1} error: ${e.message}`);
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
     }
+    return false;
 }
 
 const AUDIT_URL = process.env.VERCEL_URL
@@ -27,7 +33,7 @@ async function writeAuditEvent(payload) {
             body: JSON.stringify(payload),
         });
     } catch (e) {
-        console.warn('[AuditLog] Fire-and-forget failed:', e.message);
+        console.warn('[AuditLog] Write failed:', e.message);
     }
 }
 
@@ -110,43 +116,26 @@ export default async function handler(req, res) {
             body.redeemedAt = redeemedAt;
         }
 
-        // 2. Execute Mirroring to Google Sheets (Now the Primary Action)
-        await mirrorToGoogleSheets(body);
+        // 2. Execute Mirroring to Google Sheets (Primary Action)
+        const mirrored = await mirrorToGoogleSheets(body);
 
-        // 3. Audit Log - keep as fire-and-forget
-        if (action === 'redeem') {
+        // 3. Fail-safe: If Sheets failed, we MUST log to Audit Log (which stores in MongoDB/Supabase)
+        // Ensure audit log is always awaited even if Sheets fails
+        if (action === 'redeem' || !mirrored) {
             const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
-            writeAuditEvent({
-                action: 'REDEEMED',
+            await writeAuditEvent({
+                action: action === 'redeem' ? 'REDEEMED' : 'CREATED_FAILSAFE',
                 voucherCode: body.voucherCode,
                 guestName: body.guestName,
                 serviceType: body.serviceType || body.redeemed_service || '',
                 roomNumber: body.roomNumber,
-                source: 'DIGITAL_REDEMPTION_SHEETS_ONLY',
+                source: mirrored ? 'DIGITAL_APP' : 'FAILSAFE_SHEETS_OFFLINE',
                 inputPath: body.inputPath || '/',
                 deviceId: body.deviceId || req.headers['x-device-id'] || 'unknown',
                 sessionId: body.sessionId || '',
                 userAgent: body.userAgent || req.headers['user-agent'] || '',
                 ipAddress: ip,
-            }).catch(e => console.warn('[AuditLog] Deferred error:', e.message));
-        }
-
-        // 3. Audit Log - keep as fire-and-forget
-        if (action === 'redeem') {
-            const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
-            writeAuditEvent({
-                action: 'REDEEMED',
-                voucherCode: body.voucherCode,
-                guestName: body.guestName,
-                serviceType: body.serviceType || body.redeemed_service || '',
-                roomNumber: body.roomNumber,
-                source: 'DIGITAL_REDEMPTION',
-                inputPath: body.inputPath || '/',
-                deviceId: body.deviceId || req.headers['x-device-id'] || 'unknown',
-                sessionId: body.sessionId || '',
-                userAgent: body.userAgent || req.headers['user-agent'] || '',
-                ipAddress: ip,
-            }).catch(e => console.warn('[AuditLog] Deferred error:', e.message));
+            });
         }
 
         // 4. Email Notification

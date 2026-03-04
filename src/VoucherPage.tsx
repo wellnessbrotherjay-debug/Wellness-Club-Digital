@@ -114,6 +114,26 @@ const VoucherPage: React.FC = () => {
         refresh: fetchData
     } = useVoucherData();
 
+    // --- BULLETPROOF BACKUP SYSTEM ---
+    const [localBackups, setLocalBackups] = useState<VoucherData[]>([]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('wellness_vouchers_backup');
+        if (saved) {
+            try {
+                setLocalBackups(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to parse local backup');
+            }
+        }
+    }, []);
+
+    const saveToLocalBackup = (voucher: VoucherData) => {
+        const updated = [voucher, ...localBackups].slice(0, 100); // Keep last 100
+        setLocalBackups(updated);
+        localStorage.setItem('wellness_vouchers_backup', JSON.stringify(updated));
+    };
+
     const effectiveRedemptions = useMemo(() => {
         const recentRedemptions = recentVouchers
             .filter(v => (v.status === 'Redeemed' || v.redeemed_at) && v.redeemed_at) // Ensure it has a redemption timestamp
@@ -240,6 +260,9 @@ const VoucherPage: React.FC = () => {
                 email: formData.email,
                 whatsapp: formData.whatsapp ? finalWA : ''
             };
+
+            // BULLETPROOF: Save to local storage IMMEDIATELY before state changes
+            saveToLocalBackup(newVoucher);
 
             setCurrentVoucher(newVoucher);
             setRecentVouchers(prev => [newVoucher, ...prev]);
@@ -963,6 +986,37 @@ const VoucherPage: React.FC = () => {
 
                 {activeTab === 'issued' && (
                     <div className="animate-fade-in space-y-6">
+                        {localBackups.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-6">
+                                <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 mb-2">
+                                    <Clock size={16} />
+                                    Recent Local Backups (Bulletproof Log)
+                                </h3>
+                                <p className="text-xs text-amber-700 mb-4">
+                                    These vouchers were generated recently on this device. If the spreadsheet sync failed, you can still find the details here.
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {localBackups.slice(0, 6).map((bv) => (
+                                        <div
+                                            key={bv.id}
+                                            className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm cursor-pointer hover:border-amber-300 transition-all"
+                                            onClick={() => {
+                                                setCurrentVoucher(bv);
+                                                setActiveTab('create');
+                                            }}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <span className="font-mono text-[10px] font-bold text-amber-600">{bv.id}</span>
+                                                <ExternalLink size={10} className="text-amber-400" />
+                                            </div>
+                                            <p className="text-xs font-bold text-gray-800 truncate">{bv.guestName}</p>
+                                            <p className="text-[10px] text-gray-500">Room {bv.roomNumber} • {new Date(bv.created_at || '').toLocaleDateString()}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
                             <div className="flex items-center gap-4 w-full md:w-auto">
                                 <button
