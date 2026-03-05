@@ -256,12 +256,13 @@ const GuestPass: React.FC = () => {
                     </div>
                 </div>
 
-                {/* VIP DISCOUNT BANNER */}
-                {status === 'valid' && data.services?.some((s: string) => s.includes('15%')) && (
+                {/* VIP DISCOUNT BANNER - Always show for valid passes */}
+                {status === 'valid' && (
                     <div className="px-6 -mt-6 relative z-10">
                         <div className="bg-[#c5a572] p-8 rounded-[2rem] text-white shadow-xl text-center border-4 border-white">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-90">VIP Benefit Activated</p>
                             <h2 className="text-3xl font-serif font-bold leading-tight">15% SAVINGS</h2>
+                            <p className="text-xs mt-2 opacity-90">Exclusive discount for {data.guestName}</p>
                         </div>
                     </div>
                 )}
@@ -365,12 +366,12 @@ const GuestPass: React.FC = () => {
             {/* Float Action for Guest */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 space-y-2">
                 <a
-                    href="https://wellness-club-digital.vercel.app"
+                    href="https://no1wellness.com"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 bg-[#2c2420] text-white py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all"
                 >
-                    Visit Our Website
+                    Visit No.1 Wellness
                 </a>
                 <button
                     onClick={handleSharePass}
