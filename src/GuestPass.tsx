@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { CheckCircle, Calendar, Key, XCircle, Loader2, Share2, Clock } from 'lucide-react';
+import { CheckCircle, Calendar, Key, XCircle, Loader2, Clock } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { Helmet } from 'react-helmet-async';
 
@@ -364,23 +364,15 @@ const GuestPass: React.FC = () => {
             </div>
 
             {/* Float Action for Guest */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 space-y-2">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4">
                 <a
                     href="https://no1wellness.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 bg-[#2c2420] text-white py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all"
+                    className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#c5a572] to-[#b08d55] text-white py-5 rounded-2xl font-bold uppercase tracking-widest text-sm shadow-2xl active:scale-95 transition-all border-2 border-white"
                 >
-                    Visit No.1 Wellness
+                    Click to Claim Your 15% Discount
                 </a>
-                <button
-                    onClick={handleSharePass}
-                    disabled={isSaving}
-                    className="w-full flex items-center justify-center gap-2 bg-[#c5a572] text-white py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all"
-                >
-                    <Share2 size={16} />
-                    Save & Share Pass
-                </button>
             </div>
         </div>
     );
