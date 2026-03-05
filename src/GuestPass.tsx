@@ -364,10 +364,18 @@ const GuestPass: React.FC = () => {
 
             {/* Float Action for Guest */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 space-y-2">
+                <a
+                    href="https://wellness-club-digital.vercel.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 bg-[#2c2420] text-white py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all"
+                >
+                    Visit Our Website
+                </a>
                 <button
                     onClick={handleSharePass}
                     disabled={isSaving}
-                    className="w-full flex items-center justify-center gap-2 bg-[#c5a572] text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all"
+                    className="w-full flex items-center justify-center gap-2 bg-[#c5a572] text-white py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all"
                 >
                     <Share2 size={16} />
                     Save & Share Pass
