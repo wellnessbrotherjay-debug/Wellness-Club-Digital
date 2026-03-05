@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { CheckCircle, Calendar, Key, XCircle, Loader2, Clock } from 'lucide-react';
-import { toPng } from 'html-to-image';
 import { Helmet } from 'react-helmet-async';
 
 
@@ -10,11 +9,9 @@ const GuestPass: React.FC = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const [data, setData] = useState<any>(null);
-    const passRef = useRef<HTMLDivElement>(null);
     const [status, setStatus] = useState<'loading' | 'valid' | 'redeemed' | 'expired' | 'error'>('loading');
     const [statusMessage, setStatusMessage] = useState('');
     const [redemptions, setRedemptions] = useState<any[]>([]);
-    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const encodedData = searchParams.get('d');
@@ -164,62 +161,6 @@ const GuestPass: React.FC = () => {
     }
 
 
-    const handleSavePass = async () => {
-        if (passRef.current === null) return;
-        setIsSaving(true);
-        try {
-            const dataUrl = await toPng(passRef.current, {
-                cacheBust: true,
-                quality: 1,
-                pixelRatio: 2,
-                backgroundColor: '#2c2420'
-            });
-            const link = document.createElement('a');
-            const fileName = `No1-Wellness-Pass-${data.guestName.replace(/\s+/g, '-')}.png`;
-            link.download = fileName;
-            link.href = dataUrl;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            alert('✓ Pass saved! Check your Downloads folder or Photos app.');
-        } catch (err) {
-            console.error('Save error:', err);
-            alert('Could not save image. Please take a screenshot instead.');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleSharePass = async () => {
-        if (passRef.current === null) return;
-        setIsSaving(true);
-        try {
-            const dataUrl = await toPng(passRef.current, {
-                cacheBust: true,
-                quality: 1,
-                pixelRatio: 2,
-                backgroundColor: '#2c2420'
-            });
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `No1-Wellness-Pass-${data.guestName.replace(/\s+/g, '-')}.png`, { type: 'image/png' });
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'No.1 Wellness Club Pass',
-                    text: `Digital wellness pass for ${data.guestName}`
-                });
-            } else {
-                handleSavePass();
-            }
-        } catch (err: any) {
-            if (err.name !== 'AbortError') handleSavePass();
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-
     return (
         <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-4 relative">
             <Helmet>
@@ -227,7 +168,7 @@ const GuestPass: React.FC = () => {
             </Helmet>
 
             {/* Pass Container */}
-            <div ref={passRef} className="w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl relative border border-white/10">
+            <div className="w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden shadow-2xl relative border border-white/10">
 
                 {/* EXPIRATION BANNER */}
                 {status === 'expired' && (
