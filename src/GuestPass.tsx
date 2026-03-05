@@ -275,20 +275,23 @@ const GuestPass: React.FC = () => {
                     </div>
                 )}
 
-                {/* Staff Redemption QR Section */}
+                {/* VIP Benefits Display for Guest */}
                 <div className="p-8 pt-6 flex flex-col items-center justify-center border-b border-dashed border-gray-100">
                     {status === 'expired' ? (
                         <div className="text-center py-4">
                             <XCircle size={48} className="text-red-400 mx-auto mb-2 opacity-50" />
-                            <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Scanning Disabled (Expired)</p>
+                            <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Pass Expired</p>
                         </div>
                     ) : (
                         <>
-                            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mb-4 text-center">Staff Scan to Redeem Treatments</p>
-                            <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 relative group">
-                                <QRCode value={`${window.location.origin}/v/${id}?scan=redeem`} size={140} />
+                            <div className="text-center mb-4">
+                                <p className="text-[11px] text-[#c5a572] font-bold uppercase tracking-widest mb-2">✨ Your Exclusive Benefits ✨</p>
+                                <p className="text-[9px] text-gray-400">Show this pass to reception to redeem your treatments</p>
                             </div>
-                            <p className="mt-3 text-[10px] font-mono text-gray-300 uppercase tracking-widest">Ref: {id}</p>
+                            <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 relative">
+                                <QRCode value={`${window.location.origin}/v/${id}`} size={140} />
+                            </div>
+                            <p className="mt-3 text-[10px] font-mono text-gray-300 uppercase tracking-widest">Pass ID: {id}</p>
                         </>
                     )}
 
