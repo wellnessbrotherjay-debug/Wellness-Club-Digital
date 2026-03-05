@@ -307,7 +307,7 @@ const GuestPass: React.FC = () => {
             {/* Float Action for Guest */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4">
                 <a
-                    href={`https://no1wellness.com?ref=${id}&name=${encodeURIComponent(data.guestName)}&discount=15`}
+                    href={`https://no1wellness.com/?coupon=${id}&name=${encodeURIComponent(data.guestName)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#c5a572] to-[#b08d55] text-white py-5 rounded-2xl font-bold uppercase tracking-widest text-sm shadow-2xl active:scale-95 transition-all border-2 border-white"
