@@ -305,7 +305,7 @@ const VoucherPage: React.FC = () => {
         setWaStatus('sending');
         const link = `${window.location.origin}/v/${currentVoucher.id}`;
 
-        const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to redeem your services.\n\nEnjoy your stay!`;
+        const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to claim your 15% discount and redeem your services.\n\nEnjoy your stay!`;
         const waLink = `https://wa.me/${currentVoucher.whatsapp.replace('+', '')}?text=${encodeURIComponent(message)}`;
 
         window.open(waLink, '_blank');

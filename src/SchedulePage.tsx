@@ -9,14 +9,19 @@ import { useVoucher } from './contexts/VoucherContext';
 const SchedulePage: React.FC = () => {
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [searchParams] = useSearchParams();
-    const { isDiscountActive, voucher, activateVoucher } = useVoucher();
+    const { isDiscountActive, voucher, activateVoucher, activateFromParams } = useVoucher();
 
     useEffect(() => {
         const d = searchParams.get('d');
+        const coupon = searchParams.get('coupon') || searchParams.get('ref');
+        const name = searchParams.get('name');
+
         if (d) {
             activateVoucher(d);
+        } else if (coupon && name) {
+            activateFromParams(coupon, name);
         }
-    }, [searchParams]);
+    }, [searchParams, activateVoucher, activateFromParams]);
 
     return (
         <div className="min-h-screen bg-[#1a1a1a] text-white font-sans">

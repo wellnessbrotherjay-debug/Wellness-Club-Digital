@@ -16,6 +16,7 @@ interface VoucherContextType {
     isDiscountActive: boolean;
     voucher: VoucherData | null;
     activateVoucher: (encodedData: string) => void;
+    activateFromParams: (id: string, name: string) => void;
     deactivateVoucher: () => void;
     getWhatsAppSuffix: () => string;
 }
@@ -36,6 +37,18 @@ export const VoucherProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
     };
 
+    const activateFromParams = (id: string, name: string) => {
+        setVoucher({
+            id,
+            guestName: name,
+            roomNumber: 'N/A',
+            checkIn: '',
+            checkOut: '',
+            services: []
+        });
+        setIsDiscountActive(true);
+    };
+
     const deactivateVoucher = () => {
         setVoucher(null);
         setIsDiscountActive(false);
@@ -49,7 +62,7 @@ export const VoucherProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     return (
-        <VoucherContext.Provider value={{ isDiscountActive, voucher, activateVoucher, deactivateVoucher, getWhatsAppSuffix }}>
+        <VoucherContext.Provider value={{ isDiscountActive, voucher, activateVoucher, activateFromParams, deactivateVoucher, getWhatsAppSuffix }}>
             {children}
         </VoucherContext.Provider>
     );
