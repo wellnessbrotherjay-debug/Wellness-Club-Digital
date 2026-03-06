@@ -501,12 +501,20 @@ const VoucherPage: React.FC = () => {
                             <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.9 • {recentVouchers.length} Total • {fetchError ? 'Err' : 'OK'}</span>
                             <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">Supabase API Active</span>
                         </div>
-                        <button
-                            onClick={() => window.location.href = '/help'}
-                            className="text-xs font-bold uppercase tracking-widest text-[#c5a572] hover:text-[#2c2420] border border-[#c5a572]/20 px-4 py-2 rounded-lg transition-all hover:bg-[#c5a572]/10"
-                        >
-                            Help
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setUserRole(null)}
+                                className="text-xs font-bold uppercase tracking-widest text-red-500 hover:text-white border border-red-500/20 px-4 py-2 rounded-lg transition-all hover:bg-red-500"
+                            >
+                                Log Out
+                            </button>
+                            <button
+                                onClick={() => window.location.href = '/help'}
+                                className="text-xs font-bold uppercase tracking-widest text-[#c5a572] hover:text-[#2c2420] border border-[#c5a572]/20 px-4 py-2 rounded-lg transition-all hover:bg-[#c5a572]/10"
+                            >
+                                Help
+                            </button>
+                        </div>
                     </div>
                 </div>
 
