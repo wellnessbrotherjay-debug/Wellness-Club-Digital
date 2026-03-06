@@ -388,7 +388,7 @@ const VoucherPage: React.FC = () => {
         if (!window.confirm(confirmMsg)) return;
 
         const password = window.prompt("Enter Admin Password to delete:");
-        if (password !== '1234') {
+        if (password !== 'admin1234') {
             alert("Incorrect password. Deletion cancelled.");
             return;
         }
