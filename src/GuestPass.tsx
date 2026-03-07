@@ -3,6 +3,7 @@ import { useSearchParams, useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { CheckCircle, Calendar, Key, XCircle, Loader2, Clock } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import { isVoucherExpired } from './utils/voucherUtils';
 
 
 const GuestPass: React.FC = () => {
@@ -68,12 +69,7 @@ const GuestPass: React.FC = () => {
                 const imageUrl = currentItem.image_url || currentItem.imageurl || currentItem.imageUrl || '';
                 const createdAt = currentItem.created_at || '';
 
-                const today = new Date().toISOString().split('T')[0];
-                let isExpired = false;
-                if (checkOut) {
-                    const expiry = String(checkOut).split('T')[0];
-                    if (expiry < today) isExpired = true;
-                }
+                const isExpired = isVoucherExpired({ checkOut });
 
                 if (isExpired) {
                     setStatus('expired');
@@ -114,9 +110,7 @@ const GuestPass: React.FC = () => {
                             String(i.voucher_code || i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === id.toUpperCase()
                         );
                         if (currentItem) {
-                            const today = new Date().toISOString().split('T')[0];
-                            const checkOut = currentItem.check_out || currentItem.checkout || currentItem.checkOut || '';
-                            if (checkOut && String(checkOut).split('T')[0] < today) {
+                            if (isVoucherExpired(currentItem)) {
                                 if (status !== 'expired') setStatus('expired');
                             }
                         }
@@ -178,7 +172,7 @@ const GuestPass: React.FC = () => {
                             <XCircle className="mx-auto mb-2" size={32} />
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-90">Access Expired</p>
                             <h2 className="text-2xl font-serif font-bold leading-tight">PASS NO LONGER VALID</h2>
-                            <p className="text-[10px] mt-2 opacity-80 uppercase tracking-widest font-bold">Valid Until: {data?.checkOut}</p>
+                            <p className="text-[10px] mt-2 opacity-80 uppercase tracking-widest font-bold">Valid Until: {data?.checkOut ? new Date(data.checkOut).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</p>
                         </div>
                     </div>
                 )}
@@ -290,7 +284,7 @@ const GuestPass: React.FC = () => {
                     <div className="text-center p-3 bg-[#fafafa] rounded-2xl border border-gray-50">
                         <Calendar size={16} className="text-red-500 mx-auto mb-2" />
                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Valid Until</p>
-                        <p className="font-bold text-red-600 underline">{data.checkOut}</p>
+                        <p className="font-bold text-red-600 underline">{data?.checkOut ? new Date(data.checkOut).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</p>
                     </div>
 
                     <div className="border-t border-dashed border-gray-200 pt-6">
