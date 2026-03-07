@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
         console.log(`[Proxy GET] Fetching ${sheet} DIRECTLY from Google Sheets...`);
 
-        const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx3PFjH_lGbHRYqFoYjrx_67-sD71XgwaxMJreNWTJuIGTcjCgja95Ny7TsZ2RJCVfC/exec';
+        const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyLCafm3ltwnO1pNhEocaWYABSjV4Yxvn1yfXkOKohBv_JTxYu2buWRq51vjhPBX1JL/exec';
         const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheet}`);
 
         if (!response.ok) throw new Error(`Sheets API responded with ${response.status}`);
