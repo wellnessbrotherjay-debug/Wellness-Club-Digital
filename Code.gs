@@ -239,7 +239,10 @@ function doPost(e) {
                     roomNumber: data.roomNumber || values[i][normalizedHeaders.indexOf('roomNumber')] || '',
                     email: data.email || values[i][normalizedHeaders.indexOf('email')] || '',
                     whatsapp: data.whatsapp || data.phone || values[i][normalizedHeaders.indexOf('whatsapp')] || '',
-                    weather: data.weather || ''
+                    weather: data.weather || '',
+                    deviceId: data.deviceId || '',
+                    ipAddress: data.ipAddress || '',
+                    userAgent: data.userAgent || ''
                 });
 
                 return returnJson({ status: "success", message: "Redeemed Successfully" });
@@ -350,7 +353,10 @@ function doPost(e) {
                 roomNumber: data.roomNumber || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('roomNumber')] : ''),
                 email: data.email || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('email')] : ''),
                 whatsapp: data.whatsapp || data.phone || (targetRow !== -1 ? dataRange[targetRow-1][headers.indexOf('whatsapp')] : ''),
-                weather: data.weather || ''
+                weather: data.weather || '',
+                deviceId: data.deviceId || '',
+                ipAddress: data.ipAddress || '',
+                userAgent: data.userAgent || ''
             });
         } else if (data.status === 'Expired') {
             setVal('redeemed_at', ''); // Clear redeemed date if marking expired

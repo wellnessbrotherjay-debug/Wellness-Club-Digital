@@ -10,6 +10,9 @@ interface RedemptionData {
     inputPath?: string;
     emailStatus?: string;
     weather?: string;
+    ipAddress?: string;
+    deviceId?: string;
+    userAgent?: string;
 }
 
 export const useVoucherData = () => {
@@ -62,7 +65,10 @@ export const useVoucherData = () => {
             secondGuestName: String(item.secondGuestName || ''),
             email: String(item.email || ''),
             whatsapp: String(item.whatsapp || ''),
-            weather: String(item.weather || '')
+            weather: String(item.weather || ''),
+            deviceId: String(item.deviceId || item.device_id || ''),
+            ipAddress: String(item.ipAddress || item.ip_address || ''),
+            userAgent: String(item.userAgent || item.user_agent || '')
         };
     };
 
@@ -74,7 +80,10 @@ export const useVoucherData = () => {
         roomNumber: item.room_number || item.roomNumber || item.room || '',
         inputPath: item.inputPath || item.inputpath || '',
         emailStatus: item.emailStatus || item.emailstatus || '',
-        weather: item.weather || ''
+        weather: item.weather || '',
+        ipAddress: item.ipAddress || item.ip_address || '',
+        deviceId: item.deviceId || item.device_id || '',
+        userAgent: item.userAgent || item.user_agent || ''
     });
 
     const fetchData = useCallback(async (isSilent: boolean = false) => {
@@ -85,8 +94,8 @@ export const useVoucherData = () => {
             console.log('🚀 [useVoucherData v2.7] Fetching via Proxy API...');
 
             const [vResponse, rResponse] = await Promise.all([
-                fetch('/api/get-data?sheet=Vouchers'),
-                fetch('/api/get-data?sheet=Redemptions')
+                fetch(`/api/get-data?sheet=Vouchers&t=${Date.now()}`),
+                fetch(`/api/get-data?sheet=Redemptions&t=${Date.now()}`)
             ]);
 
             const [vData, rData] = [
