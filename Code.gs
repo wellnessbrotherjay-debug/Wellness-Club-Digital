@@ -371,9 +371,10 @@ function doPost(e) {
                 serviceCharge: data.serviceCharge || 0,
                 total: data.total || 0
             });
-        } else if (data.status === 'Expired') {
-            setVal('redeemed_at', ''); // Clear redeemed date if marking expired
-            setVal('serviceType', '');
+        } else if (data.status === 'Expired' || data.status === 'Created' || data.status === 'Active') {
+            // Explicitly clear redeemed data if the status is reset or expired
+            setVal('redeemed_at', ''); 
+            setVal('redeemed_service', '');
         }
         
         return returnJson({ status: "success", message: targetRow !== -1 ? "Updated Successfully" : "Created Successfully" });

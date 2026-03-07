@@ -71,7 +71,7 @@ const GuestPass: React.FC = () => {
                 const today = new Date().toISOString().split('T')[0];
                 let isExpired = false;
                 if (checkOut) {
-                    const expiry = new Date(checkOut).toISOString().split('T')[0];
+                    const expiry = String(checkOut).split('T')[0];
                     if (expiry < today) isExpired = true;
                 }
 
@@ -85,7 +85,7 @@ const GuestPass: React.FC = () => {
                     setData({
                         guestName,
                         roomNumber,
-                        checkOut: checkOut ? new Date(checkOut).toISOString().split('T')[0] : '',
+                        checkOut: checkOut || '',
                         services: servicesRaw ? String(servicesRaw).split(/,\s*/g) : [],
                         imageUrl,
                         created_at: createdAt
@@ -115,7 +115,8 @@ const GuestPass: React.FC = () => {
                         );
                         if (currentItem) {
                             const today = new Date().toISOString().split('T')[0];
-                            if (currentItem.checkOut && currentItem.checkOut.split('T')[0] < today) {
+                            const checkOut = currentItem.check_out || currentItem.checkout || currentItem.checkOut || '';
+                            if (checkOut && String(checkOut).split('T')[0] < today) {
                                 if (status !== 'expired') setStatus('expired');
                             }
                         }
