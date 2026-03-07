@@ -242,14 +242,23 @@ const GuestPass: React.FC = () => {
                             <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
                                 <CheckCircle size={12} /> Usage History
                             </p>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {redemptions.map((redeem, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-[11px]">
-                                        <span className="text-[#1a1a1a] font-bold">{redeem.serviceType}</span>
-                                        <span className="text-gray-400 text-[10px] capitalize">
-                                            {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            {redeem.weather && redeem.weather.length < 50 && <span className="ml-1 opacity-75">• {redeem.weather}</span>}
-                                        </span>
+                                    <div key={idx} className="border-b border-green-500/10 last:border-0 pb-2 last:pb-0">
+                                        <div className="flex justify-between items-start text-[11px]">
+                                            <div className="flex flex-col">
+                                                <span className="text-[#1a1a1a] font-bold">{redeem.serviceType}</span>
+                                                {redeem.total && (
+                                                    <span className="text-[9px] text-[#c5a572] font-black uppercase tracking-tighter mt-0.5">
+                                                        Total: {Number(redeem.total).toLocaleString()} IDR (Inc. Tax & Service)
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-gray-400 text-[9px] whitespace-nowrap pt-0.5 uppercase font-bold tracking-tighter">
+                                                {new Date(redeem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {redeem.weather && redeem.weather.length < 50 && <span className="ml-1">• {redeem.weather}</span>}
+                                            </span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

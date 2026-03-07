@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
 import { supabase } from './supabase.js';
 
-const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyLCafm3ltwnO1pNhEocaWYABSjV4Yxvn1yfXkOKohBv_JTxYu2buWRq51vjhPBX1JL/exec';
+// Use actual env var or fallback (ensure URL is correctly quoted and ends in /exec)
+const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbycyXz99TO6iGntmyuRw55yxpD9Clu6k69CWf3-dHip6cV80TxGoHodpI-NvXkZY0Ld/exec';
+
+// Hardcoded bypass - We strictly use REST calls to Google Apps Script now
+const FORCE_REST_MODE = true;
 
 async function mirrorToGoogleSheets(payload, retries = 3) {
     for (let i = 0; i < retries; i++) {
@@ -121,6 +125,14 @@ export default async function handler(req, res) {
             // Ensure deviceId and userAgent are passed through if provided by frontend
             body.deviceId = body.deviceId || req.headers['x-device-id'] || 'unknown';
             body.userAgent = body.userAgent || req.headers['user-agent'] || '';
+
+            // 1.1 Financial Calculations (PPN 11%, Service 10%)
+            if (body.billAmount && !isNaN(body.billAmount)) {
+                const amount = parseFloat(body.billAmount);
+                body.tax = Math.round(amount * 0.11);
+                body.serviceCharge = Math.round(amount * 0.10);
+                body.total = amount + body.tax + body.serviceCharge;
+            }
         }
 
         // 2. Execute Mirroring to Google Sheets (Primary Action)
@@ -142,6 +154,10 @@ export default async function handler(req, res) {
                 sessionId: body.sessionId || '',
                 userAgent: body.userAgent || req.headers['user-agent'] || '',
                 ipAddress: ip,
+                billAmount: body.billAmount,
+                tax: body.tax,
+                serviceCharge: body.serviceCharge,
+                total: body.total
             });
         }
 

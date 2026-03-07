@@ -18,6 +18,8 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
     const [expireDate, setExpireDate] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [showManual, setShowManual] = useState(false);
+    const [billAmount, setBillAmount] = useState('');
+
 
     const [isSyncing, setIsSyncing] = useState(false);
 
@@ -113,7 +115,8 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                     redeemedAt: redeemedAt,
                     deviceId: getDeviceId(),
                     userAgent: navigator.userAgent,
-                    inputPath: window.location.pathname
+                    inputPath: window.location.pathname,
+                    billAmount: billAmount || undefined
                 })
             });
 
@@ -126,6 +129,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 setStatus('valid');
 
                 setSelectedServices([]); // RESET SELECTION
+                setBillAmount(''); // RESET BILL
                 if (!manualCode) setCode('');
                 if (onRefresh) onRefresh(); // REFRESH DATA TO SHOW REDEEMED STATUS
             }, 1000);
@@ -157,6 +161,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
 
         setCode(cleanCode);
         setSelectedServices([]);
+        setBillAmount('');
     }, []);
 
     const closeScanner = useCallback(() => {
@@ -231,6 +236,12 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                                         Voucher Valid for Digital Redemption
                                     </span>
                                 </div>
+                                {vouchers.find(v => v.id === code.trim().toUpperCase())?.status === 'Redeemed' && (
+                                    <div className="mt-2 bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest p-2 rounded flex items-center gap-2 animate-pulse">
+                                        <AlertTriangle size={14} />
+                                        Warning: This voucher is already marked as redeemed
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -304,6 +315,37 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                            Bill Amount (Optional)
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                placeholder="Enter amount (IDR)"
+                                value={billAmount}
+                                onChange={(e) => setBillAmount(e.target.value)}
+                                className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-[#c5a572] transition-colors font-medium"
+                            />
+                            {billAmount && !isNaN(parseFloat(billAmount)) && (
+                                <div className="mt-2 grid grid-cols-3 gap-2">
+                                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                                        <div className="text-[8px] uppercase tracking-tighter text-gray-400 font-bold">PPN (11%)</div>
+                                        <div className="text-[10px] font-bold text-[#c5a572]">{Math.round(parseFloat(billAmount) * 0.11).toLocaleString()}</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                                        <div className="text-[8px] uppercase tracking-tighter text-gray-400 font-bold">Service (10%)</div>
+                                        <div className="text-[10px] font-bold text-[#c5a572]">{Math.round(parseFloat(billAmount) * 0.10).toLocaleString()}</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                                        <div className="text-[8px] uppercase tracking-tighter text-gray-400 font-bold">Total</div>
+                                        <div className="text-[10px] font-bold text-[#2c2420]">{(Math.round(parseFloat(billAmount) * 1.21)).toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <button

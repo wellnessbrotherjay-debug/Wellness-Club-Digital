@@ -54,6 +54,7 @@ async function verifyLiveFix() {
     console.log('2. Redeeming via API handler (Proxy to LIVE)...');
     const req = {
         method: 'POST',
+        headers: { 'x-forwarded-for': '127.0.0.1' }, // Added headers to prevent crash
         body: {
             action: 'redeem',
             voucherCode: voucherId,

@@ -82,7 +82,12 @@ function normalizeHeaders(headers) {
         'ipaddress': 'ipAddress',
         'ip': 'ipAddress',
         'user_agent': 'userAgent',
-        'useragent': 'userAgent'
+        'useragent': 'userAgent',
+        // FINANCIAL TRACKING
+        'bill_amount': 'billAmount',
+        'tax': 'tax',
+        'service_charge': 'serviceCharge',
+        'total': 'total'
     };
 
     return headers.map(h => {
@@ -242,7 +247,11 @@ function doPost(e) {
                     weather: data.weather || '',
                     deviceId: data.deviceId || '',
                     ipAddress: data.ipAddress || '',
-                    userAgent: data.userAgent || ''
+                    userAgent: data.userAgent || '',
+                    billAmount: data.billAmount || 0,
+                    tax: data.tax || 0,
+                    serviceCharge: data.serviceCharge || 0,
+                    total: data.total || 0
                 });
 
                 return returnJson({ status: "success", message: "Redeemed Successfully" });
@@ -356,7 +365,11 @@ function doPost(e) {
                 weather: data.weather || '',
                 deviceId: data.deviceId || '',
                 ipAddress: data.ipAddress || '',
-                userAgent: data.userAgent || ''
+                userAgent: data.userAgent || '',
+                billAmount: data.billAmount || 0,
+                tax: data.tax || 0,
+                serviceCharge: data.serviceCharge || 0,
+                total: data.total || 0
             });
         } else if (data.status === 'Expired') {
             setVal('redeemed_at', ''); // Clear redeemed date if marking expired
@@ -503,7 +516,7 @@ function logToRedemptions(ss, entry) {
     let sheet = ss.getSheetByName('Redemptions');
     if (!sheet) {
         sheet = ss.insertSheet('Redemptions');
-        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'category', 'transactionId', 'roomNumber', 'email', 'phonenumber', 'weather']);
+        sheet.appendRow(['timestamp', 'voucherCode', 'guestName', 'serviceType', 'category', 'transactionId', 'roomNumber', 'email', 'phonenumber', 'weather', 'bill_amount', 'tax', 'service_charge', 'total']);
     }
     
     const values = sheet.getDataRange().getValues();
@@ -531,6 +544,10 @@ function logToRedemptions(ss, entry) {
                         case 'deviceId': return entry.deviceId || '';
                         case 'ipAddress': return entry.ipAddress || '';
                         case 'userAgent': return entry.userAgent || '';
+                        case 'billAmount': return entry.billAmount || 0;
+                        case 'tax': return entry.tax || 0;
+                        case 'serviceCharge': return entry.serviceCharge || 0;
+                        case 'total': return entry.total || 0;
                         default: return values[i][headers.indexOf(h)];
                     }
                 });
@@ -557,6 +574,10 @@ function logToRedemptions(ss, entry) {
             case 'deviceId': return entry.deviceId || '';
             case 'ipAddress': return entry.ipAddress || '';
             case 'userAgent': return entry.userAgent || '';
+            case 'billAmount': return entry.billAmount || 0;
+            case 'tax': return entry.tax || 0;
+            case 'serviceCharge': return entry.serviceCharge || 0;
+            case 'total': return entry.total || 0;
             default: return '';
         }
     });
