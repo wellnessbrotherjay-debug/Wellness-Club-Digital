@@ -7,6 +7,7 @@ import type { VoucherData } from './VoucherPage';
 // "requiredEntitlement" corresponds to the string in VoucherPage.tsx -> SERVICES_LIST
 
 import { SERVICE_GROUPS } from './constants/services';
+import { isVoucherExpired } from './utils/voucherUtils';
 
 const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> = ({ vouchers, onRefresh }) => {
     const [code, setCode] = useState('');
@@ -70,17 +71,10 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
 
         // Client-side Expiration Check
         const voucher = vouchers.find(v => v.id === targetCode);
-        if (voucher && voucher.checkOut) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const expiry = new Date(voucher.checkOut);
-            expiry.setHours(0, 0, 0, 0);
-
-            if (expiry < today) {
-                setExpireDate(voucher.checkOut);
-                setStatus('expired');
-                return;
-            }
+        if (voucher && isVoucherExpired(voucher)) {
+            setExpireDate(voucher.checkOut || voucher.expires_at || 'unknown');
+            setStatus('expired');
+            return;
         }
 
         setStatus('searching');

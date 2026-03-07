@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Validator from './Validator';
+import { isVoucherExpired } from './utils/voucherUtils';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CountrySelector from './components/CountrySelector';
 import { COUNTRY_CODES } from './data/countryCodes';
@@ -455,8 +456,8 @@ const VoucherPage: React.FC = () => {
         // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
         if (activeTab === 'issued') {
             const isRedeemed = v.status === 'Redeemed' || (Array.isArray(effectiveRedemptions) && effectiveRedemptions.some(r => r.voucherCode === v.id));
-            const expiryDate = v.checkOut ? new Date(v.checkOut) : (v.expires_at ? new Date(v.expires_at) : null);
-            const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
+            // Expiration logic using shared utility
+            const isExpired = isVoucherExpired(v);
 
             if (statusFilter === 'active') return matchesQuery && !isRedeemed && !isExpired;
             if (statusFilter === 'redeemed') return matchesQuery && isRedeemed;
@@ -1169,11 +1170,20 @@ const VoucherPage: React.FC = () => {
                                                     <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">{voucher.id}</span>
                                                     <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
                                                         Issued: {voucher.created_at ? new Date(voucher.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
+                                                        <br />
+                                                        {(() => {
+                                                            const isExpired = isVoucherExpired(voucher);
+                                                            const expiryDate = voucher.checkOut ? new Date(voucher.checkOut) : (voucher.expires_at ? new Date(voucher.expires_at) : null);
+                                                            const isToday = expiryDate && new Date(expiryDate).toDateString() === new Date().toDateString();
+
+                                                            if (isExpired) return <span className="text-red-500 font-bold">EXPIRED</span>;
+                                                            if (isToday) return <span className="text-amber-600 font-bold">EXPIRES TONIGHT @ 10PM</span>;
+                                                            return null;
+                                                        })()}
                                                     </span>
                                                     {(() => {
                                                         const isRedeemed = voucher.status === 'Redeemed' || (Array.isArray(effectiveRedemptions) && effectiveRedemptions.some(r => r.voucherCode === voucher.id));
-                                                        const expiryDate = voucher.checkOut ? new Date(voucher.checkOut) : (voucher.expires_at ? new Date(voucher.expires_at) : null);
-                                                        const isExpired = expiryDate ? (expiryDate.getTime() < (new Date().setHours(0, 0, 0, 0))) : false;
+                                                        const isExpired = isVoucherExpired(voucher);
 
                                                         if (isRedeemed) return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">Redeemed</span>;
                                                         if (isExpired) return <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-100">Expired</span>;
