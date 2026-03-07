@@ -74,7 +74,15 @@ function normalizeHeaders(headers) {
         'is_test': 'is_test',
         'test': 'is_test',
         'transaction_id': 'transactionId',
-        'transactionid': 'transactionId'
+        'transactionid': 'transactionId',
+        // SECURITY TRACKING
+        'device_id': 'deviceId',
+        'deviceid': 'deviceId',
+        'ip_address': 'ipAddress',
+        'ipaddress': 'ipAddress',
+        'ip': 'ipAddress',
+        'user_agent': 'userAgent',
+        'useragent': 'userAgent'
     };
 
     return headers.map(h => {
@@ -289,7 +297,10 @@ function doPost(e) {
                     'inputPath': 'InputPath',
                     'is_test': 'IsTest',
                     'category': 'Category',
-                    'transactionId': 'TransactionID'
+                    'transactionId': 'TransactionID',
+                    'deviceId': 'DeviceID',
+                    'ipAddress': 'IPAddress',
+                    'userAgent': 'UserAgent'
                 };
                 const prettyName = prettyMap[name] || name;
                 sheet.getRange(1, rawHeaders.length + 1).setValue(prettyName);
@@ -511,6 +522,9 @@ function logToRedemptions(ss, entry) {
                         case 'phonenumber': return entry.whatsapp || entry.phone || '';
                         case 'whatsapp': return entry.whatsapp || entry.phone || '';
                         case 'weather': return entry.weather || '';
+                        case 'deviceId': return entry.deviceId || '';
+                        case 'ipAddress': return entry.ipAddress || '';
+                        case 'userAgent': return entry.userAgent || '';
                         default: return values[i][headers.indexOf(h)];
                     }
                 });
@@ -534,6 +548,9 @@ function logToRedemptions(ss, entry) {
             case 'phonenumber': return entry.whatsapp || entry.phone || '';
             case 'whatsapp': return entry.whatsapp || entry.phone || '';
             case 'weather': return entry.weather || '';
+            case 'deviceId': return entry.deviceId || '';
+            case 'ipAddress': return entry.ipAddress || '';
+            case 'userAgent': return entry.userAgent || '';
             default: return '';
         }
     });

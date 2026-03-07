@@ -30,12 +30,15 @@ export interface VoucherData {
     redeemed_at?: string;
     expires_at?: string;
     expired_at?: string;
-    redemptions?: RedemptionData[];
+    redemptions?: any[];
     pax?: number;
     secondGuestName?: string;
     email?: string;
     whatsapp?: string;
     weather?: string;
+    deviceId?: string;
+    ipAddress?: string;
+    userAgent?: string;
 }
 
 export interface RedemptionData {
@@ -826,11 +829,16 @@ const VoucherPage: React.FC = () => {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[9px] font-black uppercase tracking-[0.15em] text-red-500 mb-1">Valid Until (Expiry)</p>
-                                                <p className="text-xs font-black text-white bg-red-500 px-3 py-1 rounded-lg inline-block shadow-sm">
+                                                <p className="text-[12px] font-serif font-bold text-[#2c2420]">
                                                     {currentVoucher.checkOut || currentVoucher.checkIn
                                                         ? new Date(currentVoucher.checkOut || currentVoucher.checkIn).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
                                                         : 'N/A'}
                                                 </p>
+                                                {currentVoucher.ipAddress && (
+                                                    <p className="text-[8px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">
+                                                        IP: {currentVoucher.ipAddress}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1185,7 +1193,14 @@ const VoucherPage: React.FC = () => {
                                                         const isRedeemed = voucher.status === 'Redeemed' || (Array.isArray(effectiveRedemptions) && effectiveRedemptions.some(r => r.voucherCode === voucher.id));
                                                         const isExpired = isVoucherExpired(voucher);
 
-                                                        if (isRedeemed) return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">Redeemed</span>;
+                                                        if (isRedeemed) return (
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">Redeemed</span>
+                                                                {voucher.ipAddress && (
+                                                                    <span className="text-[7px] text-gray-400 font-bold uppercase">IP: {voucher.ipAddress}</span>
+                                                                )}
+                                                            </div>
+                                                        );
                                                         if (isExpired) return <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-100">Expired</span>;
                                                         return <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-green-100">Active</span>;
                                                     })()}

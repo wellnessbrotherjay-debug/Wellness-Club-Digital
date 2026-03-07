@@ -114,6 +114,13 @@ export default async function handler(req, res) {
                 body.weather = '';
             }
             body.redeemedAt = redeemedAt;
+
+            // Capture IP tracking info
+            const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+            body.ipAddress = ip;
+            // Ensure deviceId and userAgent are passed through if provided by frontend
+            body.deviceId = body.deviceId || req.headers['x-device-id'] || 'unknown';
+            body.userAgent = body.userAgent || req.headers['user-agent'] || '';
         }
 
         // 2. Execute Mirroring to Google Sheets (Primary Action)
@@ -154,11 +161,18 @@ export default async function handler(req, res) {
                     subject: `Voucher Redeemed: ${guestName} (${voucherCode})`,
                     html: `
                         <div style="font-family: sans-serif; color: #2c2420; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                            <h2 style="border-bottom: 2px solid #c5a572; padding-bottom: 10px;">New Voucher Redemption (Supabase)</h2>
+                            <h2 style="border-bottom: 2px solid #c5a572; padding-bottom: 10px;">New Voucher Redemption</h2>
                             <p><strong>Guest Name:</strong> ${guestName || 'Unknown'}</p>
                             <p><strong>Voucher Code:</strong> ${voucherCode}</p>
                             <p><strong>Service Redeemed:</strong> <span style="color: #c5a572; font-weight: bold;">${serviceType || 'General Use'}</span></p>
                             <p><strong>Redemption Path:</strong> <code>${inputPath || '/'}</code></p>
+                            
+                            <div style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; font-size: 12px; color: #666;">
+                                <p style="margin: 0; font-weight: bold; color: #c5a572; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Security & Audit Info</p>
+                                <p style="margin: 2px 0;"><strong>IP Address:</strong> ${req.body.ipAddress || 'Unknown'}</p>
+                                <p style="margin: 2px 0;"><strong>Device ID:</strong> <code style="font-size: 11px;">${req.body.deviceId || 'Unknown'}</code></p>
+                                <p style="margin: 2px 0;"><strong>User Agent:</strong> <span style="font-size: 10px;">${req.body.userAgent || 'Unknown'}</span></p>
+                            </div>
                         </div>
                     `
                 });
