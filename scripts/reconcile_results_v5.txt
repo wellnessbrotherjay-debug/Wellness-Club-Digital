@@ -1,3 +1,0 @@
---- Starting Reconciliation ---
-Loaded 130 POS entries.
-Found 46 redeemed vouchers in Google Sheets.

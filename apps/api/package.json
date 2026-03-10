@@ -1,0 +1,25 @@
+{
+  "name": "@wellness/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.4",
+    "@supabase/supabase-js": "^2.97.0",
+    "csv-parse": "^6.1.0",
+    "hono": "^4.7.10",
+    "pdf-parse-new": "^2.0.0",
+    "resend": "^6.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.19.4",
+    "typescript": "~5.9.3"
+  }
+}
