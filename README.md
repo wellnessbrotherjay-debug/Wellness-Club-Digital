@@ -1,73 +1,26 @@
-# React + TypeScript + Vite
+# Wellness Club Digital - Monorepo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project consists of:
+- `apps/web`: React + Vite frontend application
+- `apps/api`: Hono backend application
 
-Currently, two official plugins are available:
+## Setup
+1. Duplicate `.env.example` to `.env` in appropriate folders.
+2. `npm install` from the root directory.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Development
+Run `npm run dev` from the root directory to start both the frontend and backend concurrently.
 
-## React Compiler
+- Frontend runs on `http://localhost:5173`
+- Backend runs on `http://localhost:3001`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Vercel Deployment
+This repository is configured natively for **Vercel**. When importing the repository into Vercel:
 
-## Expanding the ESLint configuration
+1. **Framework Preset**: Vercel will attempt to auto-detect Vite. Ensure the Framework Preset is set to **Vite** (if it isn't automatically).
+2. **Build Command**: Leave as default (`npm run build --workspace=apps/web` is set in `vercel.json`).
+3. **Output Directory**: Leave as default (`apps/web/dist` is mapped in `vercel.json`).
+4. **Environment Variables**: Add your `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, etc.
+5. **Install Command**: `npm install` (this installs both root and workspace dependencies).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Vercel will successfully serve the frontend Vite app and automatically compile `api/index.ts` into a Serverless Function connecting directly to the Hono backend logic.
