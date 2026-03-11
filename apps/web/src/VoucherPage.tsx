@@ -502,7 +502,7 @@ const VoucherPage: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end mr-4">
                             <span className="text-xs font-bold">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v2.9 • {recentVouchers.length} Total • {fetchError ? 'Err' : 'OK'}</span>
+                            <span className="text-[10px] text-gray-400 uppercase">Live Dashboard v3.0 • {recentVouchers.length} Total • {fetchError ? 'Err' : 'OK'}</span>
                             <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">Supabase API Active</span>
                         </div>
                         <div className="flex gap-2">
