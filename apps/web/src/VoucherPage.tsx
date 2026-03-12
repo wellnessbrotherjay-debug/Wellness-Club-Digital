@@ -30,6 +30,10 @@ export interface VoucherData {
     redeemed_at?: string;
     expires_at?: string;
     expired_at?: string;
+    checkout?: string;
+    check_out?: string;
+    guest_name?: string;
+    room_number?: string;
     redemptions?: any[];
     pax?: number;
     secondGuestName?: string;
