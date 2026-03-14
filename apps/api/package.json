@@ -13,6 +13,7 @@
     "@hono/node-server": "^1.14.4",
     "@supabase/supabase-js": "^2.97.0",
     "csv-parse": "^6.1.0",
+    "dotenv": "^17.3.1",
     "hono": "^4.7.10",
     "pdf-parse-new": "^2.0.0",
     "resend": "^6.9.1"
