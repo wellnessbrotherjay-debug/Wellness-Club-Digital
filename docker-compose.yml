@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     environment:
       - PORT=3001
       - SUPABASE_URL=${SUPABASE_URL}
@@ -20,8 +20,8 @@ services:
       args:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-    ports:
-      - "3000:80"
+    expose:
+      - "80"
     restart: always
     depends_on:
       - api
