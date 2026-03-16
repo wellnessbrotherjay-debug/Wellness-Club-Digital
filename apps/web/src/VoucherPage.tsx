@@ -457,8 +457,8 @@ const VoucherPage: React.FC = () => {
             return false;
         }
 
-        // 3. Data Quality Filter: Relaxed to show row even if name is missing during debug
-        if (v.guestName === 'Unknown Guest' && !query) return false;
+        // 3. Data Quality Filter: Exclude unknown guests
+        if (!v.guestName || v.guestName === 'Unknown Guest' || v.guestName.trim() === '') return false;
 
         // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
         if (activeTab === 'issued') {

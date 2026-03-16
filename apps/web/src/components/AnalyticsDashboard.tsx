@@ -96,8 +96,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
                     explicitCategory: (v as any).category
                 }));
 
-        // 2. Filter out test records
-        const realData = baseData.filter(r => !r.is_test);
+        // 2. Filter out test records and Unknown Guests
+        const realData = baseData.filter(r => !r.is_test && r.guestName !== 'Unknown Guest');
 
         // 3. Deduplicate: Allow 1 redemption PER CATEGORY per voucher in a 5-min window
         const seen = new Set<string>();
