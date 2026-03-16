@@ -156,10 +156,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         const voucherMap = new Map(vouchers.map(v => [v.id?.toUpperCase(), v]));
 
         // 2. Issued Vouchers Pool (The total number of vouchers ever created in this category)
-        const realVouchers = vouchers.filter(v =>
-            (v as any).is_test !== 'TRUE' &&
-            !isTestAccount(v.guestName || '', v.id || '')
-        );
+        const realVouchers = vouchers.filter(v => {
+            if (!v.guestName || v.guestName === 'Unknown Guest') return false;
+            if ((v as any).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || '')) return false;
+            return true;
+        });
 
         const shopIssued = {
             fashion: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as any).category) === 'fashion').length,
