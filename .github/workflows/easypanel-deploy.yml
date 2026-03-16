@@ -1,0 +1,14 @@
+name: Deploy to EasyPanel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger EasyPanel Deployment
+        run: |
+          curl -X GET 'http://43.134.15.67:3000/api/compose/deploy/80b785c901d27774603df4d55bc6d776531a5a57f2e02105'
