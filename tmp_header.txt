@@ -1,0 +1,1 @@
+Voucher created date ,Arrival,Depart,Guest Name,Room Number,Adult,Child,Compliment,Link Voucher No. 1 Wellness,voucherId,email sent ,Whatsap sent,guest sacnned to download ,GRO notes 

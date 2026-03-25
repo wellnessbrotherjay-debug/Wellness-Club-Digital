@@ -11,7 +11,7 @@ export const submitBooking = async (bookingData: {
     day: string;
     coach: string;
     numPeople: number;
-    guestDetails?: any[];
+    guestDetails?: unknown[];
 }) => {
     const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
@@ -81,7 +81,7 @@ export const submitStaff = async (staffData: {
 /**
  * Fetch bookings from Google Sheets
  */
-export const fetchBookings = async (): Promise<any[]> => {
+export const fetchBookings = async (): Promise<unknown[]> => {
     try {
         const res = await fetch('/api/bookings');
         if (!res.ok) throw new Error('Failed to fetch bookings');
@@ -95,7 +95,7 @@ export const fetchBookings = async (): Promise<any[]> => {
 /**
  * Fetch staff from Google Sheets
  */
-export const fetchStaff = async (): Promise<any[]> => {
+export const fetchStaff = async (): Promise<unknown[]> => {
     try {
         const res = await fetch('/api/staff');
         if (!res.ok) throw new Error('Failed to fetch staff');

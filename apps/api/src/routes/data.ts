@@ -56,4 +56,49 @@ app.get('/', async (c) => {
     }
 });
 
+/**
+ * GET /api/data/summary
+ * High-performance aggregation for the "Insights" tab.
+ */
+app.get('/summary', async (c) => {
+    try {
+        const { data: vouchers, error: vError } = await supabaseAdmin.from('vouchers').select('qr_source_location, marketing_consent, status');
+        const { count: redeemedCount, error: rError } = await supabaseAdmin.from('redemptions').select('*', { count: 'exact', head: true });
+
+        if (vError || rError) throw vError || rError;
+
+        const totalIssued = vouchers?.length || 0;
+        const totalRedeemed = redeemedCount || 0;
+        
+        // Venue Leaderboard
+        const locations: Record<string, number> = {};
+        vouchers?.forEach(v => {
+            const loc = v.qr_source_location || 'unknown';
+            locations[loc] = (locations[loc] || 0) + 1;
+        });
+        const leaderboard = Object.entries(locations)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => ({ name, count }));
+
+        // Marketing Consent
+        const consentCount = vouchers?.filter(v => v.marketing_consent).length || 0;
+        const consentRate = totalIssued > 0 ? Math.round((consentCount / totalIssued) * 100) : 0;
+
+        return c.json({
+            totalIssued,
+            totalRedeemed,
+            conversionRate: totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0,
+            leaderboard,
+            marketing: {
+                count: consentCount,
+                rate: consentRate
+            }
+        });
+    } catch (err: any) {
+        console.error('[GET /api/data/summary] Error:', err.message);
+        return c.json({ error: 'Failed to fetch summary' }, 500);
+    }
+});
+
 export default app;

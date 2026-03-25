@@ -14,12 +14,29 @@ interface ReconciliationMetrics {
     occupied_rooms: number;
 }
 
+interface POSTransaction {
+    bill_number: string;
+    room_number: string;
+    guest_name: string;
+    venue: string;
+    gross_amount: number;
+    source: string;
+}
+
+interface MetricCardProps {
+    title: string;
+    value: string;
+    icon: React.ReactNode;
+    subtitle: string;
+    importance?: 'normal' | 'high';
+}
+
 const RevenueReconciliation: React.FC = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isReconciling, setIsReconciling] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [parsedTransactions, setParsedTransactions] = useState<any[]>([]);
+    const [parsedTransactions, setParsedTransactions] = useState<POSTransaction[]>([]);
     const [metrics, setMetrics] = useState<ReconciliationMetrics | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -62,12 +79,13 @@ const RevenueReconciliation: React.FC = () => {
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Unknown server error');
 
-            setParsedTransactions(result.transactions);
+            setParsedTransactions(result.transactions as POSTransaction[]);
             setIsProcessing(false);
-        } catch (err: any) {
-            setError(err.message === 'Unexpected end of JSON input'
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message === 'Unexpected end of JSON input'
                 ? "Server returned an empty response. Ensure you are using 'vercel dev' for local backend testing."
-                : err.message);
+                : message);
             console.error(err);
         } finally {
             setIsUploading(false);
@@ -90,9 +108,9 @@ const RevenueReconciliation: React.FC = () => {
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Reconciliation failed');
 
-            setMetrics(result);
-        } catch (err: any) {
-            setError(err.message);
+            setMetrics(result as ReconciliationMetrics);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
         } finally {
             setIsReconciling(false);
         }
@@ -232,7 +250,7 @@ const RevenueReconciliation: React.FC = () => {
     );
 };
 
-const MetricCard = ({ title, value, icon, subtitle, importance = 'normal' }: any) => (
+const MetricCard = ({ title, value, icon, subtitle, importance = 'normal' }: MetricCardProps) => (
     <div className={`p-6 bg-white rounded-2xl border ${importance === 'high' ? 'border-orange-100 shadow-orange-50' : 'border-gray-100'} shadow-sm relative group hover:shadow-md transition-all`}>
         <div className="flex justify-between items-start border-b border-gray-50 pb-4 mb-4">
             <div>

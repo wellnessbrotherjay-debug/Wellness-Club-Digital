@@ -5,8 +5,9 @@ export const trackBooking = (serviceName: string, source: string) => {
     console.log(`Booking tracked: ${serviceName} from ${source}`);
 
     // Example: Send to Google Analytics if available
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'booking_initiated', {
+    const win = window as unknown as Window & { gtag?: (event: string, action: string, params: Record<string, unknown>) => void };
+    if (typeof window !== 'undefined' && win.gtag) {
+        win.gtag('event', 'booking_initiated', {
             service_name: serviceName,
             source: source
         });
@@ -18,8 +19,9 @@ export const trackOutboundLink = (url: string, category: string, label: string) 
     console.log(`Outbound link tracked: ${url} (${category}: ${label})`);
 
     // Example: Send to Google Analytics if available
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'click', {
+    const win = window as unknown as Window & { gtag?: (event: string, action: string, params: Record<string, unknown>) => void };
+    if (typeof window !== 'undefined' && win.gtag) {
+        win.gtag('event', 'click', {
             event_category: category,
             event_label: label,
             value: url

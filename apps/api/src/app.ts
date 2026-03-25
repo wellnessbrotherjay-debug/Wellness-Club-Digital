@@ -1,6 +1,6 @@
-import 'dotenv/config';
 import { Hono } from 'hono';
 import { corsMiddleware } from './middleware/cors.js';
+import { rateLimit } from './middleware/rate-limit.js';
 
 // Route handlers
 import dataRoute from './routes/data.js';
@@ -12,11 +12,21 @@ import reconcileRoute from './routes/reconcile.js';
 import sendReportRoute from './routes/send-report.js';
 import sendWhatsappRoute from './routes/send-whatsapp.js';
 import cronWeeklyReportRoute from './routes/cron/weekly-report.js';
+import bulkSyncRoute from './routes/bulk-sync.js';
+import dailyBackupRoute from './routes/cron/daily-backup.js';
+import backupsRoute from './routes/backups.js';
 
 const app = new Hono();
 
 // Global middleware
 app.use('*', corsMiddleware);
+
+// Endpoint Protection (Rate Limits)
+app.use('/api/vouchers/bulk-sync', rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // Max 50 sync batches per IP per window
+    message: 'Too many sync requests. Please wait 15 minutes.'
+}));
 
 // Health check
 app.get('/', (c) => {
@@ -37,6 +47,9 @@ app.route('/api/parse-pos', parseposRoute);
 app.route('/api/reconcile', reconcileRoute);
 app.route('/api/send-report', sendReportRoute);
 app.route('/api/send-whatsapp', sendWhatsappRoute);
+app.route('/api/vouchers/bulk-sync', bulkSyncRoute);
 app.route('/api/cron/weekly-report', cronWeeklyReportRoute);
+app.route('/api/cron/daily-backup', dailyBackupRoute);
+app.route('/api/admin/backups', backupsRoute);
 
 export default app;

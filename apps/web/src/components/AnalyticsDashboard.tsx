@@ -15,11 +15,11 @@ interface AnalyticsDashboardProps {
     onViewVoucher?: (id: string) => void;
 }
 
-const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redemptions, onViewVoucher }) => {
+const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redemptions }) => {
     // --- State ---
     const [timeRange, setTimeRange] = useState<'all' | 'week' | 'month' | 'launch' | 'custom'>('all');
-    const [startDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-    const [endDate] = useState(new Date().toISOString().split('T')[0]);
+    const [startDate] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const [endDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
 
     const EXCLUDE_NAMES = useMemo(() => [
@@ -51,7 +51,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         return 'wellness';
     }, []);
 
-    const smartPax = useCallback((pax: any, name: string) => {
+    const smartPax = useCallback((pax: string | number | undefined, name: string) => {
         const p = Number(pax);
         // If explicit pax is > 1, we trust it (e.g. 12 Pax for Mrs Sanlie Dewi)
         if (pax && !isNaN(p) && p > 1) return p;
@@ -80,8 +80,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
                 return {
                     ...r,
                     timestamp,
-                    is_test: (v as any)?.is_test === 'TRUE' || isTestAccount(r.guestName || (v as any)?.guestName || '', r.voucherCode || ''),
-                    explicitCategory: (r as any).category || (v as any)?.category
+                    is_test: (v as unknown as Record<string, unknown>)?.is_test === 'TRUE' || isTestAccount(r.guestName || (v as unknown as Record<string, unknown>)?.guestName as string || '', r.voucherCode || ''),
+                    explicitCategory: (r as unknown as Record<string, unknown>).category as string || (v as unknown as Record<string, unknown>)?.category as string
                 };
             })
             : vouchers
@@ -92,8 +92,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
                     guestName: v.guestName || 'Unknown Guest',
                     serviceType: v.redeemed_service || v.serviceType || '',
                     roomNumber: v.roomNumber || '',
-                    is_test: (v as any).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || ''),
-                    explicitCategory: (v as any).category
+                    is_test: (v as unknown as Record<string, unknown>).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || ''),
+                    explicitCategory: (v as unknown as Record<string, unknown>).category as string
                 }));
 
         // 2. Filter out test records and Unknown Guests
@@ -149,7 +149,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         let filteredRedemptions = currentRedemptions;
         if (serviceCategory !== 'all') {
             filteredRedemptions = currentRedemptions.filter(r =>
-                getCategoryStrict(r.serviceType, (r as any).explicitCategory) === serviceCategory
+                getCategoryStrict(r.serviceType, (r as Record<string, unknown>).explicitCategory as string) === serviceCategory
             );
         }
 
@@ -158,14 +158,14 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         // 2. Issued Vouchers Pool (The total number of vouchers ever created in this category)
         const realVouchers = vouchers.filter(v => {
             if (!v.guestName || v.guestName === 'Unknown Guest') return false;
-            if ((v as any).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || '')) return false;
+            if ((v as unknown as Record<string, unknown>).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || '')) return false;
             return true;
         });
 
         const shopIssued = {
-            fashion: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as any).category) === 'fashion').length,
-            hair: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as any).category) === 'hair').length,
-            wellness: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as any).category) === 'wellness').length
+            fashion: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as unknown as Record<string, unknown>).category as string) === 'fashion').length,
+            hair: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as unknown as Record<string, unknown>).category as string) === 'hair').length,
+            wellness: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as unknown as Record<string, unknown>).category as string) === 'wellness').length
         };
 
         const totalVouchersPool = realVouchers.length;
@@ -176,9 +176,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
 
         // Shop Redeemed Totals (Subset of Issued)
         const shopTotals = {
-            fashion: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as any).explicitCategory) === 'fashion').length,
-            hair: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as any).explicitCategory) === 'hair').length,
-            wellness: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as any).explicitCategory) === 'wellness').length
+            fashion: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as unknown as Record<string, unknown>).explicitCategory as string) === 'fashion').length,
+            hair: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as unknown as Record<string, unknown>).explicitCategory as string) === 'hair').length,
+            wellness: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as unknown as Record<string, unknown>).explicitCategory as string) === 'wellness').length
         };
 
         // --- Daily Redemptions ---
@@ -218,7 +218,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         const totalRedemptions = filteredRedemptions.length;
         const totalPaxRedeemed = filteredRedemptions.reduce((sum, r) => {
             const v = voucherMap.get(r.voucherCode?.toUpperCase());
-            return sum + (voucherPaxMap.get(r.voucherCode) || smartPax((r as any).pax, r.guestName || (v as any)?.guestName || ''));
+            return sum + (voucherPaxMap.get(r.voucherCode) || smartPax((r as unknown as Record<string, unknown>).pax as string | number, r.guestName || (v as unknown as Record<string, unknown>)?.guestName as string || ''));
         }, 0);
         const redemptionRate = totalVouchersPool > 0 ? Math.round((totalRedemptions / totalVouchersPool) * 100) : 0;
         const paxRedemptionRate = totalPaxPool > 0 ? Math.round((totalPaxRedeemed / totalPaxPool) * 100) : 0;
@@ -255,8 +255,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redem
         const allDates = [...new Set([...Object.keys(issuedMap), ...Object.keys(redeemedMap)])].sort((a, b) => b.localeCompare(a));
 
         const dailyRows = allDates.map(date => {
-            const issued = (issuedMap as any)[date] || 0;
-            const redeemed = (redeemedMap as any)[date] || 0;
+            const issued = (issuedMap as Record<string, number>)[date] || 0;
+            const redeemed = (redeemedMap as Record<string, number>)[date] || 0;
             const rate = issued > 0 ? Math.round((redeemed / issued) * 100) : 0;
             const d = new Date(date + 'T00:00:00');
             const label = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
@@ -321,7 +321,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
             `"${r.guestName || ''}"`,
             r.roomNumber || '',
             r.timestamp ? new Date(r.timestamp).toLocaleString() : '',
-            getCategoryStrict(r.serviceType, (r as any).explicitCategory)
+            getCategoryStrict(r.serviceType, (r as Record<string, unknown>).explicitCategory as string)
         ].join(','));
         const csvContent = [headers.join(','), ...csvRows].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -360,14 +360,14 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                         <span className="text-xs font-bold uppercase tracking-widest">Performance</span>
                     </div>
 
-                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
+                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as 'all' | 'launch' | 'month' | 'week')} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
                         <option value="all">All Time</option>
                         <option value="launch">Since Launch</option>
                         <option value="month">This Month</option>
                         <option value="week">This Week</option>
                     </select>
 
-                    <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
+                    <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value as 'all' | 'wellness' | 'fashion' | 'hair')} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
                         <option value="all">All Units</option>
                         <option value="wellness">Wellness</option>
                         <option value="fashion">T Store</option>
@@ -402,11 +402,11 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                         </div>
                         <div className="flex items-end gap-6">
                             <div>
-                                <span className="text-4xl font-serif font-bold text-[#2c2420]">{(stats as any).shopIssued[shop.id]}</span>
+                                <span className="text-4xl font-serif font-bold text-[#2c2420]">{stats.shopIssued[shop.id as keyof typeof stats.shopIssued]}</span>
                                 <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Total Issued</p>
                             </div>
                             <div className="pb-1">
-                                <span className="text-2xl font-serif font-bold text-[#c5a572]">{(stats as any).shopTotals[shop.id]}</span>
+                                <span className="text-2xl font-serif font-bold text-[#c5a572]">{stats.shopTotals[shop.id as keyof typeof stats.shopTotals]}</span>
                                 <p className="text-[9px] text-[#c5a572] font-bold uppercase mt-0.5">Redeemed</p>
                             </div>
                         </div>
@@ -445,46 +445,7 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                 </div>
             </div>
 
-            {/* Activity Table */}
-            <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
-                <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-serif font-bold text-gray-900">Recent Activity</h3>
-                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">{stats.recentActivity.length} Records</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-white text-[9px] font-bold uppercase tracking-widest text-gray-400 border-b">
-                                <th className="px-6 py-4">Guest / Room</th>
-                                <th className="px-6 py-4">Voucher</th>
-                                <th className="px-6 py-4">Service</th>
-                                <th className="px-6 py-4">Time</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {stats.recentActivity.slice(0, 20).map((r, i) => (
-                                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="font-bold text-gray-900 text-xs">{r.guest}</div>
-                                        <div className="text-[10px] text-gray-400">Room {r.room}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <button onClick={() => onViewVoucher?.(r.id)} className="text-xs font-mono font-bold text-[#c5a572] hover:underline uppercase">
-                                            {r.id}
-                                        </button>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-[10px] border border-gray-200 px-2 py-0.5 rounded font-bold uppercase text-gray-500">{r.service}</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-[10px] text-gray-400">
-                                        {new Date(r.time).toLocaleString()}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {/* Recent Activity Table removed (Obsolete per request) */}
         </div>
     );
 };

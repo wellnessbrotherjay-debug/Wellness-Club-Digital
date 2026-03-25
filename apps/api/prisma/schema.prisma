@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Voucher {
+  voucher_code       String    @id
+  guest_name         String?
+  email              String?
+  whatsapp           String?
+  status             String?   @default("Created")
+  room_number        String?
+  check_in           DateTime?
+  check_out          DateTime?
+  created_at         DateTime  @default(now())
+  redeemed_at        DateTime?
+  service_type       String?   // For legacy compatibility
+  services           String?   // New: comma-separated list of services
+  pax                Int       @default(1)
+  
+  // New columns for Phase 2 & Marketing Pillar
+  image_url          String?
+  is_test            Boolean   @default(false)
+  marketing_consent  Boolean   @default(false)
+  qr_source_location String?
+  sync_status        String?   @default("pending")
+  metadata           Json?     @default("{}")
+
+  @@map("vouchers")
+}
+
+model Redemption {
+  id           Int      @id @default(autoincrement())
+  timestamp    DateTime @default(now())
+  voucher_code String
+  guest_name   String?
+  service_type String?
+  room_number  String?
+  email        String?
+  whatsapp     String?
+  weather      String?
+
+  @@map("redemptions")
+}
