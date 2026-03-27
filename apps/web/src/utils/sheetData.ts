@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 
 /**
  * Submit a class booking to Google Sheets

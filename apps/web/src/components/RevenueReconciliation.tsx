@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+
 import { API_BASE_URL } from '../utils/api';
 import { Upload, FileText, CheckCircle, AlertCircle, TrendingUp, DollarSign, Percent, BarChart2, RefreshCw } from 'lucide-react';
 import { supabase } from '../utils/supabase';

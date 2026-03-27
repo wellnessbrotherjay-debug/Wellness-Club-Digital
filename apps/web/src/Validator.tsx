@@ -9,6 +9,7 @@ import type { VoucherData } from './VoucherPage';
 import { SERVICE_GROUPS } from './constants/services';
 import { isVoucherExpired } from './utils/voucherUtils';
 import { getDeviceId } from './utils/deviceId';
+import { API_BASE_URL } from './utils/api';
 
 const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> = ({ vouchers, onRefresh }) => {
     const [code, setCode] = useState('');

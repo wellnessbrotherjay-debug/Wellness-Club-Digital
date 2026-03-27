@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './api';
+
 /**
  * getDeviceId — returns a stable UUID for this browser, persisted in localStorage.
  * Used to track which device performed each redemption for audit purposes.
