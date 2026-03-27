@@ -386,8 +386,10 @@ const VoucherPage: React.FC = () => {
     if (!currentVoucher || !currentVoucher.whatsapp) return;
 
     setWaStatus("sending");
-    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-    const link = `${baseUrl}/v/${currentVoucher.id}`;
+    const GUEST_PASS_BASE = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app')
+      ? window.location.origin
+      : 'https://wellness-club-digital.vercel.app';
+    const link = `${GUEST_PASS_BASE}/v/${currentVoucher.id}`;
 
     const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to claim your 15% discount and redeem your services.\n\nEnjoy your stay!`;
     const waLink = `https://wa.me/${currentVoucher.whatsapp.replace("+", "")}?text=${encodeURIComponent(message)}`;
@@ -404,9 +406,11 @@ const VoucherPage: React.FC = () => {
     if (!currentVoucher || !email) return;
 
     setEmailStatus("sending");
-    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const GUEST_PASS_BASE = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app')
+      ? window.location.origin
+      : 'https://wellness-club-digital.vercel.app';
     const subject = `Your No.1 Wellness Club Digital Pass`;
-    const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${baseUrl}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
+    const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${GUEST_PASS_BASE}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
 
     const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoLink;
@@ -612,7 +616,9 @@ const VoucherPage: React.FC = () => {
   // IMPORTANT: Always use the canonical guest-facing domain, NOT window.location.origin.
   // The admin app runs on reception.no1wellness.com which is a broken domain (404).
   // QR codes must point to the working Vercel deployment.
-  const GUEST_PASS_BASE = import.meta.env.VITE_APP_URL || window.location.origin;
+  const GUEST_PASS_BASE = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app')
+    ? window.location.origin
+    : 'https://wellness-club-digital.vercel.app';
   const voucherUrl = (voucher: VoucherData) =>
     `${GUEST_PASS_BASE}/v/${voucher.id}`;
 

@@ -3,14 +3,24 @@
   "buildCommand": "npm run build --workspace=apps/web",
   "outputDirectory": "apps/web/dist",
   "framework": "vite",
+  "crons": [
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 9 * * 1"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api"
     },
     {
+      "source": "/v/(.*)",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/$1"
+      "destination": "/index.html"
     }
   ]
 }

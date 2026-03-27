@@ -120,8 +120,8 @@ function doGet(e) {
         const isRedemptions = sheetType === 'Redemptions';
         const sheet = isRedemptions
             ? (ss.getSheetByName('Redemptions') || ss.getSheetByName('redemptions'))
-            : (ss.getSheetByName('voucher') ||
-               ss.getSheetByName('Vouchers') ||
+            : (ss.getSheetByName('Vouchers') ||
+               ss.getSheetByName('voucher') ||
                ss.getSheetByName('VoucherCodes') ||
                ss.getSheetByName('Sheet1') ||
                ss.getSheets()[0]);
@@ -197,7 +197,7 @@ function doPost(e) {
     // --- REDEEM VOUCHER ---
     if (data.action === 'redeem' || data.status === 'Redeemed' || data.category === 'Redeemed') {
         const voucherCode = (data.voucherCode || data.code || data.date || '').trim().toUpperCase();
-        const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher') || ss.getSheetByName('VoucherCodes');
         
         if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
 
@@ -262,7 +262,7 @@ function doPost(e) {
 
     // --- CREATE NEW (OR MANUAL UPDATE) ---
     if (data.action === 'create' || data.action === 'manual' || data.voucherCode) {
-        const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes') || ss.insertSheet('voucher');
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher') || ss.getSheetByName('VoucherCodes') || ss.insertSheet('Vouchers');
         
         // Ensure header row exists
         if (sheet.getLastRow() === 0) {
@@ -382,7 +382,7 @@ function doPost(e) {
 
     // --- CLEANUP DUPLICATES ---
     if (data.action === 'cleanupDuplicates') {
-        const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher') || ss.getSheetByName('VoucherCodes');
         if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
         const values = sheet.getDataRange().getValues();
         const headers = normalizeHeaders(values[0]);
@@ -428,7 +428,7 @@ function doPost(e) {
 
     // --- DELETE VOUCHER ---
     if (data.action === 'deleteVoucher') {
-        const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher') || ss.getSheetByName('VoucherCodes');
         if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
         const values = sheet.getDataRange().getValues();
         const headers = normalizeHeaders(values[0]);
@@ -447,7 +447,7 @@ function doPost(e) {
 
     // --- DELETE TEST VOUCHERS ---
     if (data.action === 'deleteTests') {
-        const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+        const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher') || ss.getSheetByName('VoucherCodes');
         if (!sheet) return returnJson({ status: "error", message: "Sheet not found" });
 
         const values = sheet.getDataRange().getValues();
@@ -587,7 +587,7 @@ function logToRedemptions(ss, entry) {
 
 function setupStandardHeaders() {
     const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers') || ss.getSheetByName('VoucherCodes');
+    const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher') || ss.getSheetByName('VoucherCodes');
     if (!sheet) {
         Logger.log('Sheet not found');
         return;
@@ -641,7 +641,7 @@ function setupStandardHeaders() {
  */
 function buildReportData(days) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName('voucher') || ss.getSheetByName('Vouchers');
+    const sheet = ss.getSheetByName('Vouchers') || ss.getSheetByName('voucher');
     if (!sheet) throw new Error('Voucher sheet not found');
 
     const values = sheet.getDataRange().getValues();
