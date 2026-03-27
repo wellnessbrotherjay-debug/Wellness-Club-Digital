@@ -20,6 +20,8 @@ services:
       args:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_APP_URL=${VITE_APP_URL}
+        - VITE_API_URL=${VITE_API_URL}
     expose:
       - "80"
     restart: always
@@ -33,6 +35,9 @@ services:
       - "traefik.http.routers.wellnessclub.priority=100"
       - "traefik.http.services.wellnessclub.loadbalancer.server.port=80"
       - "traefik.docker.network=easypanel"
+      - "traefik.http.routers.wellnessclub-api.rule=Host(`voucher.htf.solutions`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.wellnessclub-api.service=wellnessclub-api"
+      - "traefik.http.services.wellnessclub-api.loadbalancer.server.port=3001"
     networks:
       - easypanel
       - default
