@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import { supabase } from '../utils/supabase';
 import type { VoucherData } from '../VoucherPage';
 
@@ -95,8 +96,8 @@ export const useVoucherData = () => {
             console.log('🚀 [useVoucherData] Fetching from Hono API...');
 
             const [vResponse, rResponse] = await Promise.all([
-                fetch(`/api/data?sheet=vouchers&t=${Date.now()}`),
-                fetch(`/api/data?sheet=redemptions&t=${Date.now()}`)
+                fetch(`${API_BASE_URL}/api/data?sheet=vouchers&t=${Date.now()}`),
+                fetch(`${API_BASE_URL}/api/data?sheet=redemptions&t=${Date.now()}`)
             ]);
 
             const [vData, rData] = [

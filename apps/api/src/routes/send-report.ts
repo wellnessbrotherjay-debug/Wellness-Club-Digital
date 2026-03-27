@@ -9,11 +9,12 @@ export function buildWeeklyReportHtml(total: number, serviceHtml: string): strin
 }
 
 function buildReportHtml(period: string, daysToSubtract: number, total: number, serviceHtml: string): string {
+    const appUrl = process.env.APP_URL || 'https://voucher.htf.solutions';
     const periodStr = period === 'weekly' ? 'Weekly' : 'Daily';
     return `
         <div style="font-family: sans-serif; color: #2c2420; max-width: 600px; margin: 0 auto;">
             <div style="text-align: center; padding: 20px 0;">
-                <img src="https://wellness-club-digital.vercel.app/htf-logo.png" alt="No.1 Wellness" style="height: 50px;" />
+                <img src="${appUrl}/htf-logo.png" alt="No.1 Wellness" style="height: 50px;" />
             </div>
             <h1 style="color: #2c2420; text-align: center;">${periodStr} Redemption Update</h1>
             <p style="text-align: center; color: #666;">Summary for the past ${daysToSubtract} day(s)</p>
@@ -26,7 +27,7 @@ function buildReportHtml(period: string, daysToSubtract: number, total: number, 
                 <ul style="list-style: none; padding: 0;">${serviceHtml || '<li style="color: #999; font-style: italic;">No redemptions in this period.</li>'}</ul>
             </div>
             <div style="margin-top: 40px; text-align: center;">
-                <a href="https://wellness-club-digital.vercel.app/admin/analytics" style="background-color: #2c2420; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Analytics Board</a>
+                <a href="${appUrl}/admin/analytics" style="background-color: #2c2420; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Analytics Board</a>
             </div>
         </div>
     `;

@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { API_BASE_URL } from "../utils/api";
 
 export interface LocalVoucher {
   id: string; // e.g. NW-XXXXXX
@@ -79,7 +80,7 @@ class SyncService {
     );
 
     try {
-      const response = await fetch("/api/vouchers/bulk-sync", {
+      const response = await fetch(`${API_BASE_URL}/api/vouchers/bulk-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vouchers: pending }),

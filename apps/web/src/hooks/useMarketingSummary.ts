@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import { supabase } from '../utils/supabase';
 
 export interface MarketingSummary {
@@ -20,7 +21,7 @@ export const useMarketingSummary = () => {
     const fetchSummary = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/data/summary');
+            const response = await fetch(`${API_BASE_URL}/api/data/summary`);
             if (!response.ok) throw new Error('Failed to fetch summary');
             const data = await response.json();
             setSummary(data);

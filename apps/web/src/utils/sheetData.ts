@@ -32,7 +32,7 @@ export const submitBooking = async (bookingData: {
     };
 
     try {
-        await fetch('/api/bookings', {
+        await fetch(`${API_BASE_URL}/api/bookings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -66,7 +66,7 @@ export const submitStaff = async (staffData: {
     };
 
     try {
-        await fetch('/api/staff', {
+        await fetch(`${API_BASE_URL}/api/staff`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -83,7 +83,7 @@ export const submitStaff = async (staffData: {
  */
 export const fetchBookings = async (): Promise<unknown[]> => {
     try {
-        const res = await fetch('/api/bookings');
+        const res = await fetch(`${API_BASE_URL}/api/bookings`);
         if (!res.ok) throw new Error('Failed to fetch bookings');
         return await res.json();
     } catch (error) {
@@ -97,7 +97,7 @@ export const fetchBookings = async (): Promise<unknown[]> => {
  */
 export const fetchStaff = async (): Promise<unknown[]> => {
     try {
-        const res = await fetch('/api/staff');
+        const res = await fetch(`${API_BASE_URL}/api/staff`);
         if (!res.ok) throw new Error('Failed to fetch staff');
         return await res.json();
     } catch (error) {

@@ -1,7 +1,19 @@
 import { cors } from 'hono/cors';
 
+const allowedOrigins = [
+    'https://voucher.htf.solutions',
+    'https://wellness-club-digital.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+];
+
 export const corsMiddleware = cors({
-    origin: '*',
+    origin: (origin) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return origin;
+        }
+        return allowedOrigins[0]; // Fallback to main production domain
+    },
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
         'Content-Type',

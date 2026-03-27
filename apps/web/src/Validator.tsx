@@ -99,7 +99,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
             const transactionId = `${targetCode}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
             // Use our own API proxy to handle Email Notifications + Google Sheet Update
-            const response = await fetch('/api/redeem-voucher', {
+            const response = await fetch(`${API_BASE_URL}/api/redeem-voucher`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

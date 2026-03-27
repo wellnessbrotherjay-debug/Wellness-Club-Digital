@@ -33,7 +33,7 @@ export async function postAuditEvent(payload: {
 }): Promise<void> {
     try {
         const deviceId = getDeviceId();
-        await fetch('/api/audit-log', {
+        await fetch(`${API_BASE_URL}/api/audit-log`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

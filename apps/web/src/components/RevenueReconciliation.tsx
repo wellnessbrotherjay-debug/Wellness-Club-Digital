@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { API_BASE_URL } from '../utils/api';
 import { Upload, FileText, CheckCircle, AlertCircle, TrendingUp, DollarSign, Percent, BarChart2, RefreshCw } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 
@@ -61,7 +63,7 @@ const RevenueReconciliation: React.FC = () => {
 
             // 2. Trigger Parsing
             setIsProcessing(true);
-            const res = await fetch('/api/parse-pos', {
+            const res = await fetch(`${API_BASE_URL}/api/parse-pos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fileUrl: data.path, date: selectedDate }),
@@ -98,7 +100,7 @@ const RevenueReconciliation: React.FC = () => {
         setError(null);
 
         try {
-            const res = await fetch(`/api/reconcile?date=${selectedDate}`);
+            const res = await fetch(`${API_BASE_URL}/api/reconcile?date=${selectedDate}`);
 
             const contentType = res.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
