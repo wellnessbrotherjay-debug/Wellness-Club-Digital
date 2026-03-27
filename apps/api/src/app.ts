@@ -15,8 +15,6 @@ import sendReportRoute from './routes/send-report.js';
 import sendWhatsappRoute from './routes/send-whatsapp.js';
 import cronWeeklyReportRoute from './routes/cron/weekly-report.js';
 import bulkSyncRoute from './routes/bulk-sync.js';
-import dailyBackupRoute from './routes/cron/daily-backup.js';
-import backupsRoute from './routes/backups.js';
 
 const app = new Hono();
 
@@ -84,7 +82,6 @@ app.route('/api/send-report', sendReportRoute);
 app.route('/api/send-whatsapp', sendWhatsappRoute);
 app.route('/api/vouchers/bulk-sync', bulkSyncRoute);
 app.route('/api/cron/weekly-report', cronWeeklyReportRoute);
-app.route('/api/cron/daily-backup', dailyBackupRoute);
-app.route('/api/admin/backups', backupsRoute);
+// daily-backup and admin/backups routes disabled on Vercel (read-only filesystem)
 
 export default app;
