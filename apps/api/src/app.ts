@@ -1,3 +1,4 @@
+console.log('[API] Bootstrap v4 active');
 import { Hono } from 'hono';
 // Removed buggy hono/cors in favor of manual resilient implementation
 // import { corsMiddleware } from './middleware/cors.js';
