@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { corsMiddleware } from './middleware/cors.js';
+// Removed buggy hono/cors in favor of manual resilient implementation
+// import { corsMiddleware } from './middleware/cors.js';
 import { rateLimit } from './middleware/rate-limit.js';
 
 // Route handlers
@@ -18,8 +19,41 @@ import backupsRoute from './routes/backups.js';
 
 const app = new Hono();
 
-// Global middleware
-app.use('*', corsMiddleware);
+// --- CRITICAL COMPATIBILITY FIX FOR VERCEL NODE.JS RUNTIME ---
+// Hono expects c.req.raw.headers.get to exist (Web Standards), 
+// but in Node.js runtime it's a plain object.
+app.use('*', async (c, next) => {
+    const rawReq = c.req.raw as any;
+    if (rawReq.headers && typeof rawReq.headers.get !== 'function') {
+        rawReq.headers.get = (name: string) => {
+            const lowName = name.toLowerCase();
+            return rawReq.headers[lowName] || rawReq.headers[name];
+        };
+    }
+    await next();
+});
+
+// --- MODERN CORS HANDLER ---
+app.use('*', async (c, next) => {
+    const origin = c.req.header('Origin') || '';
+    const isAllowed = 
+        !origin || 
+        origin.endsWith('.vercel.app') || 
+        origin === 'https://voucher.htf.solutions' ||
+        origin.includes('localhost');
+
+    if (isAllowed) {
+        c.header('Access-Control-Allow-Origin', origin || '*');
+    }
+    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    c.header('Access-Control-Allow-Credentials', 'true');
+
+    if (c.req.method === 'OPTIONS') {
+        return c.text('', 204);
+    }
+    await next();
+});
 
 // Endpoint Protection (Rate Limits)
 app.use('/api/vouchers/bulk-sync', rateLimit({
