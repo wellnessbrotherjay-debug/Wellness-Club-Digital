@@ -11,7 +11,18 @@ services:
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - RESEND_API_KEY=${RESEND_API_KEY}
+      - APP_URL=${APP_URL}
     restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wellnessclub-api.rule=Host(`voucher.htf.solutions`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.wellnessclub-api.entrypoints=websecure"
+      - "traefik.http.routers.wellnessclub-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wellnessclub-api.loadbalancer.server.port=3001"
+      - "traefik.docker.network=easypanel"
+    networks:
+      - easypanel
+      - default
 
   web:
     build:
@@ -33,12 +44,8 @@ services:
       - "traefik.http.routers.wellnessclub.rule=Host(`apps-server-wellness-club.lig4xy.easypanel.host`)"
       - "traefik.http.routers.wellnessclub.entrypoints=websecure"
       - "traefik.http.routers.wellnessclub.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.wellnessclub.priority=100"
       - "traefik.http.services.wellnessclub.loadbalancer.server.port=80"
       - "traefik.docker.network=easypanel"
-      - "traefik.http.routers.wellnessclub-api.rule=Host(`voucher.htf.solutions`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.wellnessclub-api.service=wellnessclub-api"
-      - "traefik.http.services.wellnessclub-api.loadbalancer.server.port=3001"
     networks:
       - easypanel
       - default
