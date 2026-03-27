@@ -43,7 +43,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         } else if (exists) {
             setIsSyncing(false);
         }
-    }, [code, vouchers, onRefresh]);
+    }, [code, vouchers, onRefresh, isSyncing]);
 
     // Derived state: Filter groups based on the current voucher's entitlements
     const getFilteredGroups = useCallback(() => {
@@ -91,7 +91,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
             let primaryCategory = 'other';
             for (const group of SERVICE_GROUPS) {
                 if (group.items.some(item => selectedServices.includes(item.value))) {
-                    primaryCategory = (group as any).category || 'other';
+                    primaryCategory = (group as unknown as Record<string, unknown>).category as string || 'other';
                     break;
                 }
             }
@@ -134,11 +134,10 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 if (onRefresh) onRefresh(); // REFRESH DATA TO SHOW REDEEMED STATUS
             }, 1000);
 
-        } catch (e) {
-            console.error("Redemption failed:", e);
+        } catch {
             setStatus('error');
         }
-    }, [code, selectedServices, vouchers]);
+    }, [code, selectedServices, vouchers, billAmount, onRefresh]);
 
     const handleScanSuccess = useCallback((scannedCode: string) => {
         let cleanCode = scannedCode;
@@ -147,7 +146,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         try {
             const parsed = JSON.parse(scannedCode);
             if (parsed.id) cleanCode = parsed.id;
-        } catch (e) {
+        } catch {
             // Not JSON
         }
 

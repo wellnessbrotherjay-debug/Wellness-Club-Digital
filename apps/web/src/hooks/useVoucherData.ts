@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../utils/supabase';
 import type { VoucherData } from '../VoucherPage';
 
 interface RedemptionData {
@@ -22,10 +23,10 @@ export const useVoucherData = () => {
     const [fetchError, setFetchError] = useState(false);
     const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
 
-    const mapVoucher = (item: any): VoucherData => {
-        const safeDate = (dateStr: any) => {
+    const mapVoucher = (item: Record<string, unknown>): VoucherData => {
+        const safeDate = (dateStr: unknown) => {
             if (!dateStr) return '';
-            const d = new Date(dateStr);
+            const d = new Date(dateStr as string);
             if (isNaN(d.getTime())) {
                 // Try parsing DD/MM/YYYY if standard fails
                 const parts = String(dateStr).split('/');
@@ -61,7 +62,7 @@ export const useVoucherData = () => {
             serviceType: String(item.service_type || item.serviceType || item.servicetype || ''),
             redeemed_service: String(item.redeemed_service || item.redeemedService || ''),
             redemptions: [],
-            pax: item.pax ? parseInt(item.pax as any) : 1,
+            pax: item.pax ? parseInt(String(item.pax), 10) : 1,
             secondGuestName: String(item.secondGuestName || ''),
             email: String(item.email || ''),
             whatsapp: String(item.whatsapp || ''),
@@ -72,18 +73,18 @@ export const useVoucherData = () => {
         };
     };
 
-    const mapRedemption = (item: any): RedemptionData => ({
-        timestamp: item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString(),
-        voucherCode: item.voucher_code || item.voucherCode || item.code || item.id || '',
-        guestName: item.guest_name || item.guestName || item.name || '',
-        serviceType: item.service_type || item.serviceType || item.servicetype || '',
-        roomNumber: item.room_number || item.roomNumber || item.room || '',
-        inputPath: item.inputPath || item.inputpath || '',
-        emailStatus: item.emailStatus || item.emailstatus || '',
-        weather: item.weather || '',
-        ipAddress: item.ipAddress || item.ip_address || '',
-        deviceId: item.deviceId || item.device_id || '',
-        userAgent: item.userAgent || item.user_agent || ''
+    const mapRedemption = (item: Record<string, unknown>): RedemptionData => ({
+        timestamp: String(item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString()),
+        voucherCode: String(item.voucher_code || item.voucherCode || item.code || item.id || ''),
+        guestName: String(item.guest_name || item.guestName || item.name || ''),
+        serviceType: String(item.service_type || item.serviceType || item.servicetype || ''),
+        roomNumber: String(item.room_number || item.roomNumber || item.room || ''),
+        inputPath: String(item.inputPath || item.inputpath || ''),
+        emailStatus: String(item.emailStatus || item.emailstatus || ''),
+        weather: String(item.weather || ''),
+        ipAddress: String(item.ipAddress || item.ip_address || ''),
+        deviceId: String(item.deviceId || item.device_id || ''),
+        userAgent: String(item.userAgent || item.user_agent || '')
     });
 
     const fetchData = useCallback(async (isSilent: boolean = false) => {
@@ -125,8 +126,31 @@ export const useVoucherData = () => {
 
     useEffect(() => {
         fetchData();
-        const poll = setInterval(() => fetchData(true), 15000); // Poll every 15s for lower impact
-        return () => clearInterval(poll);
+
+        // Subscribe to real-time changes across vouchers and redemptions
+        const channel = supabase
+            .channel('voucher-updates')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'vouchers' },
+                (payload) => {
+                    console.log('🔥 [Realtime] Voucher change:', payload);
+                    fetchData(true); // Silent background refresh
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'redemptions' },
+                (payload) => {
+                    console.log('🔥 [Realtime] Redemption change:', payload);
+                    fetchData(true); // Silent background refresh
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [fetchData]);
 
     return {

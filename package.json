@@ -6,10 +6,11 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/web\" -c \"blue,green\"",
-    "build": "npm run build --workspace=apps/web",
+    "build": "npm run build --workspace=apps/api && npm run build --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "csv-parse": "^5.6.0"
   }
 }

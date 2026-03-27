@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { XCircle, Loader2, CheckCircle, AlertCircle, Camera } from 'lucide-react';
 
@@ -7,7 +7,7 @@ interface QRScannerProps {
     onClose: () => void;
     valStatus?: 'idle' | 'searching' | 'valid' | 'invalid' | 'error' | 'expired';
     currentService?: string;
-    serviceGroups?: any[];
+    serviceGroups?: { label: string; items: { label: string; value: string }[] }[];
     selectedServices?: string[];
     toggleService?: (value: string) => void;
     onRedeem?: () => void;
@@ -28,31 +28,17 @@ const QRScanner: React.FC<QRScannerProps> = ({
     const valStatusRef = useRef(valStatus);
     const currentServiceRef = useRef(currentService);
 
-    // Sync refs on every render
-    onScanSuccessRef.current = onScanSuccess;
-    valStatusRef.current = valStatus;
-    currentServiceRef.current = currentService;
+    // Update refs in useEffect to avoid render-phase side effects
+    useEffect(() => {
+        onScanSuccessRef.current = onScanSuccess;
+        valStatusRef.current = valStatus;
+        currentServiceRef.current = currentService;
+    }, [onScanSuccess, valStatus, currentService]);
 
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const hasScannedRef = useRef(false);
 
-    useEffect(() => {
-        scannerRef.current = new Html5Qrcode("reader");
-
-        // Small delay to ensure the container is ready and prevent permission race
-        const timer = setTimeout(() => {
-            startCamera();
-        }, 500);
-
-        return () => {
-            clearTimeout(timer);
-            if (scannerRef.current?.isScanning) {
-                scannerRef.current.stop().catch(err => console.error("Stop failed", err));
-            }
-        };
-    }, []);
-
-    const startCamera = async () => {
+    const startCamera = useCallback(async () => {
         if (!scannerRef.current) return;
 
         setErrorMsg(null);
@@ -106,22 +92,38 @@ const QRScanner: React.FC<QRScannerProps> = ({
                         // Trigger the latest callback from the parent
                         onScanSuccessRef.current(resultId);
                     },
-                    (_error) => { /* quiet scan failures */ }
+                    () => { /* quiet scan failures */ }
                 );
                 setIsCameraActive(true);
             } else {
                 setErrorMsg("No cameras found. Please ensure you are on a mobile device or have a webcam plugged in.");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Camera start failed", err);
-            const errStr = err.toString();
+            const errStr = String(err);
             if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied")) {
                 setErrorMsg("Camera permission denied. Please allow camera access in your browser settings to scan vouchers.");
             } else {
                 setErrorMsg("Could not access camera. Please refresh the page and try again.");
             }
         }
-    };
+    }, [invalidCode]);
+
+    useEffect(() => {
+        scannerRef.current = new Html5Qrcode("reader");
+
+        // Small delay to ensure the container is ready and prevent permission race
+        const timer = setTimeout(() => {
+            startCamera();
+        }, 500);
+
+        return () => {
+            clearTimeout(timer);
+            if (scannerRef.current?.isScanning) {
+                scannerRef.current.stop().catch(err => console.error("Stop failed", err));
+            }
+        };
+    }, [startCamera]);
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 animate-fade-in backdrop-blur-sm">
@@ -218,7 +220,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
                                                 <div key={group.label} className="bg-white/5 rounded-xl p-3 border border-white/5">
                                                     <div className="text-[8px] font-bold uppercase tracking-widest text-[#c5a572] mb-2">{group.label}</div>
                                                     <div className="space-y-1">
-                                                        {group.items.map((item: any) => (
+                                                        {group.items.map((item: { label: string; value: string }) => (
                                                             <button
                                                                 key={item.value}
                                                                 onClick={() => toggleService?.(item.value)}

@@ -4,15 +4,16 @@ import QRCode from 'react-qr-code';
 import { CheckCircle, Calendar, Key, XCircle, Loader2, Clock } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { isVoucherExpired } from './utils/voucherUtils';
+import type { VoucherData, RedemptionData } from './VoucherPage';
 
 
 const GuestPass: React.FC = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<VoucherData | null>(null);
     const [status, setStatus] = useState<'loading' | 'valid' | 'redeemed' | 'expired' | 'error'>('loading');
     const [statusMessage, setStatusMessage] = useState('');
-    const [redemptions, setRedemptions] = useState<any[]>([]);
+    const [redemptions, setRedemptions] = useState<RedemptionData[]>([]);
 
     useEffect(() => {
         const encodedData = searchParams.get('d');
@@ -26,10 +27,10 @@ const GuestPass: React.FC = () => {
                 while (base64.length % 4) base64 += '=';
 
                 const parsed = JSON.parse(atob(base64));
-                setData(parsed);
+                setData(parsed as VoucherData);
                 checkStatus(id);
-            } catch (e) {
-                console.error("Failed to parse voucher data", e);
+            } catch (error) {
+                console.error("Failed to parse voucher data", error);
                 // Fall back to fetching data from the sheet
                 checkStatus(id, true);
             }
@@ -53,7 +54,7 @@ const GuestPass: React.FC = () => {
                 return;
             }
 
-            const currentItem = items.find((i: any) =>
+            const currentItem = items.find((i: Record<string, unknown>) =>
                 String(i.voucher_code || i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === voucherId.toUpperCase()
             );
 
@@ -62,12 +63,12 @@ const GuestPass: React.FC = () => {
                 setStatusMessage('Voucher not found in system.');
             } else {
                 // Support both Supabase (snake_case) and Sheet (camelCase/descriptive)
-                const checkOut = currentItem.check_out || currentItem.checkout || currentItem.checkOut || '';
-                const guestName = currentItem.guest_name || currentItem.description || currentItem.guestName || '';
-                const roomNumber = currentItem.room_number || currentItem.amount || currentItem.roomNumber || '';
-                const servicesRaw = currentItem.service_type || currentItem.services || '';
-                const imageUrl = currentItem.image_url || currentItem.imageurl || currentItem.imageUrl || '';
-                const createdAt = currentItem.created_at || '';
+                const checkOut = String(currentItem.check_out || currentItem.checkout || currentItem.checkOut || '');
+                const guestName = String(currentItem.guest_name || currentItem.description || currentItem.guestName || '');
+                const roomNumber = String(currentItem.room_number || currentItem.amount || currentItem.roomNumber || '');
+                const servicesRaw = String(currentItem.service_type || currentItem.services || '');
+                const imageUrl = String(currentItem.image_url || currentItem.imageurl || currentItem.imageUrl || '');
+                const createdAt = String(currentItem.created_at || '');
 
                 const isExpired = isVoucherExpired({ checkOut });
 
@@ -79,8 +80,10 @@ const GuestPass: React.FC = () => {
 
                 if (needsHydration) {
                     setData({
+                        id: voucherId,
                         guestName,
                         roomNumber,
+                        checkIn: '',
                         checkOut: checkOut || '',
                         services: servicesRaw ? String(servicesRaw).split(/,\s*/g) : [],
                         imageUrl,
@@ -88,8 +91,8 @@ const GuestPass: React.FC = () => {
                     });
                 }
             }
-        } catch (e) {
-            console.error('GuestPass: Failed to fetch voucher data', e);
+        } catch (error) {
+            console.error('GuestPass: Failed to fetch voucher data', error);
             setStatus('error');
             setStatusMessage('Could not connect to server. Please try again.');
         }
@@ -106,11 +109,11 @@ const GuestPass: React.FC = () => {
                 if (vRes.ok) {
                     const items = await vRes.json();
                     if (Array.isArray(items)) {
-                        const currentItem = items.find((i: any) =>
+                        const currentItem = items.find((i: Record<string, unknown>) =>
                             String(i.voucher_code || i.date || i.voucherCode || i.code || i.id || i.voucherid || '').toUpperCase() === id.toUpperCase()
                         );
                         if (currentItem) {
-                            if (isVoucherExpired(currentItem)) {
+                            if (isVoucherExpired(currentItem as unknown as { checkOut?: string })) {
                                 if (status !== 'expired') setStatus('expired');
                             }
                         }
@@ -122,10 +125,10 @@ const GuestPass: React.FC = () => {
                 if (rRes.ok) {
                     const items = await rRes.json();
                     if (Array.isArray(items)) {
-                        setRedemptions(items.filter((i: any) => i.voucherCode === id));
+                        setRedemptions(items.filter((i: RedemptionData) => i.voucherCode === id));
                     }
                 }
-            } catch (e) {
+            } catch {
                 // Silently ignore polling errors
             }
         }, 10000);
