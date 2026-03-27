@@ -55,7 +55,7 @@ const GuestPass: React.FC = () => {
   ) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/get-data?sheet=Vouchers`,
+        `${API_BASE_URL}/api/data?sheet=vouchers`,
       );
       if (!response.ok) throw new Error("Failed to fetch vouchers");
       const items = await response.json();
@@ -148,7 +148,7 @@ const GuestPass: React.FC = () => {
     const pollInterval = setInterval(async () => {
       try {
         // 1. Poll Vouchers for expiry
-        const vRes = await fetch(`${API_BASE_URL}/api/get-data?sheet=Vouchers`);
+        const vRes = await fetch(`${API_BASE_URL}/api/data?sheet=vouchers`);
         if (vRes.ok) {
           const items = await vRes.json();
           if (Array.isArray(items)) {
@@ -178,7 +178,7 @@ const GuestPass: React.FC = () => {
 
         // 2. Poll Redemptions
         const rRes = await fetch(
-          `${API_BASE_URL}/api/get-data?sheet=Redemptions`,
+          `${API_BASE_URL}/api/data?sheet=redemptions`,
         );
         if (rRes.ok) {
           const items = await rRes.json();
