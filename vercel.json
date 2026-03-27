@@ -6,11 +6,10 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "https://voucher.htf.solutions/api/$1"
     },
-    {
-      "source": "/(.*)",
-      "destination": "/$1"
-    }
+    { "source": "/v/(.*)", "destination": "/index.html" },
+    { "source": "/admin/(.*)", "destination": "/index.html" },
+    { "source": "/((?!api|assets|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
