@@ -15,9 +15,7 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wellnessclub-api.rule=Host(`voucher.htf.solutions`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.wellnessclub-api.entrypoints=websecure"
-      - "traefik.http.routers.wellnessclub-api.tls.certresolver=letsencrypt"
+      # Internal API routing (proxied by Web container)
       - "traefik.http.services.wellnessclub-api.loadbalancer.server.port=3001"
       - "traefik.docker.network=easypanel"
     networks:
@@ -41,7 +39,7 @@ services:
       - api
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wellnessclub.rule=Host(`apps-server-wellness-club.lig4xy.easypanel.host`)"
+      - "traefik.http.routers.wellnessclub.rule=Host(`voucher.htf.solutions`) || Host(`apps-server-wellness-club.lig4xy.easypanel.host`)"
       - "traefik.http.routers.wellnessclub.entrypoints=websecure"
       - "traefik.http.routers.wellnessclub.tls.certresolver=letsencrypt"
       - "traefik.http.services.wellnessclub.loadbalancer.server.port=80"
