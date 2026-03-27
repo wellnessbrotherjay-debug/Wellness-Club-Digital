@@ -9,10 +9,17 @@ const allowedOrigins = [
 
 export const corsMiddleware = cors({
     origin: (origin) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin) return origin; // Allow same-origin
+        
+        const isVercel = origin.endsWith('.vercel.app');
+        const isAllowedLocal = origin === 'http://localhost:5173' || origin === 'http://localhost:3000';
+        const isDefault = allowedOrigins.includes(origin);
+
+        if (isVercel || isAllowedLocal || isDefault) {
             return origin;
         }
-        return allowedOrigins[0]; // Fallback to main production domain
+        
+        return allowedOrigins[0];
     },
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [

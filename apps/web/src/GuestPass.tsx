@@ -57,7 +57,18 @@ const GuestPass: React.FC = () => {
       const response = await fetch(
         `${API_BASE_URL}/api/data?sheet=vouchers&id=${voucherId}`,
       );
-      if (!response.ok) throw new Error("Failed to fetch vouchers");
+      if (!response.ok) {
+        const errText = await response.text();
+        let errorMsg = `Server error: ${response.status}`;
+        try {
+          const errJson = JSON.parse(errText);
+          errorMsg = errJson.error || errJson.message || errorMsg;
+          if (errJson.details) errorMsg += ` (${errJson.details})`;
+        } catch {
+          // Response was not JSON
+        }
+        throw new Error(errorMsg);
+      }
       const items = await response.json();
 
       if (!Array.isArray(items)) {
@@ -134,10 +145,10 @@ const GuestPass: React.FC = () => {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("GuestPass: Failed to fetch voucher data", error);
       setStatus("error");
-      setStatusMessage("Could not connect to server. Please try again.");
+      setStatusMessage(error.message || "Could not connect to server. Please try again.");
     }
   };
 
