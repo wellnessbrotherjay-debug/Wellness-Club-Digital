@@ -1,9 +1,11 @@
-import { handle } from 'hono/vercel';
-import app from '../apps/api/src/app.js';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export const config = {
-  runtime: 'nodejs',
-};
-
-export default handle(app);
-
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.status(200).json({
+    status: 'ok',
+    service: 'Wellness Club API',
+    version: '3.0.0',
+    timestamp: new Date().toISOString(),
+  });
+}
