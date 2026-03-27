@@ -1,6 +1,7 @@
 {
   "name": "wellness-club-digital",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*"
   ],

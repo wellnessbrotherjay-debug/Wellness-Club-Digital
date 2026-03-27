@@ -1,8 +1,12 @@
 import { handle } from 'hono/vercel';
-import app from '../apps/api/src/app.js';
 
 export const config = {
   runtime: 'nodejs',
 };
 
-export default handle(app);
+export default async (req: any, res: any) => {
+  // Dynamic import as recommended by Vercel error for ESM compatibility
+  const { default: app } = await import('../apps/api/src/app.js');
+  return handle(app)(req, res);
+};
+
