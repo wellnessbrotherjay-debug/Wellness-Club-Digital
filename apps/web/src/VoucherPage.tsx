@@ -182,6 +182,7 @@ const VoucherPage: React.FC = () => {
   const [isLogging, setIsLogging] = useState(false);
   const [selectedVoucherForDetail, setSelectedVoucherForDetail] = useState<VoucherData | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [isSyncingManual, setIsSyncingManual] = useState(false); // For manual trigger loading state
 
   const {
     vouchers: recentVouchers,
@@ -282,6 +283,21 @@ const VoucherPage: React.FC = () => {
     setUserRole(role);
     localStorage.setItem("wellness_session", role);
     if (role === "staff") setActiveTab("validate");
+  };
+
+  const handleManualSync = async () => {
+    if (isSyncingManual || pendingCount === 0) return;
+    setIsSyncingManual(true);
+    try {
+      const success = await syncService.syncNow();
+      if (success) {
+        // notification or pulse handled by syncStatus state
+      } else {
+        alert("Sync failed. Check your connection.");
+      }
+    } finally {
+      setIsSyncingManual(false);
+    }
   };
 
   const generateVoucherId = () => {
@@ -659,29 +675,39 @@ const VoucherPage: React.FC = () => {
               </span>
             </div>
             <div 
-              className="flex flex-col items-end mr-4 cursor-help"
-              title={
-                syncStatus === "synced"
-                  ? "All data secured to cloud"
-                  : `${pendingCount} Vouchers pending sync...`
-              }
+              className="flex flex-col items-end mr-4 group relative"
             >
-              <Cloud
-                className={
-                  syncStatus === "synced"
-                    ? "text-green-500"
-                    : syncStatus === "syncing"
-                      ? "text-amber-500 animate-pulse"
-                      : "text-gray-400"
-                }
-                size={20}
-              />
+              <div className="flex items-center gap-2">
+                {pendingCount > 0 && !isSyncingManual && (
+                  <button
+                    onClick={handleManualSync}
+                    className="text-[8px] font-black uppercase tracking-tighter bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 transition-all border border-amber-200"
+                  >
+                    Sync Now
+                  </button>
+                )}
+                {isSyncingManual && (
+                  <Loader2 className="animate-spin text-amber-500" size={14} />
+                )}
+                <Cloud
+                  className={
+                    syncStatus === "synced"
+                      ? "text-green-500"
+                      : (syncStatus === "syncing" || isSyncingManual)
+                        ? "text-amber-500 animate-pulse"
+                        : "text-gray-400"
+                  }
+                  size={20}
+                />
+              </div>
               <span className="text-[10px] font-bold">
-                {syncStatus === "synced"
-                  ? "Synced"
-                  : syncStatus === "syncing"
-                    ? "Syncing..."
-                    : "Pending"}
+                {isSyncingManual 
+                  ? "Forcing..." 
+                  : syncStatus === "synced"
+                    ? "Synced"
+                    : syncStatus === "syncing"
+                      ? "Syncing..."
+                      : "Pending"}
               </span>
             </div>
             <div className="flex gap-2">

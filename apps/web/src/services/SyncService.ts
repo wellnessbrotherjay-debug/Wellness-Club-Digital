@@ -80,14 +80,24 @@ class SyncService {
     );
 
     try {
+      // Transformation step: Map id to voucher_code and ensure strings are not null/undefined
+      const mappedVouchers = pending.map(v => ({
+        ...v,
+        voucher_code: v.id, // Direct mapping to database column
+        email: v.email || "",
+        whatsapp: v.whatsapp || "",
+        imageUrl: v.imageUrl || "",
+      }));
+
       const response = await fetch(`${API_BASE_URL}/api/vouchers/bulk-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vouchers: pending }),
+        body: JSON.stringify({ vouchers: mappedVouchers }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to bulk sync");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to bulk sync");
       }
 
       const db = await this.dbPromise;
@@ -103,6 +113,19 @@ class SyncService {
       console.log("[SyncService] Sync successful");
     } catch (error) {
       console.error("[SyncService] Sync failed:", error);
+      throw error; // Rethrow to allow manual trigger to catch
+    }
+  }
+
+  /**
+   * Manual trigger for synchronization
+   */
+  public async syncNow(): Promise<boolean> {
+    try {
+      await this.syncPendingVouchers();
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 }

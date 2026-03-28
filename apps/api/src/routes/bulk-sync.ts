@@ -10,7 +10,7 @@ const APPS_SCRIPT_URL =
 
 // --- Validation Schemas ---
 const VoucherSchema = z.object({
-  id: z.string().min(4),
+  voucher_code: z.string().min(4), // Changed from id to voucher_code
   guestName: z.string().optional().default('Walk-in Guest'),
   roomNumber: z.string().optional().default('N/A'),
   checkIn: z.string().optional(),
@@ -19,7 +19,7 @@ const VoucherSchema = z.object({
   pax: z.number().int().min(1).default(1),
   email: z.string().email().optional().nullable().or(z.literal('')),
   whatsapp: z.string().optional().nullable().or(z.literal('')),
-  imageUrl: z.string().url().optional().nullable().or(z.literal('')),
+  imageUrl: z.string().url().optional().nullable().or(z.literal('')), // Allowing empty string
   isTest: z.boolean().optional().default(false),
   qr_source_location: z.string().optional().nullable(),
   marketing_consent: z.boolean().optional().default(false),
@@ -80,7 +80,7 @@ app.post('/', async (c) => {
         const inserts = vouchers.map((v) => {
             const servicesStr = v.services.join(', ');
             return {
-                voucher_code: v.id, // Primary Key in Supabase
+                voucher_code: v.voucher_code, // Updated to use v.voucher_code from schema
                 guest_name: v.guestName,
                 room_number: v.roomNumber,
                 check_in: v.checkIn ? new Date(v.checkIn) : null,
