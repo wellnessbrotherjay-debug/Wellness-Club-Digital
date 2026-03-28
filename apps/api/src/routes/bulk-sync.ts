@@ -102,7 +102,7 @@ app.post("/", async (c) => {
         pax: Number(v.pax) || 1,
         email: v.email || null,
         whatsapp: v.whatsapp || null,
-        image_url: v.image_url || null,
+        // image_url: v.image_url || null,
         is_test: v.isTest,
         qr_source_location: v.qr_source_location,
         marketing_consent: v.marketing_consent,
