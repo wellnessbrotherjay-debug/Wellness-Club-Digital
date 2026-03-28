@@ -106,6 +106,7 @@ app.post("/", async (c) => {
         is_test: v.isTest,
         qr_source_location: v.qr_source_location,
         marketing_consent: v.marketing_consent,
+        service_type: v.services.join(", "), // Added service_type
         sync_status: "synced",
         metadata: v.metadata || {},
       };
@@ -135,7 +136,7 @@ app.post("/", async (c) => {
         type: v.checkIn,
         checkout: v.checkOut,
         image_url: v.image_url,
-        services: v.services.join(", "),
+        serviceType: v.services.join(", "),
         created_at: v.created_at,
         pax: v.pax,
         email: v.email,

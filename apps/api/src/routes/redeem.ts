@@ -105,14 +105,14 @@ app.post('/', async (c) => {
 
         const { error: dbError } = await supabaseAdmin.from('redemptions').insert(redemptionRow);
         if (dbError) {
-            console.error('[Redeem] Supabase insert failed:', dbError.message);
+            console.error('[Redeem] Supabase FULL ERROR:', JSON.stringify(dbError, null, 2));
             // Don't block — continue to mirror + email, but log the error
         }
     }
 
     // 2. Mirror to Google Sheets (background, fire-and-forget)
-    mirrorToGoogleSheets(body).then((mirrored) => {
-        if (!mirrored) console.warn('[Mirror] Google Sheets mirror failed for:', body.voucherCode);
+    mirrorToGoogleSheets(body).catch((err) => {
+        console.error('[Background Task] Mirroring Failed for:', body.voucherCode, err);
     });
 
     // 3. Email notification

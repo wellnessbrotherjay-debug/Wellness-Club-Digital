@@ -291,7 +291,10 @@ const VoucherPage: React.FC = () => {
     try {
       const success = await syncService.syncNow();
       if (success) {
-        // notification or pulse handled by syncStatus state
+        // Clear legacy caches and trigger re-fetch
+        localStorage.removeItem("reception_vouchers_cache");
+        localStorage.removeItem("pending_vouchers");
+        await fetchData(); // Force refresh from server
       } else {
         alert("Sync failed. Check your connection.");
       }
