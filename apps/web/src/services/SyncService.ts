@@ -86,7 +86,7 @@ class SyncService {
         voucher_code: v.id, // Direct mapping to database column
         email: v.email || "",
         whatsapp: v.whatsapp || "",
-        imageUrl: v.imageUrl || "",
+        image_url: v.imageUrl || "", // Changed to snake_case
       }));
 
       const response = await fetch(`${API_BASE_URL}/api/vouchers/bulk-sync`, {
