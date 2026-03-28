@@ -1420,7 +1420,7 @@ const VoucherPage: React.FC = () => {
           <div className="animate-fade-in">
             <Validator
               vouchers={recentVouchers}
-              onRefresh={() => fetchData()}
+              onRefresh={mutate}
             />
           </div>
         )}

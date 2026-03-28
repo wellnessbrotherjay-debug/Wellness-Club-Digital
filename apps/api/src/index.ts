@@ -5,6 +5,20 @@ import { runDailyBackup } from "./routes/cron/daily-backup.js";
 
 const port = parseInt(process.env.PORT || "3001", 10);
 
+const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+
+// WebSocket route
+app.get('/ws', upgradeWebSocket(() => {
+    return {
+        onMessage(event) {
+            console.log(`[WS] Message: ${event.data}`);
+        },
+        onClose: () => {
+            console.log('[WS] Connection closed');
+        },
+    };
+}));
+
 const server = serve({
   fetch: app.fetch,
   port
