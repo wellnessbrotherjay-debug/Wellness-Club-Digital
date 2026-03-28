@@ -16,7 +16,7 @@ import bulkSyncRoute from './routes/bulk-sync.js';
 import dailyBackupRoute from './routes/cron/daily-backup.js';
 import backupsRoute from './routes/backups.js';
 
-const app = new Hono();
+const app = new Hono({ strict: false });
 
 // Global middleware
 app.use('*', corsMiddleware);
