@@ -161,7 +161,12 @@ export const useVoucherData = () => {
         isFetching,
         hasLoaded: hasInitialLoaded,
         error: fetchError,
-        refresh: () => fetchData(false)
+        refresh: () => fetchData(false),
+        mutate: () => {
+            localStorage.removeItem('pending_vouchers');
+            localStorage.removeItem('pending_redemptions');
+            return fetchData(false);
+        }
     };
 };
 

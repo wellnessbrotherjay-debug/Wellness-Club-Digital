@@ -192,6 +192,7 @@ const VoucherPage: React.FC = () => {
     hasLoaded: hasInitialLoaded,
     error: fetchError,
     refresh: fetchData,
+    mutate,
   } = useVoucherData();
 
   // --- BULLETPROOF BACKUP SYSTEM ---
@@ -291,10 +292,8 @@ const VoucherPage: React.FC = () => {
     try {
       const success = await syncService.syncNow();
       if (success) {
-        // Clear legacy caches and trigger re-fetch
-        localStorage.removeItem("reception_vouchers_cache");
-        localStorage.removeItem("pending_vouchers");
-        await fetchData(); // Force refresh from server
+        // Consolidated clearing and re-fetch via useVoucherData hook
+        await mutate(); 
       } else {
         alert("Sync failed. Check your connection.");
       }

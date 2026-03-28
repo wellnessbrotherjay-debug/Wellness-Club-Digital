@@ -86,27 +86,19 @@ app.post('/', async (c) => {
 
     // 1. Write to Supabase (primary)
     if (action === 'redeem') {
-        const redemptionRow = {
-            voucher_code: (body.voucherCode || body.code || '').toUpperCase(),
-            guest_name: body.guestName || body.userName || body.name || '',
-            service_type: body.serviceType || body.redeemed_service || '',
-            room_number: body.roomNumber || '',
-            redeemed_at: body.redeemedAt,
-            weather: body.weather || '',
-            ip_address: body.ipAddress || '',
-            device_id: body.deviceId || 'unknown',
-            user_agent: body.userAgent || '',
-            bill_amount: body.billAmount ? parseFloat(body.billAmount) : null,
-            tax: body.tax || null,
-            service_charge: body.serviceCharge || null,
-            total: body.total || null,
-            input_path: body.inputPath || '/',
-        };
+        const { error: dbError } = await supabaseAdmin
+            .from("redemptions")
+            .insert([{
+                voucher_code: body.voucher_code || body.voucherCode || body.code,
+                guest_name: body.guestName || body.userName || body.name,
+                service_type: body.serviceType || body.redeemed_service || body.services,
+                pax: body.pax || 1,
+                metadata: body.metadata || {}
+            }]);
 
-        const { error: dbError } = await supabaseAdmin.from('redemptions').insert(redemptionRow);
         if (dbError) {
-            console.error('[Redeem] Supabase FULL ERROR:', JSON.stringify(dbError, null, 2));
-            // Don't block — continue to mirror + email, but log the error
+            console.error("Redemption DB Error:", dbError);
+            return c.json({ error: "Failed to save redemption to database" }, 500);
         }
     }
 
