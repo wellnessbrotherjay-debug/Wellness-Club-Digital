@@ -110,7 +110,7 @@ app.post('/', async (c) => {
         vouchers.forEach(v => {
             const gsPayload = {
                 action: 'create',
-                date: v.id,
+                date: v.voucher_code,
                 description: v.guestName,
                 category: 'Synced',
                 roomNumber: v.roomNumber,
