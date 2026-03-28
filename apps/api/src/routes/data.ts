@@ -32,11 +32,21 @@ app.get('/', async (c) => {
     }
 
     try {
+        const id = c.req.query('id');
         const orderCol = table === 'redemptions' ? 'timestamp' : 'created_at';
-        const { data, error } = await supabaseAdmin
+        
+        let query = supabaseAdmin
             .from(table)
-            .select('*')
-            .order(orderCol, { ascending: false });
+            .select('*');
+
+        if (id) {
+            // Support filtering by voucher_code (vouchers table) or voucher_code (redemptions table)
+            query = query.eq('voucher_code', id.trim().toUpperCase());
+        } else {
+            query = query.order(orderCol, { ascending: false });
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             // Some tables might not have the timestamp column, fallback to no order

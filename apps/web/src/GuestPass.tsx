@@ -59,6 +59,8 @@ const GuestPass: React.FC = () => {
       );
       if (!response.ok) throw new Error("Failed to fetch vouchers");
       const items = await response.json();
+      console.log(`🔍 [GuestPass] Fetched ${items.length} items for ID: ${voucherId}`);
+      if (items.length > 0) console.log('Sample item:', items[0]);
 
       if (!Array.isArray(items)) {
         setStatus("error");
@@ -67,8 +69,8 @@ const GuestPass: React.FC = () => {
       }
 
       const currentItem = items.find(
-        (i: Record<string, unknown>) =>
-          String(
+        (i: Record<string, unknown>) => {
+          const itemId = String(
             i.voucher_code ||
               i.date ||
               i.voucherCode ||
@@ -76,10 +78,13 @@ const GuestPass: React.FC = () => {
               i.id ||
               i.voucherid ||
               "",
-          ).toUpperCase() === voucherId.toUpperCase(),
+          ).trim();
+          return itemId.toUpperCase() === voucherId.trim().toUpperCase();
+        }
       );
 
       if (!currentItem) {
+        console.warn(`⚠️ [GuestPass] Voucher ${voucherId} not found in array of ${items.length} items.`);
         setStatus("error");
         setStatusMessage("Voucher not found in system.");
       } else {
