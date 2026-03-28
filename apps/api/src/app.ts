@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { logger } from 'hono/logger';
 import { corsMiddleware } from './middleware/cors.js';
 import { rateLimit } from './middleware/rate-limit.js';
 
@@ -19,6 +20,7 @@ import backupsRoute from './routes/backups.js';
 const app = new Hono({ strict: false });
 
 // Global middleware
+app.use('*', logger());
 app.use('*', corsMiddleware);
 
 // Endpoint Protection (Rate Limits)
