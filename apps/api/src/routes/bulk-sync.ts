@@ -93,29 +93,26 @@ app.post("/", async (c) => {
     );
 
     const inserts = vouchers.map((v) => {
-      const servicesStr = v.services.join(", ");
       return {
-        voucher_code: v.voucher_code, // Updated to use v.voucher_code from schema
+        voucher_code: v.voucher_code,
         guest_name: v.guestName,
         room_number: v.roomNumber,
-        check_in: v.checkIn ? new Date(v.checkIn) : null,
-        check_out: v.checkOut ? new Date(v.checkOut) : null,
-        services: servicesStr,
-        pax: Number(v.pax), // Ensuring it's a number for Prisma
-        email: v.email,
-        whatsapp: v.whatsapp,
-        image_url: v.image_url,
+        check_in: v.checkIn ? v.checkIn.split("T")[0] : null, // YYYY-MM-DD
+        check_out: v.checkOut ? v.checkOut.split("T")[0] : null, // YYYY-MM-DD
+        pax: Number(v.pax) || 1,
+        email: v.email || null,
+        whatsapp: v.whatsapp || null,
+        image_url: v.image_url || null,
         is_test: v.isTest,
         qr_source_location: v.qr_source_location,
         marketing_consent: v.marketing_consent,
-        created_at: v.created_at ? new Date(v.created_at) : new Date(),
         sync_status: "synced",
-        metadata: v.metadata,
+        metadata: v.metadata || {},
       };
     });
 
     // 2. Primary Write to Supabase (Blocking)
-    console.log("Final Payload to Supabase:", JSON.stringify(inserts, null, 2));
+    console.log("SENDING TO DB:", JSON.stringify(inserts, null, 2));
     const { error: dbError } = await supabaseAdmin
       .from("vouchers")
       .upsert(inserts, { onConflict: "voucher_code" });
