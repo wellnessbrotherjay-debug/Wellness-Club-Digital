@@ -129,6 +129,7 @@ const GuestPass: React.FC = () => {
         if (needsHydration) {
           setData({
             id: voucherId,
+            voucherId: voucherId,
             guestName,
             roomNumber,
             checkIn: "",
@@ -136,6 +137,10 @@ const GuestPass: React.FC = () => {
             services: servicesRaw ? String(servicesRaw).split(/,\s*/g) : [],
             imageUrl,
             created_at: createdAt,
+            Category: String(currentItem.qr_source_location || currentItem.category || 'reception'),
+            Pax: currentItem.pax ? parseInt(String(currentItem.pax), 10) : 1,
+            IsTest: currentItem.is_test === true || currentItem.is_test === 'TRUE',
+            phone: String(currentItem.whatsapp || currentItem.phone || ''),
           });
         }
       }

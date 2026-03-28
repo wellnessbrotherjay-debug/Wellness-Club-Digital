@@ -379,7 +379,16 @@ const VoucherPage: React.FC = () => {
 
       const uiVoucher: VoucherData = {
         ...newVoucher,
+        voucherId: newVoucher.id,
+        phone: newVoucher.whatsapp,
+        pax: newVoucher.pax,
+        Pax: newVoucher.pax,
+        IsTest: newVoucher.isTest,
+        is_test: newVoucher.isTest,
+        Category: newVoucher.qr_source_location || "reception",
         secondGuestName: "",
+        created_at: newVoucher.created_at,
+        services: services,
       };
 
       // BULLETPROOF: Save to local storage IMMEDIATELY before state changes
