@@ -34,6 +34,7 @@ import { COUNTRY_CODES } from "./data/countryCodes";
 
 export interface VoucherData {
   id: string;
+  voucherId?: string;
   guestName: string;
   roomNumber: string;
   checkIn: string;
@@ -41,7 +42,9 @@ export interface VoucherData {
   services: string[];
   imageUrl?: string;
   status?: string;
+  Category?: string;
   serviceType?: string;
+  redeemedService?: string;
   redeemed_service?: string;
   created_at?: string;
   redeemed_at?: string;
@@ -53,14 +56,17 @@ export interface VoucherData {
   room_number?: string;
   redemptions?: RedemptionData[];
   pax?: number;
+  Pax?: number;
   secondGuestName?: string;
   email?: string;
   whatsapp?: string;
+  phone?: string;
   weather?: string;
   deviceId?: string;
   ipAddress?: string;
   userAgent?: string;
   is_test?: boolean | string;
+  IsTest?: boolean;
   qr_source_location?: string;
   marketing_consent?: boolean;
 }
@@ -68,13 +74,18 @@ export interface VoucherData {
 export interface RedemptionData {
   timestamp: string;
   voucherCode: string;
+  voucherId?: string;
   guestName: string;
   serviceType: string;
+  redeemedService?: string;
   roomNumber: string;
   inputPath?: string;
   emailStatus?: string;
   total?: number;
   weather?: string;
+  Pax?: number;
+  IsTest?: boolean;
+  Category?: string;
 }
 
 import { ENTITLEMENTS } from "./constants/services";
@@ -113,11 +124,17 @@ const VoucherPage: React.FC = () => {
   useEffect(() => {
     const updateSyncStatus = async () => {
       const pending = await syncService.getPendingVouchers();
-      setPendingCount(pending.length);
-      if (pending.length > 0) {
+      const count = pending.length;
+      setPendingCount(count);
+      
+      if (count > 0) {
         setSyncStatus(navigator.onLine ? "syncing" : "pending");
       } else {
+        // If we just reached 0 pending, and we were previously syncing/pending,
+        // it means a background sync likely finished.
         setSyncStatus("synced");
+        setLocalBackups([]);
+        localStorage.removeItem("wellness_vouchers_backup");
       }
     };
 
@@ -292,6 +309,10 @@ const VoucherPage: React.FC = () => {
     try {
       const success = await syncService.syncNow();
       if (success) {
+        // Clear local backups immediately upon success
+        setLocalBackups([]);
+        localStorage.removeItem("wellness_vouchers_backup");
+        
         // Consolidated clearing and re-fetch via useVoucherData hook
         await mutate(); 
       } else {
@@ -758,18 +779,7 @@ const VoucherPage: React.FC = () => {
               >
                 <List size={16} /> Issued
                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
-                  {
-                    recentVouchers.filter((v) => {
-                      if (!v.guestName || v.guestName === "Unknown Guest")
-                        return false;
-                      if (
-                        isTestAccount(v.guestName || "", v.id || "") ||
-                        (v as unknown as Record<string, unknown>).is_test === "TRUE"
-                      )
-                        return false;
-                      return true;
-                    }).length
-                  }
+                  {recentVouchers.length}
                 </span>
               </button>
             )}
