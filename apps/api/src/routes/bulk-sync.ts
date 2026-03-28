@@ -115,11 +115,12 @@ app.post("/", async (c) => {
     });
 
     // 2. Primary Write to Supabase (Blocking)
+    console.log("Final Payload to Supabase:", JSON.stringify(inserts, null, 2));
     const { error: dbError } = await supabaseAdmin
       .from("vouchers")
       .upsert(inserts, { onConflict: "voucher_code" });
     if (dbError) {
-      console.error("[Bulk Sync] Supabase upsert failed:", dbError.message);
+      console.error("SUPABASE FULL ERROR:", JSON.stringify(dbError, null, 2));
       return c.json(
         { error: "Database synchronization failed", message: dbError.message },
         500,
