@@ -38,6 +38,10 @@ app.get('/', (c) => {
     });
 });
 
+app.get('/health', (c) => {
+    return c.json({ status: 'ok' });
+});
+
 // API routes
 app.route('/api/data', dataRoute);
 app.route('/api/redeem', redeemRoute);
