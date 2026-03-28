@@ -102,7 +102,7 @@ app.post("/", async (c) => {
         pax: Number(v.pax) || 1,
         email: v.email || null,
         whatsapp: v.whatsapp || null,
-        // image_url: v.image_url || null,
+        image_url: v.image_url || null,
         is_test: v.isTest,
         qr_source_location: v.qr_source_location,
         marketing_consent: v.marketing_consent,
@@ -145,14 +145,9 @@ app.post("/", async (c) => {
         marketing_consent: v.marketing_consent,
       };
 
-      const backgroundTask = mirrorToGoogleSheets(gsPayload);
-      if (c.executionCtx && c.executionCtx.waitUntil) {
-        c.executionCtx.waitUntil(backgroundTask);
-      } else {
-        backgroundTask.catch((err) =>
-          console.error("[Background Task] Failed:", err),
-        );
-      }
+      mirrorToGoogleSheets(gsPayload).catch((err) =>
+        console.error("[Background Task] Mirroring Failed:", err),
+      );
     });
 
     return c.json({
