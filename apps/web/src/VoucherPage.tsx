@@ -509,7 +509,7 @@ const VoucherPage: React.FC = () => {
       setRecentVouchers((prev) => prev.filter((v) => !idList.includes(v.id)));
       if (isBulk) setSelectedIds([]);
 
-      await fetch(`${API_BASE_URL}/api/redeem-voucher`, {
+      await fetch(`${API_BASE_URL}/api/redeem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: body,
