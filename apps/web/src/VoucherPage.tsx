@@ -34,6 +34,7 @@ import { COUNTRY_CODES } from "./data/countryCodes";
 
 export interface VoucherData {
   id: string;
+  voucherId?: string;
   guestName: string;
   roomNumber: string;
   checkIn: string;
@@ -41,7 +42,9 @@ export interface VoucherData {
   services: string[];
   imageUrl?: string;
   status?: string;
+  Category?: string;
   serviceType?: string;
+  redeemedService?: string;
   redeemed_service?: string;
   created_at?: string;
   redeemed_at?: string;
@@ -53,14 +56,17 @@ export interface VoucherData {
   room_number?: string;
   redemptions?: RedemptionData[];
   pax?: number;
+  Pax?: number;
   secondGuestName?: string;
   email?: string;
   whatsapp?: string;
+  phone?: string;
   weather?: string;
   deviceId?: string;
   ipAddress?: string;
   userAgent?: string;
   is_test?: boolean | string;
+  IsTest?: boolean;
   qr_source_location?: string;
   marketing_consent?: boolean;
 }
@@ -68,13 +74,18 @@ export interface VoucherData {
 export interface RedemptionData {
   timestamp: string;
   voucherCode: string;
+  voucherId?: string;
   guestName: string;
   serviceType: string;
+  redeemedService?: string;
   roomNumber: string;
   inputPath?: string;
   emailStatus?: string;
   total?: number;
   weather?: string;
+  Pax?: number;
+  IsTest?: boolean;
+  Category?: string;
 }
 
 import { ENTITLEMENTS } from "./constants/services";
@@ -113,11 +124,17 @@ const VoucherPage: React.FC = () => {
   useEffect(() => {
     const updateSyncStatus = async () => {
       const pending = await syncService.getPendingVouchers();
-      setPendingCount(pending.length);
-      if (pending.length > 0) {
+      const count = pending.length;
+      setPendingCount(count);
+      
+      if (count > 0) {
         setSyncStatus(navigator.onLine ? "syncing" : "pending");
       } else {
+        // If we just reached 0 pending, and we were previously syncing/pending,
+        // it means a background sync likely finished.
         setSyncStatus("synced");
+        setLocalBackups([]);
+        localStorage.removeItem("wellness_vouchers_backup");
       }
     };
 
@@ -182,6 +199,7 @@ const VoucherPage: React.FC = () => {
   const [isLogging, setIsLogging] = useState(false);
   const [selectedVoucherForDetail, setSelectedVoucherForDetail] = useState<VoucherData | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [isSyncingManual, setIsSyncingManual] = useState(false); // For manual trigger loading state
 
   const {
     vouchers: recentVouchers,
@@ -191,6 +209,7 @@ const VoucherPage: React.FC = () => {
     hasLoaded: hasInitialLoaded,
     error: fetchError,
     refresh: fetchData,
+    mutate,
   } = useVoucherData();
 
   // --- BULLETPROOF BACKUP SYSTEM ---
@@ -284,6 +303,26 @@ const VoucherPage: React.FC = () => {
     if (role === "staff") setActiveTab("validate");
   };
 
+  const handleManualSync = async () => {
+    if (isSyncingManual || pendingCount === 0) return;
+    setIsSyncingManual(true);
+    try {
+      const success = await syncService.syncNow();
+      if (success) {
+        // Clear local backups immediately upon success
+        setLocalBackups([]);
+        localStorage.removeItem("wellness_vouchers_backup");
+        
+        // Consolidated clearing and re-fetch via useVoucherData hook
+        await mutate(); 
+      } else {
+        alert("Sync failed. Check your connection.");
+      }
+    } finally {
+      setIsSyncingManual(false);
+    }
+  };
+
   const generateVoucherId = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let result = "NW-";
@@ -340,7 +379,16 @@ const VoucherPage: React.FC = () => {
 
       const uiVoucher: VoucherData = {
         ...newVoucher,
+        voucherId: newVoucher.id,
+        phone: newVoucher.whatsapp,
+        pax: newVoucher.pax,
+        Pax: newVoucher.pax,
+        IsTest: newVoucher.isTest,
+        is_test: newVoucher.isTest,
+        Category: newVoucher.qr_source_location || "reception",
         secondGuestName: "",
+        created_at: newVoucher.created_at,
+        services: services,
       };
 
       // BULLETPROOF: Save to local storage IMMEDIATELY before state changes
@@ -386,10 +434,8 @@ const VoucherPage: React.FC = () => {
     if (!currentVoucher || !currentVoucher.whatsapp) return;
 
     setWaStatus("sending");
-    const GUEST_PASS_BASE = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app') || window.location.hostname.includes('voucher.htf.solutions')
-      ? window.location.origin
-      : 'https://voucher.htf.solutions';
-    const link = `${GUEST_PASS_BASE}/v/${currentVoucher.id}`;
+    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const link = `${baseUrl}/v/${currentVoucher.id}`;
 
     const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to claim your 15% discount and redeem your services.\n\nEnjoy your stay!`;
     const waLink = `https://wa.me/${currentVoucher.whatsapp.replace("+", "")}?text=${encodeURIComponent(message)}`;
@@ -406,11 +452,9 @@ const VoucherPage: React.FC = () => {
     if (!currentVoucher || !email) return;
 
     setEmailStatus("sending");
-    const GUEST_PASS_BASE = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app') || window.location.hostname.includes('voucher.htf.solutions')
-      ? window.location.origin
-      : 'https://voucher.htf.solutions';
+    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
     const subject = `Your No.1 Wellness Club Digital Pass`;
-    const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${GUEST_PASS_BASE}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
+    const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${baseUrl}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
 
     const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoLink;
@@ -497,7 +541,7 @@ const VoucherPage: React.FC = () => {
       setRecentVouchers((prev) => prev.filter((v) => !idList.includes(v.id)));
       if (isBulk) setSelectedIds([]);
 
-      await fetch(`${API_BASE_URL}/api/redeem-voucher`, {
+      await fetch(`${API_BASE_URL}/api/redeem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: body,
@@ -616,9 +660,7 @@ const VoucherPage: React.FC = () => {
   // IMPORTANT: Always use the canonical guest-facing domain, NOT window.location.origin.
   // The admin app runs on reception.no1wellness.com which is a broken domain (404).
   // QR codes must point to the working Vercel deployment.
-  const GUEST_PASS_BASE = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app') || window.location.hostname.includes('voucher.htf.solutions')
-    ? window.location.origin
-    : 'https://voucher.htf.solutions';
+  const GUEST_PASS_BASE = import.meta.env.VITE_APP_URL || window.location.origin;
   const voucherUrl = (voucher: VoucherData) =>
     `${GUEST_PASS_BASE}/v/${voucher.id}`;
 
@@ -665,29 +707,39 @@ const VoucherPage: React.FC = () => {
               </span>
             </div>
             <div 
-              className="flex flex-col items-end mr-4 cursor-help"
-              title={
-                syncStatus === "synced"
-                  ? "All data secured to cloud"
-                  : `${pendingCount} Vouchers pending sync...`
-              }
+              className="flex flex-col items-end mr-4 group relative"
             >
-              <Cloud
-                className={
-                  syncStatus === "synced"
-                    ? "text-green-500"
-                    : syncStatus === "syncing"
-                      ? "text-amber-500 animate-pulse"
-                      : "text-gray-400"
-                }
-                size={20}
-              />
+              <div className="flex items-center gap-2">
+                {pendingCount > 0 && !isSyncingManual && (
+                  <button
+                    onClick={handleManualSync}
+                    className="text-[8px] font-black uppercase tracking-tighter bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 transition-all border border-amber-200"
+                  >
+                    Sync Now
+                  </button>
+                )}
+                {isSyncingManual && (
+                  <Loader2 className="animate-spin text-amber-500" size={14} />
+                )}
+                <Cloud
+                  className={
+                    syncStatus === "synced"
+                      ? "text-green-500"
+                      : (syncStatus === "syncing" || isSyncingManual)
+                        ? "text-amber-500 animate-pulse"
+                        : "text-gray-400"
+                  }
+                  size={20}
+                />
+              </div>
               <span className="text-[10px] font-bold">
-                {syncStatus === "synced"
-                  ? "Synced"
-                  : syncStatus === "syncing"
-                    ? "Syncing..."
-                    : "Pending"}
+                {isSyncingManual 
+                  ? "Forcing..." 
+                  : syncStatus === "synced"
+                    ? "Synced"
+                    : syncStatus === "syncing"
+                      ? "Syncing..."
+                      : "Pending"}
               </span>
             </div>
             <div className="flex gap-2">
@@ -736,18 +788,7 @@ const VoucherPage: React.FC = () => {
               >
                 <List size={16} /> Issued
                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
-                  {
-                    recentVouchers.filter((v) => {
-                      if (!v.guestName || v.guestName === "Unknown Guest")
-                        return false;
-                      if (
-                        isTestAccount(v.guestName || "", v.id || "") ||
-                        (v as unknown as Record<string, unknown>).is_test === "TRUE"
-                      )
-                        return false;
-                      return true;
-                    }).length
-                  }
+                  {recentVouchers.length}
                 </span>
               </button>
             )}
@@ -1398,7 +1439,7 @@ const VoucherPage: React.FC = () => {
           <div className="animate-fade-in">
             <Validator
               vouchers={recentVouchers}
-              onRefresh={() => fetchData()}
+              onRefresh={mutate}
             />
           </div>
         )}

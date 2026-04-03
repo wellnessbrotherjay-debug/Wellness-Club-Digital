@@ -100,7 +100,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
             const transactionId = `${targetCode}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
             // Use our own API proxy to handle Email Notifications + Google Sheet Update
-            const response = await fetch(`${API_BASE_URL}/api/redeem-voucher`, {
+            const response = await fetch(`${API_BASE_URL}/api/redeem`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -128,6 +128,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
             // Artificial delay so the user can see the "Redeeming" status on mobile
             setTimeout(() => {
                 setStatus('valid');
+                localStorage.removeItem('pending_redemptions'); // Clear legacy key
 
                 setSelectedServices([]); // RESET SELECTION
                 setBillAmount(''); // RESET BILL
@@ -135,7 +136,8 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 if (onRefresh) onRefresh(); // REFRESH DATA TO SHOW REDEEMED STATUS
             }, 1000);
 
-        } catch {
+        } catch (err) {
+            console.error('[Verify] Redemption failed:', err);
             setStatus('error');
         }
     }, [code, selectedServices, vouchers, billAmount, onRefresh]);

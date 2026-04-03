@@ -1,7 +1,6 @@
-console.log('[API] Bootstrap v4 active');
 import { Hono } from 'hono';
-// Removed buggy hono/cors in favor of manual resilient implementation
-// import { corsMiddleware } from './middleware/cors.js';
+import { logger } from 'hono/logger';
+import { corsMiddleware } from './middleware/cors.js';
 import { rateLimit } from './middleware/rate-limit.js';
 
 // Route handlers
@@ -15,44 +14,14 @@ import sendReportRoute from './routes/send-report.js';
 import sendWhatsappRoute from './routes/send-whatsapp.js';
 import cronWeeklyReportRoute from './routes/cron/weekly-report.js';
 import bulkSyncRoute from './routes/bulk-sync.js';
+import dailyBackupRoute from './routes/cron/daily-backup.js';
+import backupsRoute from './routes/backups.js';
 
-const app = new Hono();
+const app = new Hono({ strict: false });
 
-// --- CRITICAL COMPATIBILITY FIX FOR VERCEL NODE.JS RUNTIME ---
-// Hono expects c.req.raw.headers.get to exist (Web Standards), 
-// but in Node.js runtime it's a plain object.
-app.use('*', async (c, next) => {
-    const rawReq = c.req.raw as any;
-    if (rawReq.headers && typeof rawReq.headers.get !== 'function') {
-        rawReq.headers.get = (name: string) => {
-            const lowName = name.toLowerCase();
-            return rawReq.headers[lowName] || rawReq.headers[name];
-        };
-    }
-    await next();
-});
-
-// --- MODERN CORS HANDLER ---
-app.use('*', async (c, next) => {
-    const origin = c.req.header('Origin') || '';
-    const isAllowed = 
-        !origin || 
-        origin.endsWith('.vercel.app') || 
-        origin === 'https://voucher.htf.solutions' ||
-        origin.includes('localhost');
-
-    if (isAllowed) {
-        c.header('Access-Control-Allow-Origin', origin || '*');
-    }
-    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    c.header('Access-Control-Allow-Credentials', 'true');
-
-    if (c.req.method === 'OPTIONS') {
-        return c.text('', 204);
-    }
-    await next();
-});
+// Global middleware
+app.use('*', logger());
+app.use('*', corsMiddleware);
 
 // Endpoint Protection (Rate Limits)
 app.use('/api/vouchers/bulk-sync', rateLimit({
@@ -71,6 +40,10 @@ app.get('/', (c) => {
     });
 });
 
+app.get('/health', (c) => {
+    return c.json({ status: 'ok' });
+});
+
 // API routes
 app.route('/api/data', dataRoute);
 app.route('/api/redeem', redeemRoute);
@@ -82,6 +55,7 @@ app.route('/api/send-report', sendReportRoute);
 app.route('/api/send-whatsapp', sendWhatsappRoute);
 app.route('/api/vouchers/bulk-sync', bulkSyncRoute);
 app.route('/api/cron/weekly-report', cronWeeklyReportRoute);
-// daily-backup and admin/backups routes disabled on Vercel (read-only filesystem)
+app.route('/api/cron/daily-backup', dailyBackupRoute);
+app.route('/api/admin/backups', backupsRoute);
 
 export default app;

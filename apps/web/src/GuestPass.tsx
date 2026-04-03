@@ -70,6 +70,8 @@ const GuestPass: React.FC = () => {
         throw new Error(errorMsg);
       }
       const items = await response.json();
+      console.log(`🔍 [GuestPass] Fetched ${items.length} items for ID: ${voucherId}`);
+      if (items.length > 0) console.log('Sample item:', items[0]);
 
       if (!Array.isArray(items)) {
         setStatus("error");
@@ -78,8 +80,8 @@ const GuestPass: React.FC = () => {
       }
 
       const currentItem = items.find(
-        (i: Record<string, unknown>) =>
-          String(
+        (i: Record<string, unknown>) => {
+          const itemId = String(
             i.voucher_code ||
               i.date ||
               i.voucherCode ||
@@ -87,10 +89,13 @@ const GuestPass: React.FC = () => {
               i.id ||
               i.voucherid ||
               "",
-          ).toUpperCase() === voucherId.toUpperCase(),
+          ).trim();
+          return itemId.toUpperCase() === voucherId.trim().toUpperCase();
+        }
       );
 
       if (!currentItem) {
+        console.warn(`⚠️ [GuestPass] Voucher ${voucherId} not found in array of ${items.length} items.`);
         setStatus("error");
         setStatusMessage("Voucher not found in system.");
       } else {
@@ -135,6 +140,7 @@ const GuestPass: React.FC = () => {
         if (needsHydration) {
           setData({
             id: voucherId,
+            voucherId: voucherId,
             guestName,
             roomNumber,
             checkIn: "",
@@ -142,6 +148,10 @@ const GuestPass: React.FC = () => {
             services: servicesRaw ? String(servicesRaw).split(/,\s*/g) : [],
             imageUrl,
             created_at: createdAt,
+            Category: String(currentItem.qr_source_location || currentItem.category || 'reception'),
+            Pax: currentItem.pax ? parseInt(String(currentItem.pax), 10) : 1,
+            IsTest: currentItem.is_test === true || currentItem.is_test === 'TRUE',
+            phone: String(currentItem.whatsapp || currentItem.phone || ''),
           });
         }
       }
