@@ -4,6 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 
+console.log('[api/data] ENV DEBUG:', {
+  SUPABASE_URL: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+  KEY_SOURCE: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE' : process.env.SUPABASE_ANON_KEY ? 'ANON_KEY' : process.env.VITE_SUPABASE_ANON_KEY ? 'VITE_ANON' : 'NONE',
+  KEY_PREFIX: supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'EMPTY',
+});
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const CORS_HEADERS: Record<string, string> = {

@@ -41,7 +41,7 @@ services:
       - api
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wellnessclub.rule=Host(`apps-server-wellness-club.lig4xy.easypanel.host`)"
+      - "traefik.http.routers.wellnessclub.rule=Host(`voucher.htf.solutions`) || Host(`apps-server-wellness-club.lig4xy.easypanel.host`)"
       - "traefik.http.routers.wellnessclub.entrypoints=websecure"
       - "traefik.http.routers.wellnessclub.tls.certresolver=letsencrypt"
       - "traefik.http.services.wellnessclub.loadbalancer.server.port=80"
