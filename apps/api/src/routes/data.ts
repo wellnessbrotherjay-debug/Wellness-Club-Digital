@@ -72,17 +72,46 @@ app.get('/', async (c) => {
  */
 app.get('/summary', async (c) => {
     try {
-        const { data: vouchers, error: vError } = await supabaseAdmin.from('vouchers').select('qr_source_location, marketing_consent, status');
-        const { count: redeemedCount, error: rError } = await supabaseAdmin.from('redemptions').select('*', { count: 'exact', head: true });
+        const { data: vouchers, error: vError } = await supabaseAdmin.from('vouchers').select('qr_source_location, marketing_consent, status, guest_name, voucher_code, is_test');
+        const { data: redemptions, error: rError } = await supabaseAdmin.from('redemptions').select('voucher_code, guest_name, service_type');
 
         if (vError || rError) throw vError || rError;
 
-        const totalIssued = vouchers?.length || 0;
-        const totalRedeemed = redeemedCount || 0;
+        const EXCLUDE_NAMES = ['test', 'samual', 'jay', 'diag', 'agent', 'fix'];
+        const isTest = (name: string, code: string) => {
+            const n = String(name || '').toLowerCase();
+            const c = String(code || '').toLowerCase();
+            return c.startsWith('test-') || EXCLUDE_NAMES.some(tn => n.includes(tn));
+        };
+
+        // Filter Real Vouchers
+        const realVouchers = (vouchers || []).filter(v => {
+            if (!v.guest_name || v.guest_name === 'Unknown Guest') return false;
+            if (v.is_test || isTest(v.guest_name, v.voucher_code)) return false;
+            return true;
+        });
+
+        // Filter Real Redemptions & Deduplicate
+        const voucherMap = new Map(vouchers?.map(v => [v.voucher_code?.toUpperCase(), v]));
+        const seenVouchers = new Set<string>();
+        const realRedemptions = (redemptions || []).filter(r => {
+            const v = voucherMap.get(r.voucher_code?.toUpperCase());
+            const n = r.guest_name || (v ? v.guest_name : '');
+            if (isTest(n, r.voucher_code) || n === 'Unknown Guest') return false;
+            if (v && v.is_test) return false;
+            
+            // Deduplicate: only count each voucher once for the top-level metric
+            if (seenVouchers.has(r.voucher_code)) return false;
+            seenVouchers.add(r.voucher_code);
+            return true;
+        });
+
+        const totalIssued = realVouchers.length;
+        const totalRedeemed = realRedemptions.length;
         
-        // Venue Leaderboard
+        // Venue Leaderboard (based on REAL issued vouchers)
         const locations: Record<string, number> = {};
-        vouchers?.forEach(v => {
+        realVouchers.forEach(v => {
             const loc = v.qr_source_location || 'unknown';
             locations[loc] = (locations[loc] || 0) + 1;
         });
@@ -92,7 +121,7 @@ app.get('/summary', async (c) => {
             .map(([name, count]) => ({ name, count }));
 
         // Marketing Consent
-        const consentCount = vouchers?.filter(v => v.marketing_consent).length || 0;
+        const consentCount = realVouchers.filter(v => v.marketing_consent).length;
         const consentRate = totalIssued > 0 ? Math.round((consentCount / totalIssued) * 100) : 0;
 
         return c.json({

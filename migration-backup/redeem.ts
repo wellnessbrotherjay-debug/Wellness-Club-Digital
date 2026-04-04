@@ -4,31 +4,12 @@ import { supabaseAdmin } from '../db.js';
 
 const app = new Hono();
 
-const APPS_SCRIPT_URL =
-    process.env.APPS_SCRIPT_URL ||
-    'https://script.google.com/macros/s/AKfycbycyXz99TO6iGntmyuRw55yxpD9Clu6k69CWf3-dHip6cV80TxGoHodpI-NvXkZY0Ld/exec';
 
-/** Fire-and-forget mirror to Google Sheets (background, non-blocking) */
-async function mirrorToGoogleSheets(payload: Record<string, unknown>, retries = 3): Promise<boolean> {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const res = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            });
-            if (res.ok) return true;
-            console.warn(`[Mirror] Attempt ${i + 1} failed: ${res.status}`);
-        } catch (e: any) {
-            console.warn(`[Mirror] Attempt ${i + 1} error: ${e.message}`);
-        }
-        await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
-    }
-    return false;
-}
 
 async function getWeatherCondition(): Promise<string> {
     try {
-        const apiKey = process.env.OPENWEATHER_API_KEY || 'd90d116d89814419220bd3000d9eb498';
+        const apiKey = process.env.OPENWEATHER_API_KEY;
+        if (!apiKey) return '';
         const lat = '-8.6478';
         const lon = '115.1385';
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
@@ -86,30 +67,12 @@ app.post('/', async (c) => {
 
     // 1. Write to Supabase (primary)
     if (action === 'redeem') {
-        const voucherCode = (body.voucher_code || body.voucherCode || body.code || '').toUpperCase();
-        const serviceType = body.serviceType || body.redeemed_service || body.services || '';
-
-        // Anti-duplicate check: Prevent identical redemptions within 5 minutes
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const { data: existing } = await supabaseAdmin
-            .from("redemptions")
-            .select("id")
-            .eq("voucher_code", voucherCode)
-            .eq("service_type", serviceType)
-            .gte("timestamp", fiveMinutesAgo)
-            .limit(1);
-
-        if (existing && existing.length > 0) {
-            console.log(`[POST /api/redeem] Duplicate redemption suppressed for ${voucherCode}`);
-            return c.json({ status: 'success', message: 'Redemption already logged recently' });
-        }
-
         const { error: dbError } = await supabaseAdmin
             .from("redemptions")
             .insert([{
-                voucher_code: voucherCode,
+                voucher_code: body.voucher_code || body.voucherCode || body.code,
                 guest_name: body.guestName || body.userName || body.name,
-                service_type: serviceType,
+                service_type: body.serviceType || body.redeemed_service || body.services,
                 pax: body.pax || 1,
                 metadata: body.metadata || {}
             }]);
@@ -120,10 +83,6 @@ app.post('/', async (c) => {
         }
     }
 
-    // 2. Mirror to Google Sheets (background, fire-and-forget)
-    mirrorToGoogleSheets(body).catch((err) => {
-        console.error('[Background Task] Mirroring Failed for:', body.voucherCode, err);
-    });
 
     // 3. Email notification
     if (action === 'redeem' && process.env.RESEND_API_KEY) {
