@@ -2,14 +2,20 @@
   "version": 2,
   "buildCommand": "npm run build --workspace=apps/web",
   "outputDirectory": "apps/web/dist",
-  "framework": "vite",
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://voucher.htf.solutions/api/$1"
-    },
     { "source": "/v/(.*)", "destination": "/index.html" },
     { "source": "/admin/(.*)", "destination": "/index.html" },
     { "source": "/((?!api|assets|.*\\..*).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/weekly-report",  "schedule": "0 8 * * 1" },
+    { "path": "/api/cron/daily-backup",   "schedule": "0 2 * * *" },
+    { "path": "/api/cron/sheets-export",  "schedule": "0 * * * *" }
   ]
 }
