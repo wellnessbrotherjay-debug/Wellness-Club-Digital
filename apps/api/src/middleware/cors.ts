@@ -3,8 +3,12 @@ import { cors } from 'hono/cors';
 const allowedOrigins = [
     'https://voucher.htf.solutions',
     'https://wellness-club-digital.vercel.app',
+    // Schedule app domains
+    'https://schedule.htf.solutions',
+    'https://schedule-vercel.vercel.app',
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://localhost:5174',
 ];
 
 export const corsMiddleware = cors({

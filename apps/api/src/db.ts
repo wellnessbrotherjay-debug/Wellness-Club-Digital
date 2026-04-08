@@ -8,10 +8,11 @@ if (!supabaseUrl) throw new Error('[DB] SUPABASE_URL or VITE_SUPABASE_URL is req
 if (!supabaseServiceKey) throw new Error('[DB] SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_ANON_KEY is required');
 
 console.log(`[DB] Initializing Supabase client for ${supabaseUrl}`);
+console.log(`[DB] Key Start: ${supabaseServiceKey?.substring(0, 10)}...`);
 if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[DB] Using SERVICE_ROLE_KEY (RLS Bypass enabled)');
+    console.log('[DB] Using SERVICE_ROLE_KEY from process.env');
 } else {
-    console.log('[DB] WARNING: Using ANON_KEY (RLS will be enforced). Add SUPABASE_SERVICE_ROLE_KEY to Vercel env for full access.');
+    console.log('[DB] Fallback to ANON_KEY (RLS will be enforced)');
 }
 
 

@@ -33,47 +33,65 @@ import CountrySelector from "./components/CountrySelector";
 import { COUNTRY_CODES } from "./data/countryCodes";
 
 export interface VoucherData {
-  voucher_code: string;
-  guest_name: string;
-  room_number: string;
-  check_in: string;
-  check_out: string;
+  id: string;
+  voucherId?: string;
+  guestName: string;
+  roomNumber: string;
+  checkIn: string;
+  checkOut: string;
   services: string[];
-  image_url?: string;
-  status: string;
-  created_at: string;
+  imageUrl?: string;
+  status?: string;
+  Category?: string;
+  serviceType?: string;
+  redeemedService?: string;
+  redeemed_service?: string;
+  created_at?: string;
   redeemed_at?: string;
-  pax: number;
+  expires_at?: string;
+  expired_at?: string;
+  checkout?: string;
+  check_out?: string;
+  guest_name?: string;
+  room_number?: string;
+  redemptions?: RedemptionData[];
+  pax?: number;
+  Pax?: number;
+  secondGuestName?: string;
   email?: string;
   whatsapp?: string;
+  phone?: string;
   weather?: string;
-  device_id?: string;
-  ip_address?: string;
-  user_agent?: string;
-  is_test: boolean;
-  qr_source_location: string;
-  marketing_consent: boolean;
-  metadata?: any;
+  deviceId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  is_test?: boolean | string;
+  IsTest?: boolean;
+  qr_source_location?: string;
+  marketing_consent?: boolean;
 }
 
 export interface RedemptionData {
-  id?: number;
   timestamp: string;
-  voucher_code: string;
-  guest_name: string;
-  service_type: string;
-  room_number: string;
-  email?: string;
-  whatsapp?: string;
-  weather?: string;
+  voucherCode: string;
+  voucherId?: string;
+  guestName: string;
+  serviceType: string;
+  redeemedService?: string;
+  roomNumber: string;
+  inputPath?: string;
+  emailStatus?: string;
   total?: number;
+  weather?: string;
+  Pax?: number;
+  IsTest?: boolean;
+  Category?: string;
 }
 
 import { ENTITLEMENTS } from "./constants/services";
 import { useVoucherData } from "./hooks/useVoucherData";
 import { syncService } from "./services/SyncService";
 import type { LocalVoucher } from "./services/SyncService";
-import { isTestAccount } from "./utils/analytics";
 
 const VoucherPage: React.FC = () => {
   const [userRole, setUserRole] = useState<"admin" | "staff" | null>(null);
@@ -83,7 +101,20 @@ const VoucherPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "redeemed" | "expired"
   >("all"); // DEFAULT TO ALL TO AVOID EMPTY LIST CONFUSION
-
+  const [formData, setFormData] = useState({
+    guestNames: [""],
+    roomNumber: "",
+    checkIn: new Date().toISOString().split("T")[0],
+    checkOut: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    imageUrl: "",
+    email: "",
+    whatsapp: "",
+    pax: 1,
+    countryCode: "+62",
+    isTest: false,
+    qrSourceLocation: "reception",
+    marketingConsent: false,
+  });
 
   const [syncStatus, setSyncStatus] = useState<
     "synced" | "syncing" | "pending"
@@ -119,16 +150,25 @@ const VoucherPage: React.FC = () => {
     };
   }, []);
 
-  const {
-    vouchers: recentVouchers,
-    setVouchers: setRecentVouchers,
-    redemptions,
-    isFetching: isFetchingHistory,
-    hasLoaded: hasInitialLoaded,
-    error: fetchError,
-    refresh: fetchData,
-    mutate,
-  } = useVoucherData();
+  const EXCLUDE_NAMES = useMemo(
+    () => ["test", "samual", "jay", "diag", "agent", "fix"],
+    [],
+  );
+
+  const isTestAccount = (name: string, code: string) => {
+    const n = String(name || "").toLowerCase();
+    const c = String(code || "").toLowerCase();
+    if (c.startsWith("test-")) return true;
+
+    // Exact whole-word matching for 'jay' and 'samual' to avoid matching 'Wijaya'
+    return EXCLUDE_NAMES.some((tn) => {
+      if (tn === "jay" || tn === "samual") {
+        const regex = new RegExp(`\\b${tn}\\b`, "i");
+        return regex.test(n);
+      }
+      return n.includes(tn);
+    });
+  };
 
   const [status, setStatus] = useState<
     "idle" | "generating" | "success" | "error"
@@ -151,30 +191,50 @@ const VoucherPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [nonIssuanceForm, setNonIssuanceForm] = useState({
-    room_number: "",
+    roomNumber: "",
     duration: "",
     reason: "" as "No WhatsApp" | "Busy" | "Not Interested" | "Custom" | "",
-    custom_reason: "",
+    customReason: "",
   });
   const [isLogging, setIsLogging] = useState(false);
   const [selectedVoucherForDetail, setSelectedVoucherForDetail] = useState<VoucherData | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isSyncingManual, setIsSyncingManual] = useState(false); // For manual trigger loading state
 
-  const [formData, setFormData] = useState({
-    guest_names: [""],
-    room_number: "",
-    check_in: new Date().toISOString().split("T")[0],
-    check_out: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    image_url: "",
-    email: "",
-    whatsapp: "",
-    pax: 1,
-    country_code: "+62",
-    is_test: false,
-    qr_source_location: "reception",
-    marketing_consent: false,
-  });
+  const {
+    vouchers: recentVouchers,
+    setVouchers: setRecentVouchers,
+    redemptions,
+    isFetching: isFetchingHistory,
+    hasLoaded: hasInitialLoaded,
+    error: fetchError,
+    refresh: fetchData,
+    mutate,
+  } = useVoucherData();
+
+  // Filter out explicit test accounts for the main count
+  const realVouchersCount = useMemo(() => {
+    const EXCLUDE_NAMES = ['test', 'samual', 'sammy', 'jay', 'diag', 'agent', 'fix'];
+    const EXCLUDE_EMAILS = ['wellnessbrother', 'idcproddance', 'xqtech', 'sbodyfit'];
+
+    return (recentVouchers || []).filter(v => {
+        const name = String(v.guestName || v.guest_name || '').toLowerCase();
+        const code = String(v.voucherId || v.id || '').toLowerCase();
+        const email = String(v.email || '').toLowerCase();
+        
+        if (v.IsTest || v.is_test) return false;
+        if (code.startsWith('test-')) return false;
+
+        // Check for test emails
+        if (EXCLUDE_EMAILS.some(domain => email.includes(domain))) return false;
+        
+        // Match whole word for Jay to avoid matching Indonesian names like "Wijaya"
+        return !EXCLUDE_NAMES.some(tn => {
+            const regex = new RegExp(`\\b${tn}\\b`, 'i');
+            return regex.test(name);
+        });
+    }).length;
+  }, [recentVouchers]);
 
   // --- BULLETPROOF BACKUP SYSTEM ---
   const [localBackups, setLocalBackups] = useState<VoucherData[]>([]);
@@ -200,30 +260,41 @@ const VoucherPage: React.FC = () => {
     const recentRedemptions = recentVouchers
       .filter(
         (v) => (v.status === "Redeemed" || v.redeemed_at) && v.redeemed_at,
-      )
+      ) // Ensure it has a redemption timestamp
       .map((v) => ({
         timestamp: v.redeemed_at!,
-        voucher_code: v.voucher_code,
-        guest_name: v.guest_name,
-        service_type: v.services?.[0] || "General Admission",
-        room_number: v.room_number || "",
+        voucherCode: v.id,
+        guestName: v.guestName,
+        serviceType:
+          v.redeemed_service ||
+          v.serviceType ||
+          v.services?.[0] ||
+          "General Admission", // Check redeemed_service first, then serviceType, then services array
+        roomNumber: v.roomNumber || "",
         weather: v.weather,
       }));
 
+    // Merge with historical redemptions, prioritizing recentVouchers (which are likely more up-to-date for today's actions)
+    // We use a Map to dedup by voucherCode
     const redemptionMap = new Map();
-    redemptions.forEach((r) => redemptionMap.set(r.voucher_code, r));
 
+    // Populate with history first
+    redemptions.forEach((r) => redemptionMap.set(r.voucherCode, r));
+
+    // Overwrite or add with recent vouchers, ensuring weather is preserved from whichever source has it
     recentRedemptions.forEach((r) => {
-      const existing = redemptionMap.get(r.voucher_code);
+      const existing = redemptionMap.get(r.voucherCode);
+      // The recentVoucher row 'r' now contains weather if it was just redeemed in this session
       const weather = r.weather || (existing ? existing.weather : undefined);
       redemptionMap.set(
-        r.voucher_code,
+        r.voucherCode,
         existing ? { ...existing, ...r, weather } : { ...r, weather },
       );
     });
 
     return Array.from(redemptionMap.values()).sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
   }, [recentVouchers, redemptions]);
 
@@ -287,7 +358,7 @@ const VoucherPage: React.FC = () => {
 
   const handleGenerate = async () => {
     setStatus("generating");
-    const voucher_code = generateVoucherId();
+    const voucherId = generateVoucherId();
 
     const services = [
       ENTITLEMENTS.TS_SHOPPING,
@@ -296,35 +367,34 @@ const VoucherPage: React.FC = () => {
     ];
 
     const joinedNames =
-      formData.guest_names.filter((n) => n.trim()).join(" & ") ||
+      formData.guestNames.filter((n) => n.trim()).join(" & ") ||
       "Unknown Guest";
-    const guest_name = formData.is_test
+    const allGuestNames = formData.isTest
       ? `[TEST] ${joinedNames}`
       : joinedNames;
 
     const cleanWA = formData.whatsapp.replace(/\D/g, "").replace(/^0+/, "");
-    const prefix = formData.country_code.replace(/\D/g, "");
+    const prefix = formData.countryCode.replace(/\D/g, "");
     const finalWA = cleanWA.startsWith(prefix)
       ? `+${cleanWA}`
-      : `${formData.country_code}${cleanWA}`;
+      : `${formData.countryCode}${cleanWA}`;
 
     try {
       const newVoucher: LocalVoucher = {
-        voucher_code,
-        guest_name,
-        room_number: formData.room_number,
-        check_in: formData.check_in,
-        check_out: formData.check_out,
-        status: "Created",
-        image_url: formData.image_url,
+        id: voucherId,
+        guestName: allGuestNames,
+        roomNumber: formData.roomNumber,
+        checkIn: formData.checkIn,
+        checkOut: formData.checkOut,
+        imageUrl: formData.imageUrl,
         services: services,
         created_at: new Date().toISOString(),
         pax: formData.pax,
         email: formData.email,
         whatsapp: formData.whatsapp ? finalWA : "",
-        is_test: formData.is_test,
-        qr_source_location: formData.qr_source_location,
-        marketing_consent: formData.marketing_consent,
+        isTest: formData.isTest,
+        qr_source_location: formData.qrSourceLocation,
+        marketing_consent: formData.marketingConsent,
         sync_status: "pending",
       };
 
@@ -333,9 +403,19 @@ const VoucherPage: React.FC = () => {
 
       const uiVoucher: VoucherData = {
         ...newVoucher,
-        status: "Created",
+        voucherId: newVoucher.id,
+        phone: newVoucher.whatsapp,
+        pax: newVoucher.pax,
+        Pax: newVoucher.pax,
+        IsTest: newVoucher.isTest,
+        is_test: newVoucher.isTest,
+        Category: newVoucher.qr_source_location || "reception",
+        secondGuestName: "",
+        created_at: newVoucher.created_at,
+        services: services,
       };
 
+      // BULLETPROOF: Save to local storage IMMEDIATELY before state changes
       saveToLocalBackup(uiVoucher);
 
       setCurrentVoucher(uiVoucher);
@@ -352,18 +432,18 @@ const VoucherPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      guest_names: [""],
-      room_number: "",
-      check_in: new Date().toISOString().split("T")[0],
-      check_out: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-      image_url: "",
+      guestNames: [""],
+      roomNumber: "",
+      checkIn: new Date().toISOString().split("T")[0],
+      checkOut: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+      imageUrl: "",
       email: "",
       whatsapp: "",
       pax: 1,
-      country_code: "+62",
-      is_test: false,
-      qr_source_location: "reception",
-      marketing_consent: false,
+      countryCode: "+62",
+      isTest: false,
+      qrSourceLocation: "reception",
+      marketingConsent: false,
     });
 
     setCurrentVoucher(null);
@@ -379,9 +459,9 @@ const VoucherPage: React.FC = () => {
 
     setWaStatus("sending");
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-    const link = `${baseUrl}/v/${currentVoucher.voucher_code}`;
+    const link = `${baseUrl}/v/${currentVoucher.id}`;
 
-    const message = `Dear ${currentVoucher.guest_name},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to claim your 15% discount and redeem your services.\n\nEnjoy your stay!`;
+    const message = `Dear ${currentVoucher.guestName},\n\nHere is your *No.1 Wellness Club Digital Pass*:\n${link}\n\nPresent this at the reception to claim your 15% discount and redeem your services.\n\nEnjoy your stay!`;
     const waLink = `https://wa.me/${currentVoucher.whatsapp.replace("+", "")}?text=${encodeURIComponent(message)}`;
 
     window.open(waLink, "_blank");
@@ -398,7 +478,7 @@ const VoucherPage: React.FC = () => {
     setEmailStatus("sending");
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
     const subject = `Your No.1 Wellness Club Digital Pass`;
-    const body = `Dear ${currentVoucher.guest_name},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${baseUrl}/v/${currentVoucher.voucher_code}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
+    const body = `Dear ${currentVoucher.guestName},\n\nHere is your digital pass for No.1 Wellness Club:\n\n${baseUrl}/v/${currentVoucher.id}\n\nEnjoy your stay!\n\nBest regards,\nNo.1 Wellness Club Team`;
 
     const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoLink;
@@ -410,21 +490,21 @@ const VoucherPage: React.FC = () => {
   };
 
   const handleLogNonIssuance = async () => {
-    const { room_number, duration, reason, custom_reason } = nonIssuanceForm;
-    if (!room_number || !reason) {
+    const { roomNumber, duration, reason, customReason } = nonIssuanceForm;
+    if (!roomNumber || !reason) {
       alert("Please provide at least a room number and a reason.");
       return;
     }
 
     setIsLogging(true);
-    const finalReason = reason === "Custom" ? custom_reason : reason;
+    const finalReason = reason === "Custom" ? customReason : reason;
 
     try {
       await fetch(`${API_BASE_URL}/api/log-insight`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          room_number: room_number,
+          roomNumber: roomNumber,
           duration: duration,
           reason: finalReason,
           timestamp: new Date().toISOString(),
@@ -433,10 +513,10 @@ const VoucherPage: React.FC = () => {
 
       alert("Insight logged successfully. Thank you!");
       setNonIssuanceForm({
-        room_number: "",
+        roomNumber: "",
         duration: "",
         reason: "",
-        custom_reason: "",
+        customReason: "",
       });
       setActiveTab("create");
     } catch (error) {
@@ -479,10 +559,10 @@ const VoucherPage: React.FC = () => {
     try {
       const body = JSON.stringify({
         action: "delete",
-        voucher_code: isBulk ? idList : idList[0],
+        voucherCode: isBulk ? idList : idList[0],
       });
 
-      setRecentVouchers((prev) => prev.filter((v) => !idList.includes(v.voucher_code)));
+      setRecentVouchers((prev) => prev.filter((v) => !idList.includes(v.id)));
       if (isBulk) setSelectedIds([]);
 
       await fetch(`${API_BASE_URL}/api/redeem`, {
@@ -510,15 +590,15 @@ const VoucherPage: React.FC = () => {
     
     const headers = ["Voucher ID", "Guest Name", "Room", "Pax", "Status", "Venue", "Created At", "Check In", "Check Out", "Email", "WhatsApp"];
     const rows = filteredVouchers.map(v => [
-      v.voucher_code,
-      `"${v.guest_name.replace(/"/g, '""')}"`,
-      v.room_number,
+      v.id,
+      `"${v.guestName.replace(/"/g, '""')}"`,
+      v.roomNumber,
       v.pax || 1,
       v.status || "Active",
-      v.qr_source_location || "reception",
+      v.serviceType || "reception",
       v.created_at || "",
-      v.check_in || "",
-      v.check_out || "",
+      v.checkIn || "",
+      v.checkOut || "",
       v.email || "",
       v.whatsapp || ""
     ]);
@@ -545,59 +625,68 @@ const VoucherPage: React.FC = () => {
     if (selectedIds.length === filteredVouchers.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredVouchers.map((v) => v.voucher_code));
+      setSelectedIds(filteredVouchers.map((v) => v.id));
     }
   };
 
-  const realVouchers = (
+  const filteredVouchers = (
     Array.isArray(recentVouchers) ? recentVouchers : []
   ).filter((v) => {
-    if (isTestAccount(v.guest_name || "", v.voucher_code || "")) {
-      return false;
-    }
-
-    if (!v.guest_name || v.guest_name === "Unknown Guest" || v.guest_name.trim() === "")
-      return false;
-
-    return true;
-  });
-
-  const realVouchersCount = realVouchers.length;
-
-  const filteredVouchers = realVouchers.filter((v) => {
+    // 1. Basic Search Filter
     const query = searchQuery.toLowerCase();
     const matchesQuery =
-      String(v.guest_name || "")
+      String(v.guestName || "")
         .toLowerCase()
         .includes(query) ||
-      String(v.voucher_code || "")
+      String(v.id || "")
         .toLowerCase()
         .includes(query) ||
-      String(v.room_number || "")
+      String(v.roomNumber || "")
         .toLowerCase()
         .includes(query);
 
+    // 2. Global Test Exclusion (Golden Rule)
+    if (
+      isTestAccount(v.guestName || "", v.id || "") ||
+      (v as unknown as Record<string, unknown>).is_test === "TRUE"
+    ) {
+      return false;
+    }
+
+    // 3. Data Quality Filter: Exclude unknown guests
+    if (
+      !v.guestName ||
+      v.guestName === "Unknown Guest" ||
+      v.guestName.trim() === ""
+    )
+      return false;
+
+    // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
     if (activeTab === "issued") {
       const isRedeemed =
         v.status === "Redeemed" ||
         (Array.isArray(effectiveRedemptions) &&
-          effectiveRedemptions.some((r) => r.voucher_code === v.voucher_code));
-      
+          effectiveRedemptions.some((r) => r.voucherCode === v.id));
+      // Expiration logic using shared utility
       const isExpired = isVoucherExpired(v);
 
       if (statusFilter === "active")
         return matchesQuery && !isRedeemed && !isExpired;
       if (statusFilter === "redeemed") return matchesQuery && isRedeemed;
       if (statusFilter === "expired") return matchesQuery && isExpired;
-      return matchesQuery;
+      return matchesQuery; // 'all'
     }
 
     return matchesQuery;
   });
 
+  // Short URL only — no base64 payload. Long base64 URLs make QR codes too dense to scan.
+  // IMPORTANT: Always use the canonical guest-facing domain, NOT window.location.origin.
+  // The admin app runs on reception.no1wellness.com which is a broken domain (404).
+  // QR codes must point to the working Vercel deployment.
   const GUEST_PASS_BASE = import.meta.env.VITE_APP_URL || window.location.origin;
   const voucherUrl = (voucher: VoucherData) =>
-    `${GUEST_PASS_BASE}/v/${voucher.voucher_code}`;
+    `${GUEST_PASS_BASE}/v/${voucher.id}`;
 
   if (!userRole) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -634,7 +723,7 @@ const VoucherPage: React.FC = () => {
                 })}
               </span>
               <span className="text-[10px] text-gray-400 uppercase">
-                Live Dashboard v3.0 • {realVouchersCount} Total •{" "}
+                Live Dashboard v3.0 • {realVouchersCount} TOTAL •{" "}
                 {fetchError ? "Err" : "OK"}
               </span>
               <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">
@@ -770,7 +859,7 @@ const VoucherPage: React.FC = () => {
                           Guest Names ({formData.pax} Pax)
                         </label>
                       </div>
-                      {formData.guest_names.map((name, index) => (
+                      {formData.guestNames.map((name, index) => (
                         <input
                           key={index}
                           type="text"
@@ -782,9 +871,9 @@ const VoucherPage: React.FC = () => {
                           }
                           value={name}
                           onChange={(e) => {
-                            const newNames = [...formData.guest_names];
+                            const newNames = [...formData.guestNames];
                             newNames[index] = e.target.value;
-                            setFormData({ ...formData, guest_names: newNames });
+                            setFormData({ ...formData, guestNames: newNames });
                           }}
                         />
                       ))}
@@ -797,11 +886,11 @@ const VoucherPage: React.FC = () => {
                         type="text"
                         className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
                         placeholder="Room 101"
-                        value={formData.room_number}
+                        value={formData.roomNumber}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            room_number: e.target.value,
+                            roomNumber: e.target.value,
                           })
                         }
                       />
@@ -813,9 +902,9 @@ const VoucherPage: React.FC = () => {
                       </label>
                       <div className="flex gap-2">
                         <CountrySelector
-                          value={formData.country_code}
+                          value={formData.countryCode}
                           onChange={(val: string) =>
-                            setFormData({ ...formData, country_code: val })
+                            setFormData({ ...formData, countryCode: val })
                           }
                         />
                         <input
@@ -860,7 +949,7 @@ const VoucherPage: React.FC = () => {
                               return {
                                 ...prev,
                                 pax: newPax,
-                                guest_names: prev.guest_names.slice(0, newPax),
+                                guestNames: prev.guestNames.slice(0, newPax),
                               };
                             })
                           }
@@ -884,11 +973,11 @@ const VoucherPage: React.FC = () => {
                               );
                               const newNames = Array(newPax)
                                 .fill("")
-                                .map((_, i) => prev.guest_names[i] || "");
+                                .map((_, i) => prev.guestNames[i] || "");
                               return {
                                 ...prev,
                                 pax: newPax,
-                                guest_names: newNames,
+                                guestNames: newNames,
                               };
                             })
                           }
@@ -897,11 +986,11 @@ const VoucherPage: React.FC = () => {
                           onClick={() =>
                             setFormData((prev) => {
                               const newPax = prev.pax + 1;
-                              const newNames = [...prev.guest_names, ""];
+                              const newNames = [...prev.guestNames, ""];
                               return {
                                 ...prev,
                                 pax: newPax,
-                                guest_names: newNames,
+                                guestNames: newNames,
                               };
                             })
                           }
@@ -917,9 +1006,9 @@ const VoucherPage: React.FC = () => {
                         type="checkbox"
                         id="testMode"
                         className="w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-                        checked={formData.is_test}
+                        checked={formData.isTest}
                         onChange={(e) =>
-                          setFormData({ ...formData, is_test: e.target.checked })
+                          setFormData({ ...formData, isTest: e.target.checked })
                         }
                       />
                       <label
@@ -939,9 +1028,9 @@ const VoucherPage: React.FC = () => {
                       <input
                         type="date"
                         className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
-                        value={formData.check_in}
+                        value={formData.checkIn}
                         onChange={(e) =>
-                          setFormData({ ...formData, check_in: e.target.value })
+                          setFormData({ ...formData, checkIn: e.target.value })
                         }
                       />
                       <Calendar
@@ -973,9 +1062,9 @@ const VoucherPage: React.FC = () => {
                       <input
                         type="date"
                         className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
-                        value={formData.check_out}
+                        value={formData.checkOut}
                         onChange={(e) =>
-                          setFormData({ ...formData, check_out: e.target.value })
+                          setFormData({ ...formData, checkOut: e.target.value })
                         }
                       />
                       <Calendar
@@ -1005,8 +1094,8 @@ const VoucherPage: React.FC = () => {
                   onClick={handleGenerate}
                   disabled={
                     status === "generating" ||
-                    formData.guest_names.some((n) => !n.trim()) ||
-                    !formData.room_number
+                    formData.guestNames.some((n) => !n.trim()) ||
+                    !formData.roomNumber
                   }
                   className="w-full bg-[#2c2420] text-white h-16 rounded-xl font-bold tracking-[.2em] uppercase hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-8 group"
                 >
@@ -1041,7 +1130,7 @@ const VoucherPage: React.FC = () => {
 
                 <div className="text-center relative z-10 w-full">
                   <div className="flex items-center gap-2 text-green-600 font-bold uppercase tracking-widest text-[10px] mb-2 justify-center">
-                    {recentVouchers.find((v) => v.voucher_code === currentVoucher.voucher_code)
+                    {recentVouchers.find((v) => v.id === currentVoucher.id)
                       ?.status === "Redeemed" ? (
                       <div className="flex items-center gap-2 text-red-500 bg-red-50 px-4 py-1 rounded-full animate-bounce mt-2">
                         <AlertCircle size={14} />
@@ -1065,10 +1154,10 @@ const VoucherPage: React.FC = () => {
                           Guest (Name & Surname)
                         </p>
                         <h4 className="text-xl font-serif text-[#2c2420] font-bold italic">
-                          {currentVoucher.guest_name}
+                          {currentVoucher.guestName}
                         </h4>
                         <p className="text-xs font-bold text-gray-500 mt-1">
-                          Room {currentVoucher.room_number}
+                          Room {currentVoucher.roomNumber}
                         </p>
                       </div>
                       <div className="text-right">
@@ -1076,7 +1165,7 @@ const VoucherPage: React.FC = () => {
                           Voucher ID
                         </p>
                         <p className="text-sm font-mono font-black text-[#2c2420]">
-                          {currentVoucher.voucher_code}
+                          {currentVoucher.id}
                         </p>
                         <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">
                           {currentVoucher.pax} Pax
@@ -1107,10 +1196,10 @@ const VoucherPage: React.FC = () => {
                           Valid Until (Expiry)
                         </p>
                         <p className="text-[12px] font-serif font-bold text-[#2c2420]">
-                          {currentVoucher.check_out || currentVoucher.check_in
+                          {currentVoucher.checkOut || currentVoucher.checkIn
                             ? new Date(
-                                currentVoucher.check_out ||
-                                  currentVoucher.check_in,
+                                currentVoucher.checkOut ||
+                                  currentVoucher.checkIn,
                               ).toLocaleDateString([], {
                                 month: "short",
                                 day: "numeric",
@@ -1118,9 +1207,9 @@ const VoucherPage: React.FC = () => {
                               })
                             : "N/A"}
                         </p>
-                        {currentVoucher.ip_address && (
+                        {currentVoucher.ipAddress && (
                           <p className="text-[8px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">
-                            IP: {currentVoucher.ip_address}
+                            IP: {currentVoucher.ipAddress}
                           </p>
                         )}
                       </div>
@@ -1132,7 +1221,7 @@ const VoucherPage: React.FC = () => {
                           effectiveRedemptions,
                         )
                           ? effectiveRedemptions.filter(
-                              (r) => r.voucher_code === currentVoucher.voucher_code,
+                              (r) => r.voucherCode === currentVoucher.id,
                             )
                           : [];
                         if (voucherRedemptions.length > 0) {
@@ -1148,7 +1237,7 @@ const VoucherPage: React.FC = () => {
                                     className="flex flex-col gap-1 text-xs bg-green-50 p-2 rounded-lg border border-green-100"
                                   >
                                     <span className="font-bold text-green-800">
-                                      {r.service_type}
+                                      {r.serviceType}
                                     </span>
                                     <span className="text-[10px] text-green-600 flex items-center gap-1 capitalize">
                                       <Clock size={10} />
@@ -1394,7 +1483,7 @@ const VoucherPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {localBackups.slice(0, 6).map((bv) => (
                     <div
-                      key={bv.voucher_code}
+                      key={bv.id}
                       className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm cursor-pointer hover:border-amber-300 transition-all"
                       onClick={() => {
                         setCurrentVoucher(bv);
@@ -1403,15 +1492,15 @@ const VoucherPage: React.FC = () => {
                     >
                       <div className="flex justify-between items-start">
                         <span className="font-mono text-[10px] font-bold text-amber-600">
-                          {bv.voucher_code}
+                          {bv.id}
                         </span>
                         <ExternalLink size={10} className="text-amber-400" />
                       </div>
                       <p className="text-xs font-bold text-gray-800 truncate">
-                        {bv.guest_name}
+                        {bv.guestName}
                       </p>
                       <p className="text-[10px] text-gray-500">
-                        Room {bv.room_number} •{" "}
+                        Room {bv.roomNumber} •{" "}
                         {new Date(bv.created_at || "").toLocaleDateString()}
                       </p>
                     </div>
@@ -1608,9 +1697,9 @@ const VoucherPage: React.FC = () => {
                 !fetchError &&
                 filteredVouchers.map((voucher) => (
                   <div
-                    key={voucher.voucher_code}
+                    key={voucher.id}
                     className={`bg-white p-6 rounded-2xl shadow-sm border transition-all flex flex-col md:flex-row justify-between items-center gap-6 group relative overflow-hidden cursor-pointer ${
-                      selectedIds.includes(voucher.voucher_code)
+                      selectedIds.includes(voucher.id)
                         ? "border-[#c5a572] bg-[#fcfaf7]"
                         : "border-gray-100 hover:border-[#c5a572]"
                     }`}
@@ -1621,10 +1710,10 @@ const VoucherPage: React.FC = () => {
                   >
                     <div className="flex gap-4 items-center w-full md:w-auto">
                       <button
-                        onClick={() => toggleSelect(voucher.voucher_code)}
+                        onClick={() => toggleSelect(voucher.id)}
                         disabled={isDeleting}
                         className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
-                          selectedIds.includes(voucher.voucher_code)
+                          selectedIds.includes(voucher.id)
                             ? "bg-[#c5a572] border-[#c5a572] text-white"
                             : "border-gray-200 hover:border-[#c5a572] text-transparent"
                         } ${isDeleting ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -1632,7 +1721,7 @@ const VoucherPage: React.FC = () => {
                         <CheckCircle
                           size={14}
                           className={
-                            selectedIds.includes(voucher.voucher_code)
+                            selectedIds.includes(voucher.id)
                               ? "opacity-100"
                               : "opacity-0"
                           }
@@ -1645,15 +1734,15 @@ const VoucherPage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-lg">
-                            {voucher.guest_name}
+                            {voucher.guestName}
                           </h3>
                           <span className="px-2 py-0.5 bg-[#f0ede6] text-[#2c2420] text-[9px] font-bold rounded uppercase">
-                            Room {voucher.room_number}
+                            Room {voucher.roomNumber}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-[#c5a572] font-bold text-xs mr-2">
-                            {voucher.voucher_code}
+                            {voucher.id}
                           </span>
                           <span className="bg-gray-100 px-2 py-0.5 rounded text-[8px] uppercase">
                             Issued:{" "}
@@ -1666,9 +1755,11 @@ const VoucherPage: React.FC = () => {
                             <br />
                             {(() => {
                               const isExpired = isVoucherExpired(voucher);
-                              const expiryDate = voucher.check_out
-                                ? new Date(voucher.check_out)
-                                : null;
+                              const expiryDate = voucher.checkOut
+                                ? new Date(voucher.checkOut)
+                                : voucher.expires_at
+                                  ? new Date(voucher.expires_at)
+                                  : null;
                               const isToday =
                                 expiryDate &&
                                 new Date(expiryDate).toDateString() ===
@@ -1694,7 +1785,7 @@ const VoucherPage: React.FC = () => {
                               voucher.status === "Redeemed" ||
                               (Array.isArray(effectiveRedemptions) &&
                                 effectiveRedemptions.some(
-                                  (r) => r.voucher_code === voucher.voucher_code,
+                                  (r) => r.voucherCode === voucher.id,
                                 ));
                             const isExpired = isVoucherExpired(voucher);
 
@@ -1704,9 +1795,9 @@ const VoucherPage: React.FC = () => {
                                   <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-blue-100">
                                     Redeemed
                                   </span>
-                                  {voucher.ip_address && (
+                                  {voucher.ipAddress && (
                                     <span className="text-[7px] text-gray-400 font-bold uppercase">
-                                      IP: {voucher.ip_address}
+                                      IP: {voucher.ipAddress}
                                     </span>
                                   )}
                                 </div>
@@ -1738,21 +1829,21 @@ const VoucherPage: React.FC = () => {
                             </span>
                           )}
                           <div className="flex flex-wrap gap-2 w-full mt-1">
-                            {voucher.check_in && (
+                            {voucher.checkIn && (
                               <span className="flex items-center gap-1 text-[9px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
                                 <Calendar size={10} /> In:{" "}
-                                {new Date(voucher.check_in).toLocaleDateString(
+                                {new Date(voucher.checkIn).toLocaleDateString(
                                   [],
                                   { month: "short", day: "numeric" },
                                 )}
                               </span>
                             )}
-                            {voucher.check_out && (
+                            {voucher.checkOut && (
                               <>
                                 <span className="flex items-center gap-1 text-[9px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
                                   Out:{" "}
                                   {new Date(
-                                    voucher.check_out,
+                                    voucher.checkOut,
                                   ).toLocaleDateString([], {
                                     month: "short",
                                     day: "numeric",
@@ -1761,7 +1852,7 @@ const VoucherPage: React.FC = () => {
                                 <span className="flex items-center gap-1 text-[9px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-bold">
                                   Valid Until:{" "}
                                   {new Date(
-                                    voucher.check_out,
+                                    voucher.checkOut,
                                   ).toLocaleDateString([], {
                                     month: "short",
                                     day: "numeric",
@@ -1783,7 +1874,7 @@ const VoucherPage: React.FC = () => {
                               effectiveRedemptions,
                             )
                               ? effectiveRedemptions.filter(
-                                  (r) => r.voucher_code === voucher.voucher_code,
+                                  (r) => r.voucherCode === voucher.id,
                                 )
                               : [];
                             const count = voucherRedemptions.length;
@@ -1840,7 +1931,7 @@ const VoucherPage: React.FC = () => {
                         Open Details
                       </button>
                       <button
-                        onClick={() => handleDeleteVoucher(voucher.voucher_code)}
+                        onClick={() => handleDeleteVoucher(voucher.id)}
                         disabled={isDeleting}
                         className={`p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all ${isDeleting ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
@@ -1858,8 +1949,8 @@ const VoucherPage: React.FC = () => {
           <AdminDashboard
             vouchers={recentVouchers}
             redemptions={effectiveRedemptions}
-            onViewVoucher={(voucher_code) => {
-              const v = recentVouchers.find((v) => v.voucher_code === voucher_code);
+            onViewVoucher={(id) => {
+              const v = recentVouchers.find((v) => v.id === id);
               if (v) {
                 setSelectedVoucherForDetail(v);
                 setShowDetailModal(true);
@@ -1890,11 +1981,11 @@ const VoucherPage: React.FC = () => {
                       type="text"
                       placeholder="e.g. 101"
                       className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-amber-200 rounded-xl px-4 py-3 text-sm outline-none transition-all font-mono"
-                      value={nonIssuanceForm.room_number}
+                      value={nonIssuanceForm.roomNumber}
                       onChange={(e) =>
                         setNonIssuanceForm({
                           ...nonIssuanceForm,
-                          room_number: e.target.value,
+                          roomNumber: e.target.value,
                         })
                       }
                     />
@@ -1954,11 +2045,11 @@ const VoucherPage: React.FC = () => {
                     <textarea
                       placeholder="Briefly describe why..."
                       className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-amber-200 rounded-xl px-4 py-3 text-sm outline-none transition-all min-h-[100px]"
-                      value={nonIssuanceForm.custom_reason}
+                      value={nonIssuanceForm.customReason}
                       onChange={(e) =>
                         setNonIssuanceForm({
                           ...nonIssuanceForm,
-                          custom_reason: e.target.value,
+                          customReason: e.target.value,
                         })
                       }
                     />
@@ -1969,7 +2060,7 @@ const VoucherPage: React.FC = () => {
                   onClick={handleLogNonIssuance}
                   disabled={
                     isLogging ||
-                    !nonIssuanceForm.room_number ||
+                    !nonIssuanceForm.roomNumber ||
                     !nonIssuanceForm.reason
                   }
                   className="w-full bg-[#2c2420] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-bold text-sm uppercase tracking-widest"
@@ -1999,7 +2090,7 @@ const VoucherPage: React.FC = () => {
             <div className="bg-[#2c2420] p-6 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-serif font-bold">Guest Details</h3>
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Voucher ID: {selectedVoucherForDetail.voucher_code}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Voucher ID: {selectedVoucherForDetail.id}</p>
               </div>
               <button 
                 onClick={() => setShowDetailModal(false)}
@@ -2013,20 +2104,20 @@ const VoucherPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Guest Name</label>
-                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.guest_name}</p>
+                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.guestName}</p>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Room Number</label>
-                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.room_number || "N/A"}</p>
+                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.roomNumber || "N/A"}</p>
                 </div>
                 <div className="md:col-span-2 grid grid-cols-2 gap-6">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Check-in</label>
-                    <p className="text-sm font-medium">{selectedVoucherForDetail.check_in || "N/A"}</p>
+                    <p className="text-sm font-medium">{selectedVoucherForDetail.checkIn || "N/A"}</p>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Check-out</label>
-                    <p className="text-sm font-medium font-bold text-amber-700">{selectedVoucherForDetail.check_out || "N/A"}</p>
+                    <p className="text-sm font-medium font-bold text-amber-700">{selectedVoucherForDetail.checkOut || "N/A"}</p>
                   </div>
                 </div>
                 <div>

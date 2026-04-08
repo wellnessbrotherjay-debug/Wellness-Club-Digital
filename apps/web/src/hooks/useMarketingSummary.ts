@@ -43,7 +43,10 @@ export const useMarketingSummary = () => {
         setIsLoading(true);
         try {
             const response = await fetch(`${API_BASE_URL}/api/data/summary`);
-            if (!response.ok) throw new Error('Failed to fetch summary');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.details || errorData.error || 'Failed to fetch summary');
+            }
             const data = await response.json();
             setSummary(data);
         } catch (err: any) {
