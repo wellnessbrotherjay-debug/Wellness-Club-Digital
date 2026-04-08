@@ -389,36 +389,46 @@ const VoucherPage: React.FC = () => {
       : `${formData.countryCode}${cleanWA}`;
 
     try {
-      const newVoucher: LocalVoucher = {
-        id: voucherId,
-        guestName: allGuestNames,
-        roomNumber: formData.roomNumber,
-        checkIn: formData.checkIn,
-        checkOut: formData.checkOut,
-        imageUrl: formData.imageUrl,
+      const newVoucher: Omit<LocalVoucher, "sync_status"> = {
+        voucher_code: voucherId,
+        guest_name: allGuestNames,
+        room_number: formData.roomNumber,
+        check_in: formData.checkIn,
+        check_out: formData.checkOut,
+        status: "Created",
         services: services,
-        created_at: new Date().toISOString(),
+        image_url: formData.imageUrl,
         pax: formData.pax,
         email: formData.email,
         whatsapp: formData.whatsapp ? finalWA : "",
-        isTest: formData.isTest,
+        is_test: formData.isTest,
         qr_source_location: formData.qrSourceLocation,
         marketing_consent: formData.marketingConsent,
-        sync_status: "pending",
+        created_at: new Date().toISOString(),
       };
 
       await syncService.saveVoucherLocally(newVoucher);
       setSyncStatus("syncing");
 
       const uiVoucher: VoucherData = {
-        ...newVoucher,
-        voucherId: newVoucher.id,
+        id: newVoucher.voucher_code,
+        voucherId: newVoucher.voucher_code,
+        guestName: newVoucher.guest_name,
+        roomNumber: newVoucher.room_number,
+        checkIn: newVoucher.check_in,
+        checkOut: newVoucher.check_out,
+        imageUrl: newVoucher.image_url,
         phone: newVoucher.whatsapp,
+        whatsapp: newVoucher.whatsapp,
+        email: newVoucher.email,
         pax: newVoucher.pax,
         Pax: newVoucher.pax,
-        IsTest: newVoucher.isTest,
-        is_test: newVoucher.isTest,
+        IsTest: newVoucher.is_test,
+        is_test: newVoucher.is_test,
         Category: newVoucher.qr_source_location || "reception",
+        qr_source_location: newVoucher.qr_source_location,
+        marketing_consent: newVoucher.marketing_consent,
+        status: newVoucher.status,
         secondGuestName: "",
         created_at: newVoucher.created_at,
         services: services,
