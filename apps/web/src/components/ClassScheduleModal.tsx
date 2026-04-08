@@ -130,8 +130,8 @@ WhatsApp: ${fullPhoneNumber}
 Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
 
             // Track the class booking before opening WhatsApp
-            trackBooking(`Class: ${selectedClassForBooking}`, 'ClassScheduleModal');
-            trackOutboundLink(`https://wa.me/${WHATSAPP_NUMBER}`, 'whatsapp', `Class Booking: ${selectedClassForBooking}`);
+            trackBooking(`Class: ${selectedClassForBooking}`);
+            trackOutboundLink(`https://wa.me/${WHATSAPP_NUMBER}`);
 
             window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
             onClose();

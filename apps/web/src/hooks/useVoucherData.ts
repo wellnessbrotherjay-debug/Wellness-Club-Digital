@@ -3,22 +3,16 @@ import { API_BASE_URL } from '../utils/api';
 import { supabase } from '../utils/supabase';
 import type { VoucherData } from '../VoucherPage';
 
-interface RedemptionData {
+export interface RedemptionData {
     timestamp: string;
-    voucherCode: string; // Internal/Google Sheets compatibility
-    voucherId?: string;  // Explicitly requested name
-    guestName: string;
-    serviceType: string;
-    roomNumber: string;
-    inputPath?: string;
-    emailStatus?: string;
+    voucher_code: string;
+    guest_name: string;
+    service_type: string;
+    room_number: string;
+    email?: string;
+    whatsapp?: string;
     weather?: string;
-    ipAddress?: string;
-    deviceId?: string;
-    userAgent?: string;
-    Pax?: number;
-    IsTest?: boolean;
-    Category?: string;
+    total?: number;
 }
 
 export const useVoucherData = () => {
@@ -37,7 +31,7 @@ export const useVoucherData = () => {
         };
 
         let servicesArr: string[] = [];
-        const rawServices = item.services || '';
+        const rawServices = item.services || item.service_type || '';
         if (Array.isArray(rawServices)) {
             servicesArr = rawServices.map(String);
         } else if (rawServices) {
@@ -45,35 +39,35 @@ export const useVoucherData = () => {
         }
 
         return {
-            voucher_code: String(item.voucher_code || ''),
-            guest_name: String(item.guest_name || ''),
-            room_number: String(item.room_number || ''),
-            check_in: safeDate(item.check_in),
-            check_out: safeDate(item.check_out),
+            voucher_code: String(item.voucher_code || item.voucherCode || item.code || item.id || ''),
+            guest_name: String(item.guest_name || item.guestName || item.guest || ''),
+            room_number: String(item.room_number || item.roomNumber || item.room || ''),
+            check_in: safeDate(item.check_in || item.checkIn || ''),
+            check_out: safeDate(item.check_out || item.checkOut || item.checkout || ''),
             status: String(item.status || 'Created'),
-            qr_source_location: String(item.qr_source_location || 'reception'),
-            created_at: String(item.created_at || ''),
-            redeemed_at: item.redeemed_at ? String(item.redeemed_at) : undefined,
-            image_url: String(item.image_url || ''),
+            qr_source_location: String(item.qr_source_location || item.qrSourceLocation || item.category || 'reception'),
+            created_at: String(item.created_at || item.createdAt || ''),
+            redeemed_at: item.redeemed_at ? String(item.redeemed_at) : (item.redeemedAt ? String(item.redeemedAt) : undefined),
+            image_url: String(item.image_url || item.imageUrl || ''),
             services: servicesArr,
-            pax: parseInt(String(item.pax || '1'), 10),
+            pax: parseInt(String(item.pax || item.Pax || '1'), 10),
             email: String(item.email || ''),
-            whatsapp: String(item.whatsapp || ''),
+            whatsapp: String(item.whatsapp || item.phone || ''),
             weather: String(item.weather || ''),
-            device_id: String(item.device_id || ''),
-            ip_address: String(item.ip_address || ''),
-            user_agent: String(item.user_agent || ''),
-            is_test: !!item.is_test,
-            marketing_consent: !!item.marketing_consent,
+            device_id: String(item.device_id || item.deviceId || ''),
+            ip_address: String(item.ip_address || item.ipAddress || ''),
+            user_agent: String(item.user_agent || item.userAgent || ''),
+            is_test: !!(item.is_test || item.isTest || item.IsTest),
+            marketing_consent: !!(item.marketing_consent || item.marketingConsent),
         };
     };
 
     const mapRedemption = (item: Record<string, unknown>): RedemptionData => ({
         timestamp: String(item.timestamp || new Date().toISOString()),
-        voucher_code: String(item.voucher_code || ''),
-        guest_name: String(item.guest_name || ''),
-        service_type: String(item.service_type || ''),
-        room_number: String(item.room_number || ''),
+        voucher_code: String(item.voucher_code || item.voucherCode || ''),
+        guest_name: String(item.guest_name || item.guestName || ''),
+        service_type: String(item.service_type || item.serviceType || ''),
+        room_number: String(item.room_number || item.roomNumber || ''),
         email: String(item.email || ''),
         whatsapp: String(item.whatsapp || ''),
         weather: String(item.weather || ''),
@@ -97,9 +91,7 @@ export const useVoucherData = () => {
             ];
 
             if (Array.isArray(vData)) {
-                // The Hono backend brings snake_case data directly from Supabase.
-                // mapVoucher is mostly tolerant, but let's make sure things like voucher_code map.
-                const mappedVouchers = vData.map(mapVoucher).filter(v => v.id);
+                const mappedVouchers = vData.map(mapVoucher).filter(v => v.voucher_code);
                 setRecentVouchers(mappedVouchers);
             }
 

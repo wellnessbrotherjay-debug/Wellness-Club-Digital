@@ -5,7 +5,6 @@ import {
     Users,
     Zap,
     Download,
-    Tag,
     MapPin,
     ArrowUpRight,
     Loader2,
@@ -293,8 +292,5 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
         </div>
     );
 };
-
-export default AnalyticsDashboard;
-
 
 export default AnalyticsDashboard;

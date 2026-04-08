@@ -23,3 +23,22 @@ export const getCategoryStrict = (serviceStr: string, explicitCategory?: string)
   if (s.includes('salon') || s.includes('hair') || s.includes('mani') || s.includes('pedi') || s.includes('facial')) return 'hair';
   return 'wellness';
 };
+
+export const trackOutboundLink = (url: string) => {
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', 'click_outbound', {
+      'event_category': 'outbound',
+      'event_label': url,
+      'transport_type': 'beacon'
+    });
+  }
+};
+
+export const trackBooking = (type: string) => {
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', 'book_service', {
+      'event_category': 'booking',
+      'event_label': type
+    });
+  }
+};

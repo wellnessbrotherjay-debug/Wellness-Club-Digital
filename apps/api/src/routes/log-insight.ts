@@ -31,11 +31,11 @@ app.post('/', async (c) => {
         return c.json({ error: 'Invalid JSON body' }, 400);
     }
 
-    const { roomNumber, duration, reason, customReason, timestamp } = body;
-    const finalReason = reason === 'Custom' && customReason ? customReason : reason;
+    const { room_number, duration, reason, custom_reason, timestamp } = body;
+    const finalReason = reason === 'Custom' && custom_reason ? custom_reason : reason;
 
     const { error } = await supabaseAdmin.from('insights').insert([{
-        room_number: roomNumber,
+        room_number: room_number,
         duration: duration || null,
         reason: finalReason,
         timestamp: timestamp || new Date().toISOString(),
@@ -49,7 +49,7 @@ app.post('/', async (c) => {
     // Mirror to Google Sheets in background
     mirrorToGoogleSheets({
         action: 'log_insight',
-        roomNumber,
+        room_number,
         duration,
         reason: finalReason,
         timestamp: timestamp || new Date().toISOString(),

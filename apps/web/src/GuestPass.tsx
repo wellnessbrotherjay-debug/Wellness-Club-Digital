@@ -129,7 +129,7 @@ const GuestPass: React.FC = () => {
         );
         const createdAt = String(currentItem.created_at || "");
 
-        const isExpired = isVoucherExpired({ checkOut });
+        const isExpired = isVoucherExpired({ check_out: checkOut });
 
         if (isExpired) {
           setStatus("expired");
@@ -139,19 +139,21 @@ const GuestPass: React.FC = () => {
 
         if (needsHydration) {
           setData({
-            id: voucherId,
-            voucherId: voucherId,
-            guestName,
-            roomNumber,
-            checkIn: "",
-            checkOut: checkOut || "",
+            voucher_code: voucherId,
+            guest_name: guestName,
+            room_number: roomNumber,
+            check_in: "",
+            check_out: checkOut || "",
             services: servicesRaw ? String(servicesRaw).split(/,\s*/g) : [],
-            imageUrl,
+            image_url: imageUrl,
             created_at: createdAt,
-            Category: String(currentItem.qr_source_location || currentItem.category || 'reception'),
-            Pax: currentItem.pax ? parseInt(String(currentItem.pax), 10) : 1,
-            IsTest: currentItem.is_test === true || currentItem.is_test === 'TRUE',
-            phone: String(currentItem.whatsapp || currentItem.phone || ''),
+            qr_source_location: String(currentItem.qr_source_location || currentItem.category || 'reception'),
+            pax: currentItem.pax ? parseInt(String(currentItem.pax), 10) : 1,
+            is_test: currentItem.is_test === true || currentItem.is_test === 'TRUE',
+            whatsapp: String(currentItem.whatsapp || currentItem.phone || ''),
+            email: String(currentItem.email || ''),
+            marketing_consent: currentItem.marketing_consent === true || currentItem.marketing_consent === 'TRUE',
+            status: 'Active'
           });
         }
       }
@@ -188,7 +190,7 @@ const GuestPass: React.FC = () => {
             if (currentItem) {
               if (
                 isVoucherExpired(
-                  currentItem as unknown as { checkOut?: string },
+                  currentItem as unknown as { check_out?: string },
                 )
               ) {
                 if (status !== "expired") setStatus("expired");
@@ -205,7 +207,7 @@ const GuestPass: React.FC = () => {
           const items = await rRes.json();
           if (Array.isArray(items)) {
             setRedemptions(
-              items.filter((i: RedemptionData) => i.voucherCode === id),
+              items.filter((i: RedemptionData) => i.voucher_code === id),
             );
           }
         }
@@ -245,7 +247,7 @@ const GuestPass: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#2c2420] flex items-center justify-center p-4 relative">
       <Helmet>
-        <title>Guest Pass | {data.guestName}</title>
+        <title>Guest Pass | {data.guest_name}</title>
       </Helmet>
 
       {/* Pass Container */}
@@ -263,8 +265,8 @@ const GuestPass: React.FC = () => {
               </h2>
               <p className="text-[10px] mt-2 opacity-80 uppercase tracking-widest font-bold">
                 Valid Until:{" "}
-                {data?.checkOut
-                  ? new Date(data.checkOut).toLocaleDateString([], {
+                {data?.check_out
+                  ? new Date(data.check_out).toLocaleDateString([], {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
@@ -307,18 +309,18 @@ const GuestPass: React.FC = () => {
                 15% SAVINGS
               </h2>
               <p className="text-xs mt-2 opacity-90">
-                Exclusive discount for {data.guestName}
+                Exclusive discount for {data.guest_name}
               </p>
             </div>
           </div>
         )}
 
         {/* Optional Image */}
-        {data.imageUrl && (
+        {data.image_url && (
           <div className="px-6 mb-4 mt-6">
             <div className="aspect-video w-full rounded-xl overflow-hidden bg-gray-100 relative">
               <img
-                src={data.imageUrl}
+                src={data.image_url}
                 alt="Inclusive"
                 className="w-full h-full object-cover"
               />
@@ -374,7 +376,7 @@ const GuestPass: React.FC = () => {
                     <div className="flex justify-between items-start text-[11px]">
                       <div className="flex flex-col">
                         <span className="text-[#1a1a1a] font-bold">
-                          {redeem.serviceType}
+                          {redeem.service_type}
                         </span>
                         {redeem.total && (
                           <span className="text-[9px] text-[#c5a572] font-black uppercase tracking-tighter mt-0.5">
@@ -407,7 +409,7 @@ const GuestPass: React.FC = () => {
               Pass Holder
             </p>
             <h4 className="text-xl font-serif text-[#1a1a1a] font-bold italic">
-              {data.guestName}
+              {data.guest_name}
             </h4>
           </div>
 
@@ -428,7 +430,7 @@ const GuestPass: React.FC = () => {
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
                 Room
               </p>
-              <p className="font-bold text-[#1a1a1a]">{data.roomNumber}</p>
+              <p className="font-bold text-[#1a1a1a]">{data.room_number}</p>
             </div>
           </div>
 
@@ -438,8 +440,8 @@ const GuestPass: React.FC = () => {
               Valid Until
             </p>
             <p className="font-bold text-red-600 underline">
-              {data?.checkOut
-                ? new Date(data.checkOut).toLocaleDateString([], {
+              {data?.check_out
+                ? new Date(data.check_out).toLocaleDateString([], {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
@@ -485,8 +487,8 @@ const GuestPass: React.FC = () => {
               encodeURIComponent(
                 JSON.stringify({
                   id: id,
-                  guestName: data.guestName,
-                  expiry: data.checkOut,
+                  guestName: data.guest_name,
+                  expiry: data.check_out,
                 }),
               ),
             ),

@@ -2,22 +2,25 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { API_BASE_URL } from "../utils/api";
 
 export interface LocalVoucher {
-  voucher_code: string; // Internal ID
+  voucher_code: string;
   guest_name: string;
   room_number: string;
   check_in: string;
   check_out: string;
+  status: string;
   services: string[];
-  image_url?: string;
+  image_url: string;
   pax: number;
-  email?: string;
-  whatsapp?: string;
+  email: string;
+  whatsapp: string;
   is_test: boolean;
-  qr_source_location?: string;
-  marketing_consent?: boolean;
+  qr_source_location: string;
+  marketing_consent: boolean;
   created_at: string;
   sync_status: "pending" | "synced" | "failed";
   metadata?: Record<string, unknown>;
+  redeemed_at?: string;
+  weather?: string;
 }
 
 interface WellnessDB extends DBSchema {

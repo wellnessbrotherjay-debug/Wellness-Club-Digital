@@ -66,12 +66,14 @@ export interface RedemptionData {
   email?: string;
   whatsapp?: string;
   weather?: string;
+  total?: number;
 }
 
 import { ENTITLEMENTS } from "./constants/services";
 import { useVoucherData } from "./hooks/useVoucherData";
 import { syncService } from "./services/SyncService";
 import type { LocalVoucher } from "./services/SyncService";
+import { isTestAccount } from "./utils/analytics";
 
 const VoucherPage: React.FC = () => {
   const [userRole, setUserRole] = useState<"admin" | "staff" | null>(null);
@@ -81,20 +83,7 @@ const VoucherPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "redeemed" | "expired"
   >("all"); // DEFAULT TO ALL TO AVOID EMPTY LIST CONFUSION
-  const [formData, setFormData] = useState({
-    guestNames: [""],
-    roomNumber: "",
-    checkIn: new Date().toISOString().split("T")[0],
-    checkOut: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    imageUrl: "",
-    email: "",
-    whatsapp: "",
-    pax: 1,
-    countryCode: "+62",
-    isTest: false,
-    qrSourceLocation: "reception",
-    marketingConsent: false,
-  });
+
 
   const [syncStatus, setSyncStatus] = useState<
     "synced" | "syncing" | "pending"
@@ -162,10 +151,10 @@ const VoucherPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [nonIssuanceForm, setNonIssuanceForm] = useState({
-    roomNumber: "",
+    room_number: "",
     duration: "",
     reason: "" as "No WhatsApp" | "Busy" | "Not Interested" | "Custom" | "",
-    customReason: "",
+    custom_reason: "",
   });
   const [isLogging, setIsLogging] = useState(false);
   const [selectedVoucherForDetail, setSelectedVoucherForDetail] = useState<VoucherData | null>(null);
@@ -326,6 +315,7 @@ const VoucherPage: React.FC = () => {
         room_number: formData.room_number,
         check_in: formData.check_in,
         check_out: formData.check_out,
+        status: "Created",
         image_url: formData.image_url,
         services: services,
         created_at: new Date().toISOString(),
@@ -420,14 +410,14 @@ const VoucherPage: React.FC = () => {
   };
 
   const handleLogNonIssuance = async () => {
-    const { room_number, duration, reason, customReason } = nonIssuanceForm;
+    const { room_number, duration, reason, custom_reason } = nonIssuanceForm;
     if (!room_number || !reason) {
       alert("Please provide at least a room number and a reason.");
       return;
     }
 
     setIsLogging(true);
-    const finalReason = reason === "Custom" ? customReason : reason;
+    const finalReason = reason === "Custom" ? custom_reason : reason;
 
     try {
       await fetch(`${API_BASE_URL}/api/log-insight`, {
@@ -446,7 +436,7 @@ const VoucherPage: React.FC = () => {
         room_number: "",
         duration: "",
         reason: "",
-        customReason: "",
+        custom_reason: "",
       });
       setActiveTab("create");
     } catch (error) {
@@ -977,9 +967,9 @@ const VoucherPage: React.FC = () => {
                       <input
                         type="date"
                         className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] transition-all font-medium appearance-none"
-                        value={formData.checkOut}
+                        value={formData.check_out}
                         onChange={(e) =>
-                          setFormData({ ...formData, checkOut: e.target.value })
+                          setFormData({ ...formData, check_out: e.target.value })
                         }
                       />
                       <Calendar
@@ -1152,7 +1142,7 @@ const VoucherPage: React.FC = () => {
                                     className="flex flex-col gap-1 text-xs bg-green-50 p-2 rounded-lg border border-green-100"
                                   >
                                     <span className="font-bold text-green-800">
-                                      {r.serviceType}
+                                      {r.service_type}
                                     </span>
                                     <span className="text-[10px] text-green-600 flex items-center gap-1 capitalize">
                                       <Clock size={10} />
@@ -1672,9 +1662,7 @@ const VoucherPage: React.FC = () => {
                               const isExpired = isVoucherExpired(voucher);
                               const expiryDate = voucher.check_out
                                 ? new Date(voucher.check_out)
-                                : voucher.expires_at
-                                  ? new Date(voucher.expires_at)
-                                  : null;
+                                : null;
                               const isToday =
                                 expiryDate &&
                                 new Date(expiryDate).toDateString() ===
@@ -1960,11 +1948,11 @@ const VoucherPage: React.FC = () => {
                     <textarea
                       placeholder="Briefly describe why..."
                       className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-amber-200 rounded-xl px-4 py-3 text-sm outline-none transition-all min-h-[100px]"
-                      value={nonIssuanceForm.customReason}
+                      value={nonIssuanceForm.custom_reason}
                       onChange={(e) =>
                         setNonIssuanceForm({
                           ...nonIssuanceForm,
-                          customReason: e.target.value,
+                          custom_reason: e.target.value,
                         })
                       }
                     />
@@ -2005,7 +1993,7 @@ const VoucherPage: React.FC = () => {
             <div className="bg-[#2c2420] p-6 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-serif font-bold">Guest Details</h3>
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Voucher ID: {selectedVoucherForDetail.id}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Voucher ID: {selectedVoucherForDetail.voucher_code}</p>
               </div>
               <button 
                 onClick={() => setShowDetailModal(false)}
@@ -2019,20 +2007,20 @@ const VoucherPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Guest Name</label>
-                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.guestName}</p>
+                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.guest_name}</p>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Room Number</label>
-                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.roomNumber || "N/A"}</p>
+                  <p className="font-bold text-[#2c2420]">{selectedVoucherForDetail.room_number || "N/A"}</p>
                 </div>
                 <div className="md:col-span-2 grid grid-cols-2 gap-6">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Check-in</label>
-                    <p className="text-sm font-medium">{selectedVoucherForDetail.checkIn || "N/A"}</p>
+                    <p className="text-sm font-medium">{selectedVoucherForDetail.check_in || "N/A"}</p>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Check-out</label>
-                    <p className="text-sm font-medium font-bold text-amber-700">{selectedVoucherForDetail.checkOut || "N/A"}</p>
+                    <p className="text-sm font-medium font-bold text-amber-700">{selectedVoucherForDetail.check_out || "N/A"}</p>
                   </div>
                 </div>
                 <div>

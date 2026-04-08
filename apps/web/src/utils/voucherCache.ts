@@ -16,18 +16,18 @@ export const VoucherCache = {
     save: (voucher: VoucherData) => {
         try {
             const cache = VoucherCache.getAll();
-            cache[voucher.id] = {
+            cache[voucher.voucher_code] = {
                 ...voucher,
                 // Ensure we capture critical fields even if backend loses them
                 email: voucher.email || '',
                 whatsapp: voucher.whatsapp || '',
                 pax: voucher.pax || 1,
-                checkIn: voucher.checkIn || '',
-                checkOut: voucher.checkOut || '',
+                check_in: voucher.check_in || '',
+                check_out: voucher.check_out || '',
                 status: voucher.status || 'Created'
             };
             localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-            console.log(`Cached voucher ${voucher.id} locally.`);
+            console.log(`Cached voucher ${voucher.voucher_code} locally.`);
         } catch (e) {
             console.error('Failed to save voucher to cache', e);
         }
@@ -35,11 +35,11 @@ export const VoucherCache = {
 
     merge: (fetchedVouchers: VoucherData[]): VoucherData[] => {
         const cache = VoucherCache.getAll();
-        const fetchedIds = new Set(fetchedVouchers.map(v => v.id));
+        const fetchedIds = new Set(fetchedVouchers.map(v => v.voucher_code));
 
         // 1. Process fetched vouchers and merge with cached data
         const merged = fetchedVouchers.map(v => {
-            const cached = cache[v.id];
+            const cached = cache[v.voucher_code];
             if (!cached) return v;
 
             return {
@@ -47,15 +47,15 @@ export const VoucherCache = {
                 email: v.email || cached.email || '',
                 whatsapp: v.whatsapp || cached.whatsapp || '',
                 pax: v.pax || cached.pax || 1,
-                checkIn: v.checkIn || cached.checkIn || '',
-                checkOut: v.checkOut || cached.checkOut || '',
+                check_in: v.check_in || cached.check_in || '',
+                check_out: v.check_out || cached.check_out || '',
                 status: (v.status && v.status !== 'Created') ? v.status : (cached.status || v.status),
             };
         });
 
         // 2. Add vouchers from cache that are NOT in the fetched list yet
         // (This happens between creation and first backend success)
-        const pending = Object.values(cache).filter(cached => !fetchedIds.has(cached.id));
+        const pending = Object.values(cache).filter(cached => !fetchedIds.has(cached.voucher_code));
 
         // Return combined list, pending first for immediate visibility
         return [...pending, ...merged];

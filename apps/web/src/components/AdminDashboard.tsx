@@ -1,14 +1,4 @@
-import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  Users, 
-  MapPin, 
-  CheckCircle, 
-  ArrowUpRight,
-  PieChart,
-  Layout
-} from 'lucide-react';
-import { useMarketingSummary } from '../hooks/useMarketingSummary';
+import React from 'react';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import type { VoucherData, RedemptionData } from '../VoucherPage';
 
@@ -35,6 +25,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ vouchers, redemptions, 
             />
         </div>
     );
-};};
+};
 
 export default AdminDashboard;

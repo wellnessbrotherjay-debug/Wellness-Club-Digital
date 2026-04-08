@@ -5,7 +5,7 @@ import type { VoucherData } from '../VoucherPage';
  * Vouchers are valid until 10 PM on their checkOut or expires_at date.
  */
 export const isVoucherExpired = (voucher: Partial<VoucherData>): boolean => {
-    const expiryStr = voucher.checkOut || voucher.expires_at || voucher.checkout || voucher.check_out;
+    const expiryStr = voucher.check_out;
     if (!expiryStr) return false;
 
     const expiryDate = new Date(expiryStr);
@@ -28,7 +28,7 @@ export const isVoucherExpired = (voucher: Partial<VoucherData>): boolean => {
  * Returns the expiration Date object for a voucher (at 10 PM on the expiry day).
  */
 export const getVoucherExpirationDate = (voucher: Partial<VoucherData>): Date | null => {
-    const expiryStr = voucher.checkOut || voucher.expires_at || voucher.checkout || voucher.check_out;
+    const expiryStr = voucher.check_out;
     if (!expiryStr) return null;
 
     const expiryDate = new Date(expiryStr);
