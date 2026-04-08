@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { API_BASE_URL } from "../utils/api";
 
 export interface LocalVoucher {
+  id?: string;
   voucher_code: string;
   guest_name: string;
   room_number: string;
@@ -54,8 +55,18 @@ class SyncService {
     voucher: Omit<LocalVoucher, "sync_status">,
   ): Promise<void> {
     const db = await this.dbPromise;
+
+    // Backward compatibility: some existing browsers still have an older
+    // IndexedDB schema keyed by `id` instead of `voucher_code`.
+    const resolvedVoucherCode = String(voucher.voucher_code || voucher.id || "").trim();
+    if (!resolvedVoucherCode) {
+      throw new Error("Invalid voucher payload: missing voucher_code");
+    }
+
     const localVoucher: LocalVoucher = {
       ...voucher,
+      id: voucher.id || resolvedVoucherCode,
+      voucher_code: resolvedVoucherCode,
       sync_status: "pending",
     };
     await db.put("vouchers", localVoucher);
