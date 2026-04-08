@@ -179,6 +179,15 @@ const VoucherPage: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const statusCounts = useMemo(() => {
+    return {
+      all: recentVouchers.length,
+      active: recentVouchers.filter((v) => v.status === "Active").length,
+      redeemed: recentVouchers.filter((v) => v.status === "Redeemed").length,
+      expired: recentVouchers.filter((v) => v.status === "Expired").length,
+    };
+  }, [recentVouchers]);
+
   const [waStatus, setWaStatus] = useState<
     "idle" | "sending" | "sent" | "error"
   >("idle");
@@ -1529,22 +1538,22 @@ const VoucherPage: React.FC = () => {
                   {[
                     {
                       id: "active",
-                      label: "Active",
+                      label: `Active (${statusCounts.active})`,
                       icon: <CheckCircle size={14} />,
                     },
                     {
                       id: "redeemed",
-                      label: "Redeemed",
+                      label: `Redeemed (${statusCounts.redeemed})`,
                       icon: <CheckCircle size={14} />,
                     },
                     {
                       id: "expired",
-                      label: "Expired",
+                      label: `Expired (${statusCounts.expired})`,
                       icon: <XCircle size={14} />,
                     },
                     {
                       id: "all",
-                      label: "All",
+                      label: `All (${statusCounts.all})`,
                       icon: <List size={14} />,
                     },
                   ].map((filter) => (

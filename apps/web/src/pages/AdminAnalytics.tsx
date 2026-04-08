@@ -1,43 +1,53 @@
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
+import { 
+    BarChart3, 
+    ArrowLeft
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
-import { useVoucherData } from '../hooks/useVoucherData';
-import { Loader2 } from 'lucide-react';
 
 const AdminAnalytics: React.FC = () => {
-    const { vouchers, redemptions, isFetching } = useVoucherData();
-
     return (
-        <div className="min-h-screen bg-[#f8f8f8] text-[#2c2420] font-sans pb-20">
-            <Helmet>
-                <title>Analytics Board | No.1 Wellness Club</title>
-            </Helmet>
-
-            {/* Header */}
-            <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
-                <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-serif font-bold flex items-center gap-3">
-                            <span role="img" aria-label="chart">📊</span>
-                            Analytics Board
-                        </h1>
-                        <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mt-1">
-                            Real-time Redemption Insights
-                        </p>
-                    </div>
-                    {isFetching && (
-                        <div className="flex items-center gap-2 text-[#c5a572] animate-pulse">
-                            <Loader2 size={16} className="animate-spin" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Refreshing Data...</span>
+        <div className="min-h-screen bg-[#fcfaf7]">
+            {/* Top Navigation Bar */}
+            <nav className="bg-white border-b border-gray-100 px-8 py-4 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link 
+                            to="/" 
+                            className="p-2 hover:bg-gray-50 rounded-xl transition-all text-gray-400 hover:text-[#c5a572]"
+                        >
+                            <ArrowLeft size={20} />
+                        </Link>
+                        <div className="h-6 w-px bg-gray-100 mx-2" />
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-[#c5a572]/10 rounded-xl text-[#c5a572]">
+                                <BarChart3 size={20} />
+                            </div>
+                            <span className="font-serif font-bold text-lg text-[#2c2420]">Admin Portal</span>
                         </div>
-                    )}
+                    </div>
                 </div>
-            </div>
+            </nav>
 
-            <main className="max-w-7xl mx-auto px-6 py-8">
-                <AnalyticsDashboard
-                    vouchers={vouchers}
-                    redemptions={redemptions}
+            <main className="max-w-7xl mx-auto px-8 py-10">
+                <div className="mb-10 animate-slide-up">
+                    <div className="flex justify-between items-end">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-serif font-bold text-[#2c2420]">
+                                Analytics Board
+                            </h1>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mt-1">
+                                Real-time Redemption Insights
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <AnalyticsDashboard 
+                    onViewVoucher={(code) => {
+                        console.log('Viewing voucher:', code);
+                    }}
                 />
             </main>
         </div>

@@ -3,38 +3,55 @@ import { API_BASE_URL } from '../utils/api';
 import { supabase } from '../utils/supabase';
 
 export interface MarketingSummary {
-    total_issued: number;
-    total_redeemed: number;
-    total_pax_pool: number;
-    total_pax_redeemed: number;
-    conversion_rate: number;
-    pax_redemption_rate: number;
-    unique_guests: number;
-    performance: {
-        fashion: number;
-        hair: number;
-        wellness: number;
+    pax_performance: {
+        total_pax: number;
+        distribution: Record<string, number>;
     };
-    leaderboard: { name: string, count: number }[];
-    redemption_leaderboard: { name: string, count: number }[];
-    marketing: {
+    venue_details: {
+        name: string;
         count: number;
-        rate: number;
-    };
-    daily_stats: {
-        date: string;
-        issued: number;
-        redeemed: number;
+        last_redemption: string;
     }[];
-    audit_stats: {
-        total_raw: number;
-        total_real: number;
-        unknown_count: number;
-        test_count: number;
+    pax_details: {
+        type: string;
+        count: number;
+        pax: number;
+        total_pax: number;
+    }[];
+    performance: {
+        redemption_rate: {
+            redeemed: number;
+            total: number;
+            percentage: number;
+            pending: number;
+        };
     };
+    audit_stats: {
+        live_vouchers: number;
+        database_total: number;
+    };
+    top_venue: {
+        name: string;
+        count: number;
+    };
+    issuance_logs: {
+        voucher_code: string;
+        guest_name: string;
+        room_number: string;
+        created_at: string;
+        pax: number;
+        status: string;
+    }[];
+    redemption_logs: {
+        voucher_code: string;
+        guest_name: string;
+        venue: string;
+        timestamp: string;
+        pax: number;
+    }[];
 }
 
-export const useMarketingSummary = () => {
+export const useMarketingSummary = (range: string = 'all') => {
     const [summary, setSummary] = useState<MarketingSummary | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -42,7 +59,8 @@ export const useMarketingSummary = () => {
     const fetchSummary = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/data/summary`);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/data/summary?range=${range}`);
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.details || errorData.error || 'Failed to fetch summary');
@@ -79,7 +97,7 @@ export const useMarketingSummary = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [range]);
 
     return { summary, isLoading, error, refresh: fetchSummary };
 };

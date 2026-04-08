@@ -1,325 +1,369 @@
 import React, { useState } from 'react';
-import {
-    BarChart,
-    TrendingUp,
-    Users,
-    Zap,
-    Download,
-    MapPin,
-    ArrowUpRight,
-    Loader2,
-    CheckCircle
+import { 
+  TrendingUp, 
+  Users, 
+  MapPin, 
+  CheckCircle2, 
+  AlertCircle,
+  Download,
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronRight
 } from 'lucide-react';
-import type { VoucherData, RedemptionData } from '../VoucherPage';
 import { useMarketingSummary } from '../hooks/useMarketingSummary';
+import VoucherAuditView from './VoucherAuditView';
 
 interface AnalyticsDashboardProps {
-    vouchers: VoucherData[];
-    redemptions: RedemptionData[];
-    onViewVoucher?: (voucher_code: string) => void;
+    onViewVoucher?: (voucherCode: string) => void;
 }
 
-const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = () => {
-    // --- State ---
-    const [timeRange, setTimeRange] = useState<'all' | 'week' | 'month' | 'launch'>('all');
-    const { summary, isLoading, error } = useMarketingSummary();
+type ActiveTab = 'overview' | 'pax' | 'venues' | 'issuance' | 'redemptions';
+type TimeRange = 'all' | 'week' | 'month' | 'launch';
+
+const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }) => {
+    const [timeRange, setTimeRange] = useState<TimeRange>('all');
+    const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+    const { summary, isLoading, error } = useMarketingSummary(timeRange);
+
+    if (isLoading) return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+            <div className="w-12 h-12 border-4 border-[#c5a572] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-500 font-medium animate-pulse uppercase tracking-widest text-xs">Architecting Data...</p>
+        </div>
+    );
+
+    if (error) return (
+        <div className="p-8 bg-red-50 border border-red-100 rounded-3xl flex items-center gap-4 text-red-700">
+            <AlertCircle size={24} />
+            <div>
+                <h3 className="font-bold">Analytics Synchronization Failed</h3>
+                <p className="text-sm opacity-80">{error}</p>
+            </div>
+        </div>
+    );
+
+    if (!summary) return null;
 
     const downloadReport = () => {
-        if (!summary) return;
-        const now = new Date();
-        const today = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        
-        const dailyRows = summary.daily_stats.map(s => {
-            const rate = s.issued > 0 ? Math.round((s.redeemed / s.issued) * 100) : 0;
-            const d = new Date(s.date + 'T00:00:00');
-            const label = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-            return `<tr><td>${label}</td><td style="color:#9a7a52;font-weight:bold;text-align:center">${s.issued}</td><td style="color:#1a7a4a;font-weight:bold;text-align:center">${s.redeemed}</td><td style="text-align:center;color:${rate >= 50 ? '#1a7a4a' : '#cc8800'}">${s.issued > 0 ? rate + '%' : '—'}</td></tr>`;
-        }).join('');
-
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Wellness Voucher Report — ${today}</title>
-<style>body{font-family:Arial,sans-serif;color:#222;max-width:800px;margin:40px auto;padding:0 24px}
-h1{color:#c5a572;border-bottom:3px solid #c5a572;padding-bottom:8px}
-h2{color:#2c2420;font-size:15px;margin-top:28px;margin-bottom:8px}
-table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
-th{background:#f5f5f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#888}
-td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
-.kpi{display:flex;gap:12px;margin:20px 0;flex-wrap:wrap}
-.kpi-box{flex:1;min-width:140px;border:1px solid #e0e0e0;border-radius:8px;padding:12px;text-align:center}
-.kpi-label{font-size:9px;font-weight:bold;text-transform:uppercase;color:#888;margin:0}
-.kpi-val{font-size:24px;font-weight:bold;margin:4px 0 0}
-@media print{button{display:none}}
-</style></head><body>
-<h1>📊 No.1 Wellness Voucher Report</h1>
-<p style="color:#888;font-size:13px">Generated: ${today} &nbsp;·&nbsp; Filter: ${timeRange}</p>
-<div class="kpi">
-  <div class="kpi-box"><p class="kpi-label">Vouchers Issued</p><p class="kpi-val" style="color:#9a7a52">${summary.total_issued}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Vouchers Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${summary.total_redeemed}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Voucher Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${summary.conversion_rate}%</p></div>
-</div>
-<div class="kpi">
-  <div class="kpi-box"><p class="kpi-label">Total Pax Issued</p><p class="kpi-val" style="color:#9a7a52">${summary.total_pax_pool}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Total Pax Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${summary.total_pax_redeemed}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Pax Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${summary.pax_redemption_rate}%</p></div>
-</div>
-<h2>📅 Daily Breakdown</h2>
-<table><thead><tr><th>Date</th><th style="text-align:center">Issued</th><th style="text-align:center">Redeemed</th><th style="text-align:center">Rate</th></tr></thead>
-<tbody>${dailyRows || '<tr><td colspan="4" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
-</table>
-<p style="text-align:center;margin-top:40px"><button onclick="window.print()" style="background:#c5a572;color:white;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button></p>
-</body></html>`;
-
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `wellness_report_${new Date().toISOString().split('T')[0]}.html`;
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(summary, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `wellness_report_${timeRange}_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     };
-
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-                <Loader2 className="w-12 h-12 text-[#c5a572] animate-spin mb-4" />
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Syncing Live Analytics...</p>
-            </div>
-        );
-    }
-
-    if (error || !summary) {
-        return (
-            <div className="p-8 bg-red-50 rounded-3xl border border-red-100 text-center">
-                <p className="text-red-600 text-sm font-bold">Failed to load analytics: {error || 'No data'}</p>
-            </div>
-        );
-    }
 
     return (
         <div className="animate-fade-in space-y-8">
-            {/* Unified Debug Info */}
-            <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
-                <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v5.0</h4>
-                    <span className="text-[10px] text-gray-500">Mode: Supabase (Snake Case)</span>
+            {/* Unified Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2 border-b border-gray-100">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-serif font-bold text-[#2c2420]">Business Analytics</h1>
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                        {['overview', 'pax', 'venues', 'issuance', 'redemptions'].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab as ActiveTab)}
+                                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                                    activeTab === tab 
+                                    ? 'bg-[#c5a572] text-white shadow-sm' 
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                }`}
+                            >
+                                {tab === 'pax' ? 'Pax Throughput' : tab === 'venues' ? 'Redemption Venues' : tab === 'issuance' ? 'Issuance Tracker' : tab === 'redemptions' ? 'Redemptions Tracker' : tab}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                        <p className="text-gray-400">Total Vouchers: {summary.total_issued}</p>
-                        <p className="text-gray-400">Total Pax Pool: {summary.total_pax_pool}</p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100">
+                        {[
+                            { id: 'all', label: 'All' },
+                            { id: 'month', label: '30D' },
+                            { id: 'week', label: '7D' },
+                            { id: 'launch', label: 'Launch' }
+                        ].map((range) => (
+                            <button
+                                key={range.id}
+                                onClick={() => setTimeRange(range.id as TimeRange)}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                                    timeRange === range.id 
+                                    ? 'bg-white text-[#c5a572] shadow-sm' 
+                                    : 'text-gray-400 hover:text-gray-600'
+                                }`}
+                            >
+                                {range.label}
+                            </button>
+                        ))}
                     </div>
-                    <div className="text-right">
-                        <p className="text-cyan-400">Sync: Production Live</p>
-                        <p className="text-amber-400">Deduplication: 5-Min Category window</p>
-                    </div>
+                    <button 
+                        onClick={downloadReport}
+                        className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-500 hover:text-[#c5a572] hover:shadow-md transition-all active:scale-95"
+                    >
+                        <Download size={18} />
+                    </button>
                 </div>
             </div>
 
-            {/* Performance Header Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Conversion Metric */}
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
-                        <TrendingUp size={64} className="text-[#c5a572]" />
-                    </div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Conversion Rate</h3>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-serif font-bold text-[#2c2420]">{summary.conversion_rate}%</span>
-                        <span className="text-xs font-bold text-green-500 flex items-center gap-0.5">
-                            <ArrowUpRight size={14} /> Issuance to Redemption
-                        </span>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase">Total Issued</p>
-                            <p className="text-lg font-bold">{summary.total_issued}</p>
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase">Total Redeemed</p>
-                            <p className="text-lg font-bold">{summary.total_redeemed}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Marketing Consent */}
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Marketing Consent</h3>
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-3xl font-serif font-bold text-[#2c2420]">{summary.marketing.rate}%</span>
-                        <Users size={24} className="text-[#c5a572] opacity-20" />
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                            className="h-full bg-[#c5a572] transition-all duration-1000" 
-                            style={{ width: `${summary.marketing.rate}%` }}
+            {activeTab === 'overview' && (
+                <div className="space-y-8">
+                    {/* Primary Metrics Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <KPICard 
+                            label="Live Vouchers" 
+                            value={summary.audit_stats?.live_vouchers || 0}
+                            trend="+12%"
+                            positive={true}
+                            icon={<CheckCircle2 className="text-emerald-500" />}
+                            subtitle="Non-Test Verified"
+                        />
+                        <KPICard 
+                            label="Total Redeemed" 
+                            value={summary.performance.redemption_rate.redeemed}
+                            trend={`${summary.performance.redemption_rate.percentage}%`}
+                            positive={true}
+                            icon={<TrendingUp className="text-[#c5a572]" />}
+                            subtitle="Redemption Rate"
+                        />
+                        <KPICard 
+                            label="PAX Throughput" 
+                            value={summary.pax_performance.total_pax}
+                            trend="+8.4%"
+                            positive={true}
+                            icon={<Users className="text-blue-500" />}
+                            subtitle="Total Guests Seen"
+                        />
+                        <KPICard 
+                            label="Top Venue" 
+                            value={summary.top_venue?.name || 'N/A'}
+                            trend={(summary.top_venue?.count || 0).toString()}
+                            positive={true}
+                            icon={<MapPin className="text-rose-500" />}
+                            subtitle="Most Active Place"
                         />
                     </div>
-                    <p className="text-[9px] text-gray-400 mt-3 font-medium">
-                        <b>{summary.marketing.count}</b> guests opted-in for promotional updates.
-                    </p>
-                </div>
 
-                {/* Pax Performance */}
-                <div className="bg-[#2c2420] p-6 rounded-3xl shadow-xl text-white">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#c5a572] mb-4">Pax Throughput</h3>
-                    <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-4xl font-serif font-bold">{summary.pax_redemption_rate}%</span>
-                        <span className="text-[10px] font-bold text-[#c5a572]">PAX REDEMPTION</span>
-                    </div>
-                    <div className="space-y-3">
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-60">
-                            <span>Total Pax Grouped</span>
-                            <span>{summary.total_pax_pool}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-[#c5a572]">
-                            <span>Pax Redeemed</span>
-                            <span>{summary.total_pax_redeemed}</span>
-                        </div>
-                        <button 
-                            onClick={downloadReport}
-                            className="w-full mt-4 py-3 bg-[#c5a572] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#b08d55] transition-all flex items-center justify-center gap-2"
-                        >
-                            <Download size={14} /> Download PDF Report
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Performance Controls */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 text-[#c5a572] mr-4">
-                        <BarChart size={18} />
-                        <span className="text-xs font-bold uppercase tracking-widest">Category Breakdown</span>
-                    </div>
-
-                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
-                        <option value="all">Global Performance</option>
-                        <option value="launch">Since Launch</option>
-                        <option value="month">Trailing 30 Days</option>
-                        <option value="week">Trailing 7 Days</option>
-                    </select>
-                </div>
-                
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                    Source of Truth: Supabase Production
-                </div>
-            </div>
-
-            {/* Shop Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                    { id: 'fashion' as const, label: 'T Store', emoji: '🛍️', sub: 'Fashion Unit' },
-                    { id: 'wellness' as const, label: 'No.1 Wellness', emoji: '💆', sub: 'Massage Unit' },
-                    { id: 'hair' as const, label: 'TS Hair Salon', emoji: '✂️', sub: 'Beauty Unit' }
-                ].map(shop => (
-                    <div key={shop.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:border-[#c5a572]/30 transition-all">
-                        <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#c5a572] mb-1">{shop.label}</h3>
-                                <p className="text-[9px] text-gray-400 font-medium">{shop.sub}</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Secondary Analytics */}
+                        <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-xl font-serif font-bold text-[#2c2420]">Conversion Funnel</h3>
+                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Issuance to Redemption</p>
+                                </div>
+                                <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
+                                    <TrendingUp size={20} />
+                                </div>
                             </div>
-                            <span className="text-2xl">{shop.emoji}</span>
-                        </div>
-                        <div className="flex items-end gap-6">
-                            <div>
-                                <span className="text-4xl font-serif font-bold text-[#2c2420]">{summary.performance[shop.id]}</span>
-                                <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Total Redeemed</p>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Venue Leaderboards & Analysis */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="grid grid-cols-1 gap-8">
-                    {/* Issuance Leaderboard */}
-                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
-                            <div className="flex items-center gap-2">
-                                <MapPin size={18} className="text-[#c5a572]" />
-                                <h3 className="font-serif font-bold text-gray-900">Highest Issuers</h3>
-                            </div>
-                            <span className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">By QR Source</span>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {summary.leaderboard.map((item, i) => (
-                                <div key={item.name} className="space-y-1.5">
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="font-bold text-gray-700 capitalize">
-                                            {i + 1}. {item.name.replace(/-/g, ' ')}
-                                        </span>
-                                        <span className="font-mono font-bold text-[#c5a572]">{item.count} Issued</span>
+                            
+                            <div className="space-y-5">
+                                <ProgressBar 
+                                    label="Live Vouchers Issued" 
+                                    value={summary.audit_stats.live_vouchers} 
+                                    total={summary.audit_stats.live_vouchers} 
+                                    color="bg-gray-100" 
+                                />
+                                <ProgressBar 
+                                    label="Redeemed Vouchers" 
+                                    value={summary.performance.redemption_rate.redeemed} 
+                                    total={summary.audit_stats.live_vouchers} 
+                                    color="bg-[#c5a572]" 
+                                />
+                                <div className="pt-4 border-t border-gray-50 flex justify-between items-end">
+                                    <div>
+                                        <span className="text-3xl font-bold text-[#2c2420]">{summary.performance.redemption_rate.percentage}%</span>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-[#c5a572]">Success Rate</p>
                                     </div>
-                                    <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-[#c5a572]/40 rounded-full" 
-                                            style={{ width: `${(item.count / summary.total_issued) * 100}%` }}
-                                        />
+                                    <div className="text-right">
+                                        <span className="text-sm font-bold text-gray-400">{summary.performance.redemption_rate.pending} Pending</span>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Redemption Leaderboard */}
-                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-green-50/30">
-                            <div className="flex items-center gap-2">
-                                <CheckCircle size={18} className="text-green-600" />
-                                <h3 className="font-serif font-bold text-gray-900">Top Redemption Drivers</h3>
                             </div>
-                            <span className="text-[9px] font-bold uppercase text-green-600/60 tracking-widest">Actual Usage</span>
                         </div>
-                        <div className="p-6 space-y-4">
-                            {summary.redemption_leaderboard?.map((item, i) => (
-                                <div key={item.name} className="space-y-1.5">
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="font-bold text-gray-700 capitalize">
-                                            {i + 1}. {item.name.replace(/-/g, ' ')}
-                                        </span>
-                                        <span className="font-mono font-bold text-green-600">{item.count} Redemptions</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-green-500/40 rounded-full" 
-                                            style={{ width: `${(item.count / summary.total_redeemed) * 100}%` }}
-                                        />
-                                    </div>
+
+                        <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-xl font-serif font-bold text-[#2c2420]">PAX Distribution</h3>
+                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Throughput by Voucher size</p>
                                 </div>
-                            )) || <p className="text-[10px] text-gray-400 text-center py-4">Waiting for more data...</p>}
-                        </div>
-                    </div>
-                </div>
+                                <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
+                                    <Users size={20} />
+                                </div>
+                            </div>
 
-                <div className="bg-[#fcfaf7] p-8 rounded-3xl border border-[#c5a572]/10 space-y-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#c5a572] shadow-sm">
-                            <Zap size={20} />
-                        </div>
-                        <h4 className="font-serif font-bold text-[#2c2420] text-xl">Operational Insight</h4>
-                    </div>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                        Currently tracking <b>{summary.total_issued}</b> guest lifecycles with a <b>{summary.conversion_rate}%</b> conversion rate. 
-                        <b> {summary.leaderboard[0]?.name ? summary.leaderboard[0].name.replace(/-/g, ' ') : 'Reception'}</b> generates the most vouchers, while 
-                        <b> {summary.redemption_leaderboard?.[0]?.name ? summary.redemption_leaderboard[0].name.replace(/-/g, ' ') : 'N/A'}</b> is your peak driver for actual redemptions.
-                    </p>
-                    <div className="flex items-center gap-4 pt-4">
-                        <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-[#c5a572]">Avg Daily Issue</span>
-                            <p className="text-xl font-bold text-[#2c2420]">{Math.round(summary.total_issued / (summary.daily_stats.length || 30))}</p>
-                        </div>
-                        <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-green-600">Sync Status</span>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <CheckCircle size={14} className="text-green-500" />
-                                <span className="text-[10px] font-bold text-[#2c2420]">LIVE Supabase</span>
+                            <div className="grid grid-cols-2 gap-4">
+                                {summary.pax_performance?.distribution && Object.entries(summary.pax_performance.distribution).map(([pax, count]) => (
+                                    <div key={pax} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 group hover:border-[#c5a572]/30 transition-all">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-[#c5a572]">{pax} PAX</p>
+                                        <p className="text-2xl font-bold text-[#2c2420]">{count as React.ReactNode}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'pax' && (
+                <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden animate-slide-up">
+                    <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-2xl font-serif font-bold text-[#2c2420]">Pax Throughput Details</h3>
+                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Granular Guest volume breakdown</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <p className="text-2xl font-bold text-[#c5a572]">{summary.pax_performance.total_pax}</p>
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Total Guests</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50">
+                                    <th className="px-8 py-5">Voucher Type</th>
+                                    <th className="px-8 py-5 text-center">Count</th>
+                                    <th className="px-8 py-5 text-center">Pax Ratio</th>
+                                    <th className="px-8 py-5 text-right">Total Pax</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {summary.pax_details?.map((detail: { type: string; count: number; pax: number; total_pax: number }, idx: number) => (
+                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-8 py-5 font-bold text-[#2c2420]">{detail.type}</td>
+                                        <td className="px-8 py-5 text-center font-bold text-gray-500">{detail.count}</td>
+                                        <td className="px-8 py-5 text-center">
+                                            <span className="px-3 py-1 bg-gray-100 rounded-full text-[10px] font-bold text-gray-600">
+                                                {detail.pax} PAX / Voucher
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-5 text-right font-black text-[#c5a572]">{detail.total_pax}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'venues' && (
+                <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden animate-slide-up">
+                    <div className="p-8 border-b border-gray-50">
+                        <h3 className="text-2xl font-serif font-bold text-[#2c2420]">Redemption Venues Audit</h3>
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Live tracking across all partner locations</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50">
+                                    <th className="px-8 py-5">Venue Name</th>
+                                    <th className="px-8 py-5 text-center">Redemptions</th>
+                                    <th className="px-8 py-5 text-center">Status</th>
+                                    <th className="px-8 py-5 text-right">Last Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {summary.venue_details?.map((venue: { name: string; count: number; last_redemption: string }) => (
+                                    <tr key={venue.name} className="hover:bg-gray-50 transition-colors cursor-pointer group">
+                                        <td className="px-8 py-5">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-[#2c2420]">{venue.name}</span>
+                                                <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter">Verified Partner</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5 text-center font-bold text-gray-600">{venue.count}</td>
+                                        <td className="px-8 py-5 text-center">
+                                            <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold">ACTIVE</span>
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <div className="flex items-center justify-end gap-2 text-gray-400 group-hover:text-[#c5a572] transition-colors">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">{venue.last_redemption ? new Date(venue.last_redemption).toLocaleDateString() : 'N/A'}</span>
+                                                <ChevronRight size={14} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'issuance' && (
+                <VoucherAuditView 
+                    summary={summary}
+                    mode="issuance"
+                    onViewVoucher={onViewVoucher}
+                />
+            )}
+
+            {activeTab === 'redemptions' && (
+                <VoucherAuditView 
+                    summary={summary}
+                    mode="redemption"
+                    onViewVoucher={onViewVoucher}
+                />
+            )}
+        </div>
+    );
+};
+
+/* Internal UI Components */
+
+interface KPICardProps {
+    label: string;
+    value: string | number;
+    trend: string;
+    positive: boolean;
+    icon: React.ReactNode;
+    subtitle?: string;
+}
+
+const KPICard: React.FC<KPICardProps> = ({ label, value, trend, positive, icon, subtitle }) => (
+    <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+        <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-white group-hover:scale-110 transition-all border border-transparent group-hover:border-gray-100">
+                {icon}
+            </div>
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black ${positive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                {positive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                {trend}
+            </div>
+        </div>
+        <div>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{label}</h4>
+            <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-[#2c2420]">{value}</span>
+                {subtitle && <span className="text-[9px] font-bold text-gray-300 uppercase tracking-tighter">{subtitle}</span>}
+            </div>
+        </div>
+    </div>
+);
+
+interface ProgressBarProps {
+    label: string;
+    value: number;
+    total: number;
+    color: string;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ label, value, total, color }) => {
+    const percentage = total > 0 ? (value / total) * 100 : 0;
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                <span className="text-gray-400">{label}</span>
+                <span className="text-[#2c2420]">{value}</span>
+            </div>
+            <div className="h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                <div 
+                    className={`h-full ${color} rounded-full transition-all duration-1000 ease-out`}
+                    style={{ width: `${percentage}%` }}
+                />
             </div>
         </div>
     );

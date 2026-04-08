@@ -12,6 +12,9 @@ COPY apps/api ./apps/api
 # Install dependencies for the whole workspace
 RUN npm install
 
+# Generate Prisma Client
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+
 # Build the api
 WORKDIR /app/apps/api
 RUN npm run build

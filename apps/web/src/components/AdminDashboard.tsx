@@ -3,15 +3,12 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import VoucherAuditView from './VoucherAuditView';
 import { useMarketingSummary } from '../hooks/useMarketingSummary';
 import { BarChart3, ClipboardList, Loader2 } from 'lucide-react';
-import type { VoucherData, RedemptionData } from '../VoucherPage';
 
 interface AdminDashboardProps {
-    vouchers: VoucherData[];
-    redemptions: RedemptionData[];
     onViewVoucher?: (voucherCode: string) => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ vouchers, redemptions, onViewVoucher }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewVoucher }) => {
     const [subTab, setSubTab] = useState<'performance' | 'vouchers'>('performance');
     const { summary, isLoading } = useMarketingSummary();
 
@@ -22,7 +19,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ vouchers, redemptions, 
                   <Loader2 className="w-12 h-12 animate-spin text-[#c5a572] opacity-20" />
                   <Loader2 className="w-12 h-12 animate-spin text-[#c5a572] absolute inset-0" style={{ animationDirection: 'reverse', animationDuration: '2s' }} />
                 </div>
-                <p className="text-gray-500 font-medium animate-pulse">Loading Analytics...</p>
+                <p className="text-gray-500 font-medium animate-pulse uppercase tracking-widest text-[10px]">Loading Analytics...</p>
             </div>
         );
     }
@@ -36,27 +33,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ vouchers, redemptions, 
                     <p className="text-sm text-gray-400 mt-1">Monitor performance and audit data integrity.</p>
                 </div>
                 
-                <div className="flex bg-gray-100/80 backdrop-blur-sm p-1.5 rounded-2xl self-start shadow-inner">
+                <div className="flex bg-gray-100/80 backdrop-blur-sm p-1.5 rounded-2xl self-start shadow-inner border border-gray-100">
                     <button
                         onClick={() => setSubTab('performance')}
-                        className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                        className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
                             subTab === 'performance' 
                             ? 'bg-white text-[#2c2420] shadow-md scale-[1.02]' 
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
                         }`}
                     >
-                        <BarChart3 size={18} />
+                        <BarChart3 size={16} />
                         Performance
                     </button>
                     <button
                         onClick={() => setSubTab('vouchers')}
-                        className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                        className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
                             subTab === 'vouchers' 
                             ? 'bg-white text-[#2c2420] shadow-md scale-[1.02]' 
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
                         }`}
                     >
-                        <ClipboardList size={18} />
+                        <ClipboardList size={16} />
                         Vouchers Audit
                     </button>
                 </div>
@@ -66,14 +63,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ vouchers, redemptions, 
             <div className="min-h-[500px]">
                 {subTab === 'performance' ? (
                     <AnalyticsDashboard 
-                        vouchers={vouchers} 
-                        redemptions={redemptions} 
                         onViewVoucher={onViewVoucher} 
                     />
                 ) : (
                     <VoucherAuditView 
                         summary={summary} 
-                        allVouchers={vouchers}
+                        mode="issuance"
                         onViewVoucher={onViewVoucher}
                     />
                 )}
