@@ -217,6 +217,14 @@ app.get('/summary', async (c) => {
             .slice(0, 5)
             .map(([name, count]) => ({ name, count }));
 
+        // 6. Audit Stats
+        const audit_stats = {
+            total_raw: (vouchers || []).length,
+            total_real: realVouchers.length,
+            unknown_count: (vouchers || []).filter(v => !v.guest_name || v.guest_name === 'Unknown Guest' || v.guest_name.trim() === '').length,
+            test_count: (vouchers || []).filter(v => v.is_test || isTest(v.guest_name || '', v.voucher_code || '')).length
+        };
+
         // Marketing
         const consent_count = realVouchers.filter(v => v.marketing_consent).length;
 
@@ -235,7 +243,8 @@ app.get('/summary', async (c) => {
             },
             leaderboard,
             redemption_leaderboard,
-            daily_stats
+            daily_stats,
+            audit_stats
         });
     } catch (err: any) {
         console.error('[GET /api/data/summary] Error:', err.message);

@@ -26,6 +26,12 @@ export interface MarketingSummary {
         issued: number;
         redeemed: number;
     }[];
+    audit_stats: {
+        total_raw: number;
+        total_real: number;
+        unknown_count: number;
+        test_count: number;
+    };
 }
 
 export const useMarketingSummary = () => {
