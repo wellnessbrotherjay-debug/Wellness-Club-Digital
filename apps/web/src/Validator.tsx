@@ -34,7 +34,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
     // Auto-sync if scanned code is not found
     React.useEffect(() => {
         if (!code) return;
-        const exists = vouchers.find(v => v.id === code.trim().toUpperCase());
+        const exists = vouchers.find(v => v.voucher_code === code.trim().toUpperCase());
         if (!exists && onRefresh && !isSyncing) {
             setIsSyncing(true);
             onRefresh();
@@ -49,7 +49,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
     // Derived state: Filter groups based on the current voucher's entitlements
     const getFilteredGroups = useCallback(() => {
         // If no code entered, show nothing (forces them to enter/scan valid code first)
-        const voucher = vouchers.find(v => v.id === code.trim().toUpperCase());
+        const voucher = vouchers.find(v => v.voucher_code === code.trim().toUpperCase());
 
         if (!voucher) return [];
 
@@ -74,9 +74,9 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         }
 
         // Client-side Expiration Check
-        const voucher = vouchers.find(v => v.id === targetCode);
+        const voucher = vouchers.find(v => v.voucher_code === targetCode);
         if (voucher && isVoucherExpired(voucher)) {
-            setExpireDate(voucher.checkOut || voucher.expires_at || 'unknown');
+            setExpireDate(voucher.check_out || voucher.expires_at || 'unknown');
             setStatus('expired');
             return;
         }
@@ -85,7 +85,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
         const redeemedAt = new Date().toISOString();
 
         try {
-            const voucher = vouchers.find(v => v.id === targetCode);
+            const voucher = vouchers.find(v => v.voucher_code === targetCode);
             const serviceType = selectedServices.join(', ');
 
             // Calculate primary category based on the first selected service's group
@@ -97,7 +97,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 }
             }
 
-            const transactionId = `${targetCode}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            const transaction_id = `${targetCode}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
             // Use our own API proxy to handle Email Notifications + Google Sheet Update
             const response = await fetch(`${API_BASE_URL}/api/redeem`, {
@@ -105,19 +105,19 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'redeem',
-                    voucherCode: targetCode,
-                    serviceType: serviceType,
+                    voucher_code: targetCode,
+                    service_type: serviceType,
                     category: primaryCategory,
-                    transactionId: transactionId,
-                    guestName: voucher?.guestName || 'Unknown Guest',
-                    roomNumber: voucher?.roomNumber || '',
+                    transaction_id: transaction_id,
+                    guest_name: voucher?.guest_name || 'Unknown Guest',
+                    room_number: voucher?.room_number || '',
                     email: voucher?.email || '',
                     whatsapp: voucher?.whatsapp || '',
-                    redeemedAt: redeemedAt,
-                    deviceId: getDeviceId(),
-                    userAgent: navigator.userAgent,
-                    inputPath: window.location.pathname,
-                    billAmount: billAmount || undefined
+                    redeemed_at: redeemedAt,
+                    device_id: getDeviceId(),
+                    user_agent: navigator.userAgent,
+                    input_path: window.location.pathname,
+                    bill_amount: billAmount || undefined
                 })
             });
 
@@ -220,17 +220,17 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                                 />
                             )}
                         </div>
-                        {vouchers.find(v => v.id === code.trim().toUpperCase()) && (
+                        {vouchers.find(v => v.voucher_code === code.trim().toUpperCase()) && (
                             <div className="mt-3 bg-[#c5a572]/10 border border-[#c5a572]/20 rounded-lg p-4 flex flex-col gap-2 animate-fade-in">
                                 <div className="text-[9px] font-bold uppercase tracking-widest text-[#c5a572] mb-1">
-                                    Voucher: {vouchers.find(v => v.id === code.trim().toUpperCase())?.id}
+                                    Voucher: {vouchers.find(v => v.voucher_code === code.trim().toUpperCase())?.voucher_code}
                                 </div>
                                 <div className="flex justify-between items-center text-[#2c2420]">
                                     <span className="text-sm font-serif font-bold">
-                                        {vouchers.find(v => v.id === code.trim().toUpperCase())?.guestName}
+                                        {vouchers.find(v => v.voucher_code === code.trim().toUpperCase())?.guest_name}
                                     </span>
                                     <span className="px-2 py-0.5 bg-[#c5a572] text-white text-[9px] font-bold rounded uppercase">
-                                        Room {vouchers.find(v => v.id === code.trim().toUpperCase())?.roomNumber}
+                                        Room {vouchers.find(v => v.voucher_code === code.trim().toUpperCase())?.room_number}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#c5a572]">
@@ -238,7 +238,7 @@ const Validator: React.FC<{ vouchers: VoucherData[]; onRefresh?: () => void }> =
                                         Voucher Valid for Digital Redemption
                                     </span>
                                 </div>
-                                {vouchers.find(v => v.id === code.trim().toUpperCase())?.status === 'Redeemed' && (
+                                {vouchers.find(v => v.voucher_code === code.trim().toUpperCase())?.status === 'Redeemed' && (
                                     <div className="mt-2 bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest p-2 rounded flex items-center gap-2 animate-pulse">
                                         <AlertTriangle size={14} />
                                         Warning: This voucher is already marked as redeemed

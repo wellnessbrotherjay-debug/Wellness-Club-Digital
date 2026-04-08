@@ -1,30 +1,25 @@
-// Analytics tracking utilities
+export const EXCLUDE_NAMES = ['test', 'samual', 'jay', 'diag', 'agent', 'fix'];
 
-export const trackBooking = (serviceName: string, source: string) => {
-    // Log booking event (can be extended with Google Analytics, etc.)
-    console.log(`Booking tracked: ${serviceName} from ${source}`);
+export const isTestAccount = (guest_name: string, voucher_code: string) => {
+  const n = String(guest_name || '').toLowerCase();
+  const c = String(voucher_code || '').toLowerCase();
+  if (c.startsWith('test-')) return true;
 
-    // Example: Send to Google Analytics if available
-    const win = window as unknown as Window & { gtag?: (event: string, action: string, params: Record<string, unknown>) => void };
-    if (typeof window !== 'undefined' && win.gtag) {
-        win.gtag('event', 'booking_initiated', {
-            service_name: serviceName,
-            source: source
-        });
+  // Exact whole-word matching for 'jay' and 'samual'
+  return EXCLUDE_NAMES.some(tn => {
+    if (tn === 'jay' || tn === 'samual') {
+      const regex = new RegExp(`\\b${tn}\\b`, 'i');
+      return regex.test(n);
     }
+    return n.includes(tn);
+  });
 };
 
-export const trackOutboundLink = (url: string, category: string, label: string) => {
-    // Log outbound link click
-    console.log(`Outbound link tracked: ${url} (${category}: ${label})`);
+export const getCategoryStrict = (serviceStr: string, explicitCategory?: string) => {
+  if (explicitCategory && explicitCategory !== 'other' && explicitCategory !== 'reception') return explicitCategory;
 
-    // Example: Send to Google Analytics if available
-    const win = window as unknown as Window & { gtag?: (event: string, action: string, params: Record<string, unknown>) => void };
-    if (typeof window !== 'undefined' && win.gtag) {
-        win.gtag('event', 'click', {
-            event_category: category,
-            event_label: label,
-            value: url
-        });
-    }
+  const s = String(serviceStr || '').toLowerCase().trim();
+  if (s.includes('t store') || s.includes('shopping')) return 'fashion';
+  if (s.includes('salon') || s.includes('hair') || s.includes('mani') || s.includes('pedi') || s.includes('facial')) return 'hair';
+  return 'wellness';
 };

@@ -3,14 +3,28 @@ import { API_BASE_URL } from '../utils/api';
 import { supabase } from '../utils/supabase';
 
 export interface MarketingSummary {
-    totalIssued: number;
-    totalRedeemed: number;
-    conversionRate: number;
+    total_issued: number;
+    total_redeemed: number;
+    total_pax_pool: number;
+    total_pax_redeemed: number;
+    conversion_rate: number;
+    pax_redemption_rate: number;
+    unique_guests: number;
+    performance: {
+        fashion: number;
+        hair: number;
+        wellness: number;
+    };
     leaderboard: { name: string, count: number }[];
     marketing: {
         count: number;
         rate: number;
     };
+    daily_stats: {
+        date: string;
+        issued: number;
+        redeemed: number;
+    }[];
 }
 
 export const useMarketingSummary = () => {

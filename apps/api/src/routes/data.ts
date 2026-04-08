@@ -72,8 +72,12 @@ app.get('/', async (c) => {
  */
 app.get('/summary', async (c) => {
     try {
-        const { data: vouchers, error: vError } = await supabaseAdmin.from('vouchers').select('qr_source_location, marketing_consent, status, guest_name, voucher_code, is_test');
-        const { data: redemptions, error: rError } = await supabaseAdmin.from('redemptions').select('voucher_code, guest_name, service_type');
+        const { data: vouchers, error: vError } = await supabaseAdmin
+            .from('vouchers')
+            .select('qr_source_location, marketing_consent, status, guest_name, voucher_code, is_test, pax, created_at');
+        const { data: redemptions, error: rError } = await supabaseAdmin
+            .from('redemptions')
+            .select('voucher_code, guest_name, service_type, timestamp');
 
         if (vError || rError) throw vError || rError;
 
@@ -81,38 +85,118 @@ app.get('/summary', async (c) => {
         const isTest = (name: string, code: string) => {
             const n = String(name || '').toLowerCase();
             const c = String(code || '').toLowerCase();
-            return c.startsWith('test-') || EXCLUDE_NAMES.some(tn => n.includes(tn));
+            if (c.startsWith('test-')) return true;
+            return EXCLUDE_NAMES.some(tn => {
+                if (tn === 'jay' || tn === 'samual') {
+                    const regex = new RegExp(`\\b${tn}\\b`, 'i');
+                    return regex.test(n);
+                }
+                return n.includes(tn);
+            });
         };
 
-        // Filter Real Vouchers
+        const getCategory = (service: string) => {
+            const s = String(service || '').toLowerCase().trim();
+            if (s.includes('t store') || s.includes('shopping')) return 'fashion';
+            if (s.includes('salon') || s.includes('hair') || s.includes('mani') || s.includes('pedi') || s.includes('facial')) return 'hair';
+            return 'wellness';
+        };
+
+        const smartPax = (pax: number | null, name: string) => {
+            const p = Number(pax);
+            if (pax && !isNaN(p) && p > 1) return p;
+            const n = String(name || '').toLowerCase().trim();
+            if (!n) return (pax && !isNaN(p) && p > 0) ? p : 1;
+            const segments = n.split(/&| and | \+ | \/ /).filter(s => s.trim().length > 0);
+            if (segments.length > 1) return segments.length;
+            return (pax && !isNaN(p) && p > 0) ? p : 1;
+        };
+
+        // 1. Filter Real Vouchers
         const realVouchers = (vouchers || []).filter(v => {
-            if (!v.guest_name || v.guest_name === 'Unknown Guest') return false;
+            if (!v.guest_name || v.guest_name === 'Unknown Guest' || v.guest_name.trim() === '') return false;
             if (v.is_test || isTest(v.guest_name, v.voucher_code)) return false;
             return true;
         });
 
-        // Filter Real Redemptions & Deduplicate
+        const total_pax_pool = realVouchers.reduce((sum, v) => sum + smartPax(v.pax, v.guest_name), 0);
+
+        // 2. Filter & Deduplicate Redemptions (5-min window per category)
         const voucherMap = new Map(vouchers?.map(v => [v.voucher_code?.toUpperCase(), v]));
-        const seenVouchers = new Set<string>();
+        const seenBuckets = new Set<string>();
+        
         const realRedemptions = (redemptions || []).filter(r => {
             const v = voucherMap.get(r.voucher_code?.toUpperCase());
             const n = r.guest_name || (v ? v.guest_name : '');
-            if (isTest(n, r.voucher_code) || n === 'Unknown Guest') return false;
+            if (isTest(n, r.voucher_code) || n === 'Unknown Guest' || n.trim() === '') return false;
             if (v && v.is_test) return false;
-            
-            // Deduplicate: only count each voucher once for the top-level metric
-            if (seenVouchers.has(r.voucher_code)) return false;
-            seenVouchers.add(r.voucher_code);
+
+            const time = new Date(r.timestamp).getTime();
+            const bucket = Math.floor(time / (60000 * 5));
+            const cat = getCategory(r.service_type);
+            const key = `${r.voucher_code?.toUpperCase()}|${cat}|${bucket}`;
+
+            if (seenBuckets.has(key)) return false;
+            seenBuckets.add(key);
             return true;
         });
 
-        const totalIssued = realVouchers.length;
-        const totalRedeemed = realRedemptions.length;
+        // 3. Aggregate Stats
+        const total_issued = realVouchers.length;
+        const total_redeemed = realRedemptions.length;
         
-        // Venue Leaderboard (based on REAL issued vouchers)
+        // Count total pax redeemed by matching redemptions back to voucher's pax
+        const total_pax_redeemed = realRedemptions.reduce((sum, r) => {
+            const v = voucherMap.get(r.voucher_code?.toUpperCase());
+            return sum + (v ? smartPax(v.pax, v.guest_name) : 1);
+        }, 0);
+
+        // Performance by category
+        const performance = { fashion: 0, hair: 0, wellness: 0 };
+        const issued_by_category = { fashion: 0, hair: 0, wellness: 0 };
+
+        realRedemptions.forEach(r => {
+            const cat = getCategory(r.service_type) as keyof typeof performance;
+            performance[cat]++;
+        });
+
+        realVouchers.forEach(v => {
+            // Usually, we determine category from whatever the voucher was intended for, 
+            // but for simplicity, we treat the pool as global or try to infer.
+            // Since our system currently issues "Universal" vouchers, let's just use redemptions for cat breakdown.
+        });
+
+        // Use a set of voucher codes to count unique redemptions for the conversion rate
+        const uniqueRedeemedVouchers = new Set(realRedemptions.map(r => r.voucher_code?.toUpperCase()));
+        const conversion_rate = total_issued > 0 ? Math.round((uniqueRedeemedVouchers.size / total_issued) * 100) : 0;
+        const pax_redemption_rate = total_pax_pool > 0 ? Math.round((total_pax_redeemed / total_pax_pool) * 100) : 0;
+
+        // Daily Breakdown
+        const daily_issued: Record<string, number> = {};
+        const daily_redeemed: Record<string, number> = {};
+        
+        realVouchers.forEach(v => {
+            const day = new Date(v.created_at).toISOString().split('T')[0];
+            daily_issued[day] = (daily_issued[day] || 0) + 1;
+        });
+        
+        realRedemptions.forEach(r => {
+            const day = new Date(r.timestamp).toISOString().split('T')[0];
+            daily_redeemed[day] = (daily_redeemed[day] || 0) + 1;
+        });
+
+        const daily_stats = Array.from(new Set([...Object.keys(daily_issued), ...Object.keys(daily_redeemed)]))
+            .sort()
+            .map(date => ({
+                date,
+                issued: daily_issued[date] || 0,
+                redeemed: daily_redeemed[date] || 0
+            }));
+
+        // Leaderboard
         const locations: Record<string, number> = {};
         realVouchers.forEach(v => {
-            const loc = v.qr_source_location || 'unknown';
+            const loc = v.qr_source_location || 'reception';
             locations[loc] = (locations[loc] || 0) + 1;
         });
         const leaderboard = Object.entries(locations)
@@ -120,19 +204,24 @@ app.get('/summary', async (c) => {
             .slice(0, 5)
             .map(([name, count]) => ({ name, count }));
 
-        // Marketing Consent
-        const consentCount = realVouchers.filter(v => v.marketing_consent).length;
-        const consentRate = totalIssued > 0 ? Math.round((consentCount / totalIssued) * 100) : 0;
+        // Marketing
+        const consent_count = realVouchers.filter(v => v.marketing_consent).length;
 
         return c.json({
-            totalIssued,
-            totalRedeemed,
-            conversionRate: totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0,
-            leaderboard,
+            total_issued,
+            total_redeemed,
+            total_pax_pool,
+            total_pax_redeemed,
+            conversion_rate,
+            pax_redemption_rate,
+            performance,
+            unique_guests: new Set(realRedemptions.map(r => r.guest_name)).size,
             marketing: {
-                count: consentCount,
-                rate: consentRate
-            }
+                count: consent_count,
+                rate: total_issued > 0 ? Math.round((consent_count / total_issued) * 100) : 0
+            },
+            leaderboard,
+            daily_stats
         });
     } catch (err: any) {
         console.error('[GET /api/data/summary] Error:', err.message);

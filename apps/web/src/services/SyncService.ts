@@ -2,22 +2,21 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { API_BASE_URL } from "../utils/api";
 
 export interface LocalVoucher {
-  id: string; // e.g. NW-XXXXXX
-  guestName: string;
-  roomNumber: string;
-  checkIn: string;
-  checkOut: string;
+  voucher_code: string; // Internal ID
+  guest_name: string;
+  room_number: string;
+  check_in: string;
+  check_out: string;
   services: string[];
-  imageUrl?: string;
+  image_url?: string;
   pax: number;
   email?: string;
   whatsapp?: string;
-  isTest: boolean;
+  is_test: boolean;
   qr_source_location?: string;
   marketing_consent?: boolean;
   created_at: string;
   sync_status: "pending" | "synced" | "failed";
-  // any extra metadata
   metadata?: Record<string, unknown>;
 }
 
@@ -35,7 +34,7 @@ class SyncService {
   constructor() {
     this.dbPromise = openDB<WellnessDB>("wellness_vouchers_db", 1, {
       upgrade(db) {
-        const store = db.createObjectStore("vouchers", { keyPath: "id" });
+        const store = db.createObjectStore("vouchers", { keyPath: "voucher_code" });
         store.createIndex("by-sync-status", "sync_status");
       },
     });
@@ -80,13 +79,12 @@ class SyncService {
     );
 
     try {
-      // Transformation step: Map id to voucher_code and ensure strings are not null/undefined
+      // Transformation step: Map data and ensure strings are not null/undefined
       const mappedVouchers = pending.map(v => ({
         ...v,
-        voucher_code: v.id, // Direct mapping to database column
         email: v.email || "",
         whatsapp: v.whatsapp || "",
-        image_url: v.imageUrl || "", // Changed to snake_case
+        image_url: v.image_url || "",
       }));
 
       const response = await fetch(`${API_BASE_URL}/api/vouchers/bulk-sync`, {

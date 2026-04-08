@@ -1,271 +1,41 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     BarChart,
     TrendingUp,
     Users,
     Zap,
     Download,
-    Tag
+    Tag,
+    MapPin,
+    ArrowUpRight,
+    Loader2,
+    CheckCircle
 } from 'lucide-react';
 import type { VoucherData, RedemptionData } from '../VoucherPage';
+import { useMarketingSummary } from '../hooks/useMarketingSummary';
 
 interface AnalyticsDashboardProps {
     vouchers: VoucherData[];
     redemptions: RedemptionData[];
-    onViewVoucher?: (id: string) => void;
+    onViewVoucher?: (voucher_code: string) => void;
 }
 
-const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ vouchers, redemptions }) => {
+const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = () => {
     // --- State ---
-    const [timeRange, setTimeRange] = useState<'all' | 'week' | 'month' | 'launch' | 'custom'>('all');
-    const [startDate] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-    const [endDate] = useState(() => new Date().toISOString().split('T')[0]);
-    const [serviceCategory, setServiceCategory] = useState<'all' | 'fashion' | 'hair' | 'wellness'>('all');
-
-    const EXCLUDE_NAMES = useMemo(() => [
-        'test', 'samual', 'jay', 'diag', 'agent', 'fix'
-    ], []);
-
-    const isTestAccount = useCallback((name: string, code: string) => {
-        const n = String(name || '').toLowerCase();
-        const c = String(code || '').toLowerCase();
-        if (c.startsWith('test-')) return true;
-
-        // Exact whole-word matching for 'jay' and 'samual' to avoid matching 'Wijaya'
-        return EXCLUDE_NAMES.some(tn => {
-            if (tn === 'jay' || tn === 'samual') {
-                const regex = new RegExp(`\\b${tn}\\b`, 'i');
-                return regex.test(n);
-            }
-            return n.includes(tn);
-        });
-    }, [EXCLUDE_NAMES]);
-
-    // Precise Category Matching
-    const getCategoryStrict = useCallback((serviceStr: string, explicitCategory?: string) => {
-        if (explicitCategory && explicitCategory !== 'other') return explicitCategory;
-
-        const s = String(serviceStr || '').toLowerCase().trim();
-        if (s.includes('t store') || s.includes('shopping')) return 'fashion';
-        if (s.includes('salon') || s.includes('hair') || s.includes('mani') || s.includes('pedi') || s.includes('facial')) return 'hair';
-        return 'wellness';
-    }, []);
-
-    const smartPax = useCallback((pax: string | number | undefined, name: string) => {
-        const p = Number(pax);
-        // If explicit pax is > 1, we trust it (e.g. 12 Pax for Mrs Sanlie Dewi)
-        if (pax && !isNaN(p) && p > 1) return p;
-
-        // If pax is missing or 1, we count guests in the name string
-        const n = String(name || '').toLowerCase().trim();
-        if (!n) return (pax && !isNaN(p) && p > 0) ? p : 1;
-
-        // Split by common separators and count valid segments
-        const segments = n.split(/&| and | \+ | \/ /).filter(s => s.trim().length > 0);
-        if (segments.length > 1) return segments.length;
-
-        // Fallback to the numeric value if provided, or 1
-        return (pax && !isNaN(p) && p > 0) ? p : 1;
-    }, []);
-
-    // --- Core Analytics Logic ---
-    const effectiveRedemptions = useMemo(() => {
-        const voucherMap = new Map(vouchers.map(v => [v.id?.toUpperCase(), v]));
-
-        // 1. Build Base Redemptions from either redemptions array or vouchers with status "Redeemed"
-        const baseData = redemptions.length > 0
-            ? redemptions.map(r => {
-                const v = voucherMap.get(r.voucherCode?.toUpperCase());
-                const timestamp = v?.redeemed_at || r.timestamp;
-                return {
-                    ...r,
-                    timestamp,
-                    is_test: (v as unknown as Record<string, unknown>)?.is_test === 'TRUE' || isTestAccount(r.guestName || (v as unknown as Record<string, unknown>)?.guestName as string || '', r.voucherCode || ''),
-                    explicitCategory: (r as unknown as Record<string, unknown>).category as string || (v as unknown as Record<string, unknown>)?.category as string
-                };
-            })
-            : vouchers
-                .filter(v => v.status === 'Redeemed' || v.redeemed_at)
-                .map(v => ({
-                    timestamp: v.redeemed_at || v.created_at || new Date().toISOString(),
-                    voucherCode: v.id,
-                    guestName: v.guestName || 'Unknown Guest',
-                    serviceType: v.redeemed_service || v.serviceType || '',
-                    roomNumber: v.roomNumber || '',
-                    is_test: (v as unknown as Record<string, unknown>).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || ''),
-                    explicitCategory: (v as unknown as Record<string, unknown>).category as string
-                }));
-
-        // 2. Filter out test records and Unknown Guests
-        const realData = baseData.filter(r => !r.is_test && r.guestName !== 'Unknown Guest');
-
-        // 3. Deduplicate: Allow 1 redemption PER CATEGORY per voucher in a 5-min window
-        const seen = new Set<string>();
-        const final = [];
-        for (const r of realData) {
-            const time = new Date(r.timestamp).getTime();
-            const timeBucket = Math.floor(time / (60000 * 5));
-            const cat = getCategoryStrict(r.serviceType, r.explicitCategory);
-            const key = `${r.voucherCode?.toUpperCase()}|${cat}|${timeBucket}`;
-
-            if (!seen.has(key)) {
-                seen.add(key);
-                final.push({
-                    ...r,
-                    derivedCategory: cat
-                });
-            }
-        }
-        return final;
-    }, [redemptions, vouchers, isTestAccount, getCategoryStrict]);
-
-    const stats = useMemo(() => {
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const launchDate = new Date('2026-02-01');
-
-        const parseDate = (dateStr: string) => {
-            if (!dateStr) return null;
-            const d = new Date(dateStr);
-            return isNaN(d.getTime()) ? null : d;
-        };
-
-        // 1. Time Range Filtering for Redemptions
-        let currentRedemptions = effectiveRedemptions;
-        if (timeRange === 'week') currentRedemptions = currentRedemptions.filter(r => parseDate(r.timestamp)! >= oneWeekAgo);
-        else if (timeRange === 'month') currentRedemptions = currentRedemptions.filter(r => parseDate(r.timestamp)! >= oneMonthAgo);
-        else if (timeRange === 'launch') currentRedemptions = currentRedemptions.filter(r => parseDate(r.timestamp)! >= launchDate);
-        else if (timeRange === 'custom') {
-            const start = new Date(startDate); start.setHours(0, 0, 0, 0);
-            const end = new Date(endDate); end.setHours(23, 59, 59, 999);
-            currentRedemptions = currentRedemptions.filter(r => {
-                const d = parseDate(r.timestamp);
-                return d && d >= start && d <= end;
-            });
-        }
-
-        // Apply Category Filter for the main list
-        let filteredRedemptions = currentRedemptions;
-        if (serviceCategory !== 'all') {
-            filteredRedemptions = currentRedemptions.filter(r =>
-                getCategoryStrict(r.serviceType, (r as Record<string, unknown>).explicitCategory as string) === serviceCategory
-            );
-        }
-
-        const voucherMap = new Map(vouchers.map(v => [v.id?.toUpperCase(), v]));
-
-        // 2. Issued Vouchers Pool (The total number of vouchers ever created in this category)
-        const realVouchers = vouchers.filter(v => {
-            if (!v.guestName || v.guestName === 'Unknown Guest') return false;
-            if ((v as unknown as Record<string, unknown>).is_test === 'TRUE' || isTestAccount(v.guestName || '', v.id || '')) return false;
-            return true;
-        });
-
-        const shopIssued = {
-            fashion: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as unknown as Record<string, unknown>).category as string) === 'fashion').length,
-            hair: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as unknown as Record<string, unknown>).category as string) === 'hair').length,
-            wellness: realVouchers.filter(v => getCategoryStrict(v.serviceType || '', (v as unknown as Record<string, unknown>).category as string) === 'wellness').length
-        };
-
-        const totalVouchersPool = realVouchers.length;
-        const totalPaxPool = realVouchers.reduce((sum, v) => sum + smartPax(v.pax, v.guestName), 0);
-
-        // Map for looking up Pax during redemptions
-        const voucherPaxMap = new Map(realVouchers.map(v => [v.id, smartPax(v.pax, v.guestName)]));
-
-        // Shop Redeemed Totals (Subset of Issued)
-        const shopTotals = {
-            fashion: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as unknown as Record<string, unknown>).explicitCategory as string) === 'fashion').length,
-            hair: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as unknown as Record<string, unknown>).explicitCategory as string) === 'hair').length,
-            wellness: currentRedemptions.filter(r => getCategoryStrict(r.serviceType, (r as unknown as Record<string, unknown>).explicitCategory as string) === 'wellness').length
-        };
-
-        // --- Daily Redemptions ---
-        const dailyCounts: Record<string, number> = {};
-        filteredRedemptions.forEach(r => {
-            const d = parseDate(r.timestamp);
-            if (d) {
-                const key = d.toISOString().split('T')[0];
-                dailyCounts[key] = (dailyCounts[key] || 0) + 1;
-            }
-        });
-
-        // --- Daily Issued Counts ---
-        const dailyIssuedCounts: Record<string, number> = {};
-        realVouchers.forEach(v => {
-            const d = parseDate(v.created_at || '');
-            if (!d) return;
-            if (timeRange === 'week' && d < oneWeekAgo) return;
-            if (timeRange === 'month' && d < oneMonthAgo) return;
-            if (timeRange === 'launch' && d < launchDate) return;
-            if (timeRange === 'custom') {
-                const start = new Date(startDate); start.setHours(0, 0, 0, 0);
-                const end = new Date(endDate); end.setHours(23, 59, 59, 999);
-                if (d < start || d > end) return;
-            }
-            const key = d.toISOString().split('T')[0];
-            dailyIssuedCounts[key] = (dailyIssuedCounts[key] || 0) + 1;
-        });
-
-        // --- Service Counts ---
-        const serviceCounts: Record<string, number> = {};
-        filteredRedemptions.forEach(r => {
-            const svc = r.serviceType || 'Voucher';
-            serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
-        });
-
-        const totalRedemptions = filteredRedemptions.length;
-        const totalPaxRedeemed = filteredRedemptions.reduce((sum, r) => {
-            const v = voucherMap.get(r.voucherCode?.toUpperCase());
-            return sum + (voucherPaxMap.get(r.voucherCode) || smartPax((r as unknown as Record<string, unknown>).pax as string | number, r.guestName || (v as unknown as Record<string, unknown>)?.guestName as string || ''));
-        }, 0);
-        const redemptionRate = totalVouchersPool > 0 ? Math.round((totalRedemptions / totalVouchersPool) * 100) : 0;
-        const paxRedemptionRate = totalPaxPool > 0 ? Math.round((totalPaxRedeemed / totalPaxPool) * 100) : 0;
-
-        return {
-            totalRedemptions,
-            totalPaxRedeemed,
-            totalVouchersPool,
-            totalPaxPool,
-            redemptionRate,
-            paxRedemptionRate,
-            uniqueGuests: new Set(filteredRedemptions.map(r => r.guestName)).size,
-            shopTotals,
-            shopIssued,
-            serviceCounts,
-            dailyCounts: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])),
-            dailyIssuedCounts: Object.entries(dailyIssuedCounts).sort((a, b) => a[0].localeCompare(b[0])), // Renamed from dailyCreatedCounts to match existing variable
-            recentActivity: filteredRedemptions.slice(0, 10).map(r => ({
-                id: r.voucherCode,
-                guest: r.guestName,
-                service: r.serviceType,
-                time: r.timestamp,
-                room: r.roomNumber
-            }))
-        };
-    }, [vouchers, timeRange, startDate, endDate, serviceCategory, getCategoryStrict, smartPax, effectiveRedemptions, isTestAccount]);
+    const [timeRange, setTimeRange] = useState<'all' | 'week' | 'month' | 'launch'>('all');
+    const { summary, isLoading, error } = useMarketingSummary();
 
     const downloadReport = () => {
+        if (!summary) return;
         const now = new Date();
         const today = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        const { dailyIssuedCounts, dailyCounts, serviceCounts, totalRedemptions, totalPaxRedeemed, totalVouchersPool, totalPaxPool, redemptionRate, paxRedemptionRate } = stats;
-        const issuedMap = Object.fromEntries(dailyIssuedCounts);
-        const redeemedMap = Object.fromEntries(dailyCounts);
-        const allDates = [...new Set([...Object.keys(issuedMap), ...Object.keys(redeemedMap)])].sort((a, b) => b.localeCompare(a));
-
-        const dailyRows = allDates.map(date => {
-            const issued = (issuedMap as Record<string, number>)[date] || 0;
-            const redeemed = (redeemedMap as Record<string, number>)[date] || 0;
-            const rate = issued > 0 ? Math.round((redeemed / issued) * 100) : 0;
-            const d = new Date(date + 'T00:00:00');
+        
+        const dailyRows = summary.daily_stats.map(s => {
+            const rate = s.issued > 0 ? Math.round((s.redeemed / s.issued) * 100) : 0;
+            const d = new Date(s.date + 'T00:00:00');
             const label = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-            return `<tr><td>${label}</td><td style="color:#9a7a52;font-weight:bold;text-align:center">${issued}</td><td style="color:#1a7a4a;font-weight:bold;text-align:center">${redeemed}</td><td style="text-align:center;color:${rate >= 50 ? '#1a7a4a' : '#cc8800'}">${issued > 0 ? rate + '%' : '—'}</td></tr>`;
+            return `<tr><td>${label}</td><td style="color:#9a7a52;font-weight:bold;text-align:center">${s.issued}</td><td style="color:#1a7a4a;font-weight:bold;text-align:center">${s.redeemed}</td><td style="text-align:center;color:${rate >= 50 ? '#1a7a4a' : '#cc8800'}">${s.issued > 0 ? rate + '%' : '—'}</td></tr>`;
         }).join('');
-
-        const serviceRows = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]).map(([svc, count]) =>
-            `<tr><td>${svc}</td><td style="text-align:right;font-weight:bold;color:#1a7a4a">${count}</td></tr>`
-        ).join('');
 
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Wellness Voucher Report — ${today}</title>
@@ -284,22 +54,18 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
 <h1>📊 No.1 Wellness Voucher Report</h1>
 <p style="color:#888;font-size:13px">Generated: ${today} &nbsp;·&nbsp; Filter: ${timeRange}</p>
 <div class="kpi">
-  <div class="kpi-box"><p class="kpi-label">Vouchers Issued</p><p class="kpi-val" style="color:#9a7a52">${totalVouchersPool}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Vouchers Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalRedemptions}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Voucher Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${redemptionRate}%</p></div>
+  <div class="kpi-box"><p class="kpi-label">Vouchers Issued</p><p class="kpi-val" style="color:#9a7a52">${summary.total_issued}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Vouchers Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${summary.total_redeemed}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Voucher Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${summary.conversion_rate}%</p></div>
 </div>
 <div class="kpi">
-  <div class="kpi-box"><p class="kpi-label">Total Pax Issued</p><p class="kpi-val" style="color:#9a7a52">${totalPaxPool}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Total Pax Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${totalPaxRedeemed}</p></div>
-  <div class="kpi-box"><p class="kpi-label">Pax Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${paxRedemptionRate}%</p></div>
+  <div class="kpi-box"><p class="kpi-label">Total Pax Issued</p><p class="kpi-val" style="color:#9a7a52">${summary.total_pax_pool}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Total Pax Redeemed</p><p class="kpi-val" style="color:#1a7a4a">${summary.total_pax_redeemed}</p></div>
+  <div class="kpi-box"><p class="kpi-label">Pax Conv. Rate</p><p class="kpi-val" style="color:#4444bb">${summary.pax_redemption_rate}%</p></div>
 </div>
 <h2>📅 Daily Breakdown</h2>
 <table><thead><tr><th>Date</th><th style="text-align:center">Issued</th><th style="text-align:center">Redeemed</th><th style="text-align:center">Rate</th></tr></thead>
 <tbody>${dailyRows || '<tr><td colspan="4" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
-</table>
-<h2>✨ Services Breakdown</h2>
-<table><thead><tr><th>Service</th><th style="text-align:right">Count</th></tr></thead>
-<tbody>${serviceRows || '<tr><td colspan="2" style="text-align:center;color:#aaa">No data</td></tr>'}</tbody>
 </table>
 <p style="text-align:center;margin-top:40px"><button onclick="window.print()" style="background:#c5a572;color:white;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button></p>
 </body></html>`;
@@ -314,83 +80,140 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
         document.body.removeChild(link);
     };
 
-    const exportToCSV = () => {
-        const headers = ['Voucher Code', 'Guest Name', 'Room', 'Date', 'Type'];
-        const csvRows = effectiveRedemptions.map(r => [
-            r.voucherCode,
-            `"${r.guestName || ''}"`,
-            r.roomNumber || '',
-            r.timestamp ? new Date(r.timestamp).toLocaleString() : '',
-            getCategoryStrict(r.serviceType, (r as Record<string, unknown>).explicitCategory as string)
-        ].join(','));
-        const csvContent = [headers.join(','), ...csvRows].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `redemptions-report-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-    };
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+                <Loader2 className="w-12 h-12 text-[#c5a572] animate-spin mb-4" />
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Syncing Live Analytics...</p>
+            </div>
+        );
+    }
+
+    if (error || !summary) {
+        return (
+            <div className="p-8 bg-red-50 rounded-3xl border border-red-100 text-center">
+                <p className="text-red-600 text-sm font-bold">Failed to load analytics: {error || 'No data'}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="animate-fade-in space-y-8">
             {/* Unified Debug Info */}
             <div className="bg-gray-900 text-green-400 p-4 rounded-2xl font-mono text-xs">
                 <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v4.9</h4>
-                    <span className="text-[10px] text-gray-500">Mode: Google Sheets Only</span>
+                    <h4 className="font-bold text-white">🔍 Analytics Pipeline v5.0</h4>
+                    <span className="text-[10px] text-gray-500">Mode: Supabase (Snake Case)</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-2">
                     <div>
-                        <p className="text-gray-400">Total Vouchers: {stats.totalVouchersPool}</p>
-                        <p className="text-gray-400">Total Pax Issued: {stats.totalPaxPool}</p>
+                        <p className="text-gray-400">Total Vouchers: {summary.total_issued}</p>
+                        <p className="text-gray-400">Total Pax Pool: {summary.total_pax_pool}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-cyan-400">Filter: {timeRange} | {serviceCategory}</p>
-                        <p className="text-amber-400">Pax Rate: {stats.paxRedemptionRate}%</p>
+                        <p className="text-cyan-400">Sync: Production Live</p>
+                        <p className="text-amber-400">Deduplication: 5-Min Category window</p>
                     </div>
                 </div>
             </div>
 
-            {/* Performance Config */}
+            {/* Performance Header Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Conversion Metric */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
+                        <TrendingUp size={64} className="text-[#c5a572]" />
+                    </div>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Conversion Rate</h3>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-serif font-bold text-[#2c2420]">{summary.conversion_rate}%</span>
+                        <span className="text-xs font-bold text-green-500 flex items-center gap-0.5">
+                            <ArrowUpRight size={14} /> Issuance to Redemption
+                        </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase">Total Issued</p>
+                            <p className="text-lg font-bold">{summary.total_issued}</p>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase">Total Redeemed</p>
+                            <p className="text-lg font-bold">{summary.total_redeemed}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Marketing Consent */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Marketing Consent</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-3xl font-serif font-bold text-[#2c2420]">{summary.marketing.rate}%</span>
+                        <Users size={24} className="text-[#c5a572] opacity-20" />
+                    </div>
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-[#c5a572] transition-all duration-1000" 
+                            style={{ width: `${summary.marketing.rate}%` }}
+                        />
+                    </div>
+                    <p className="text-[9px] text-gray-400 mt-3 font-medium">
+                        <b>{summary.marketing.count}</b> guests opted-in for promotional updates.
+                    </p>
+                </div>
+
+                {/* Pax Performance */}
+                <div className="bg-[#2c2420] p-6 rounded-3xl shadow-xl text-white">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#c5a572] mb-4">Pax Throughput</h3>
+                    <div className="flex items-baseline gap-2 mb-4">
+                        <span className="text-4xl font-serif font-bold">{summary.pax_redemption_rate}%</span>
+                        <span className="text-[10px] font-bold text-[#c5a572]">PAX REDEMPTION</span>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-60">
+                            <span>Total Pax Grouped</span>
+                            <span>{summary.total_pax_pool}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-[#c5a572]">
+                            <span>Pax Redeemed</span>
+                            <span>{summary.total_pax_redeemed}</span>
+                        </div>
+                        <button 
+                            onClick={downloadReport}
+                            className="w-full mt-4 py-3 bg-[#c5a572] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#b08d55] transition-all flex items-center justify-center gap-2"
+                        >
+                            <Download size={14} /> Download PDF Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Performance Controls */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 text-[#c5a572] mr-4">
                         <BarChart size={18} />
-                        <span className="text-xs font-bold uppercase tracking-widest">Performance</span>
+                        <span className="text-xs font-bold uppercase tracking-widest">Category Breakdown</span>
                     </div>
 
-                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as 'all' | 'launch' | 'month' | 'week')} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
-                        <option value="all">All Time</option>
+                    <select value={timeRange} onChange={e => setTimeRange(e.target.value as any)} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
+                        <option value="all">Global Performance</option>
                         <option value="launch">Since Launch</option>
-                        <option value="month">This Month</option>
-                        <option value="week">This Week</option>
-                    </select>
-
-                    <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value as 'all' | 'wellness' | 'fashion' | 'hair')} className="bg-gray-50 border rounded-lg px-3 py-2 text-[10px] font-bold uppercase transition-all focus:ring-2 focus:ring-[#c5a572]/20">
-                        <option value="all">All Units</option>
-                        <option value="wellness">Wellness</option>
-                        <option value="fashion">T Store</option>
-                        <option value="hair">Hair Salon</option>
+                        <option value="month">Trailing 30 Days</option>
+                        <option value="week">Trailing 7 Days</option>
                     </select>
                 </div>
-
-                <div className="flex items-center gap-3">
-                    <button onClick={exportToCSV} className="bg-gray-100 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 hover:bg-gray-200 transition-colors">
-                        <Download size={14} /> CSV
-                    </button>
-                    <button onClick={downloadReport} className="bg-[#c5a572] text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 hover:bg-[#b09465] transition-all shadow-md">
-                        <Download size={14} /> PDF Report
-                    </button>
+                
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                    Source of Truth: Supabase Production
                 </div>
             </div>
 
-            {/* Shop Cards */}
+            {/* Shop Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { id: 'fashion', label: 'T Store', emoji: '🛍️', sub: 'Fashion Redemptions' },
-                    { id: 'wellness', label: 'No.1 Wellness', emoji: '💆', sub: 'Massage Redemptions' },
-                    { id: 'hair', label: 'TS Hair Salon', emoji: '✂️', sub: 'Hair & Beauty' }
+                    { id: 'fashion' as const, label: 'T Store', emoji: '🛍️', sub: 'Fashion Unit' },
+                    { id: 'wellness' as const, label: 'No.1 Wellness', emoji: '💆', sub: 'Massage Unit' },
+                    { id: 'hair' as const, label: 'TS Hair Salon', emoji: '✂️', sub: 'Beauty Unit' }
                 ].map(shop => (
                     <div key={shop.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:border-[#c5a572]/30 transition-all">
                         <div className="flex justify-between items-start mb-6">
@@ -402,52 +225,76 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                         </div>
                         <div className="flex items-end gap-6">
                             <div>
-                                <span className="text-4xl font-serif font-bold text-[#2c2420]">{stats.shopIssued[shop.id as keyof typeof stats.shopIssued]}</span>
-                                <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Total Issued</p>
-                            </div>
-                            <div className="pb-1">
-                                <span className="text-2xl font-serif font-bold text-[#c5a572]">{stats.shopTotals[shop.id as keyof typeof stats.shopTotals]}</span>
-                                <p className="text-[9px] text-[#c5a572] font-bold uppercase mt-0.5">Redeemed</p>
+                                <span className="text-4xl font-serif font-bold text-[#2c2420]">{summary.performance[shop.id]}</span>
+                                <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Total Redeemed</p>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Global Stats - Updated with Pax */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-green-500 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <TrendingUp size={20} className="mx-auto mb-3 text-green-500" />
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Redeemed</p>
-                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.totalRedemptions}</h3>
-                    <p className="text-[10px] text-green-600 font-bold mt-1">{stats.totalPaxRedeemed} Pax</p>
+            {/* Venue Leaderboard & Analysis */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <MapPin size={18} className="text-[#c5a572]" />
+                            <h3 className="font-serif font-bold text-gray-900">Venue Leaderboard</h3>
+                        </div>
+                        <span className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Issuance Source</span>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {summary.leaderboard.map((item, i) => (
+                            <div key={item.name} className="space-y-1.5">
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="font-bold text-gray-700 capitalize">
+                                        {i + 1}. {item.name.replace(/-/g, ' ')}
+                                    </span>
+                                    <span className="font-mono font-bold text-[#c5a572]">{item.count} Vouchers</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-[#c5a572]/40 rounded-full" 
+                                        style={{ width: `${(item.count / summary.total_issued) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <Zap size={20} className="mx-auto mb-3 text-orange-500" />
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Voucher Rate</p>
-                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.redemptionRate}%</h3>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <Tag size={20} className="mx-auto mb-3 text-blue-500" />
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Pool</p>
-                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.totalVouchersPool}</h3>
-                    <p className="text-[10px] text-blue-600 font-bold mt-1">{stats.totalPaxPool} Pax Issued</p>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <Users size={20} className="mx-auto mb-3 text-purple-500" />
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Pax Conv. Rate</p>
-                    <h3 className="text-2xl font-serif font-bold text-gray-900">{stats.paxRedemptionRate}%</h3>
-                    <p className="text-[10px] text-purple-600 font-bold mt-1">{stats.uniqueGuests} Unique</p>
+
+                <div className="bg-[#fcfaf7] p-8 rounded-3xl border border-[#c5a572]/10 space-y-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#c5a572] shadow-sm">
+                            <Zap size={20} />
+                        </div>
+                        <h4 className="font-serif font-bold text-[#2c2420] text-xl">Operational Insight</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                        Currently tracking <b>{summary.total_issued}</b> guest lifecycles with a <b>{summary.conversion_rate}%</b> conversion rate. 
+                        <b> {summary.leaderboard[0]?.name ? summary.leaderboard[0].name.replace(/-/g, ' ') : 'Reception'}</b> is your peak driver. 
+                        Multi-category deduplication is active ensuring data integrity of <b>{summary.total_redeemed}</b> unique service redemptions.
+                    </p>
+                    <div className="flex items-center gap-4 pt-4">
+                        <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-[#c5a572]">Avg Daily Issue</span>
+                            <p className="text-xl font-bold text-[#2c2420]">{Math.round(summary.total_issued / (summary.daily_stats.length || 30))}</p>
+                        </div>
+                        <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-green-600">Sync Status</span>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <CheckCircle size={14} className="text-green-500" />
+                                <span className="text-[10px] font-bold text-[#2c2420]">LIVE Supabase</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            {/* Recent Activity Table removed (Obsolete per request) */}
         </div>
     );
 };
+
+export default AnalyticsDashboard;
+
 
 export default AnalyticsDashboard;

@@ -32,75 +32,51 @@ export const useVoucherData = () => {
         const safeDate = (dateStr: unknown) => {
             if (!dateStr) return '';
             const d = new Date(dateStr as string);
-            if (isNaN(d.getTime())) {
-                const parts = String(dateStr).split('/');
-                if (parts.length === 3) {
-                    const nd = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                    if (!isNaN(nd.getTime())) return nd.toISOString().split('T')[0];
-                }
-                return '';
-            }
+            if (isNaN(d.getTime())) return '';
             return d.toISOString().split('T')[0];
         };
 
-        // Robust Service Parsing
         let servicesArr: string[] = [];
-        const rawServices = item.services || item.service || item.Services || '';
+        const rawServices = item.services || '';
         if (Array.isArray(rawServices)) {
             servicesArr = rawServices.map(String);
         } else if (rawServices) {
             servicesArr = String(rawServices).split(',').map(s => s.trim()).filter(Boolean);
         }
 
-        const voucher_id = String(item.voucher_code || item.voucherCode || item.code || item.id || item.voucherid || item.date || '');
-
         return {
-            id: voucher_id,
-            voucherId: voucher_id,
-            guestName: String(item.guest_name || item.guestName || item.userName || item.name || item.description || ''),
-            roomNumber: String(item.room_number || item.roomNumber || item.room || item.amount || ''),
-            checkIn: safeDate(item.check_in || item.checkIn || item.checkin || item.CheckIn || item.type),
-            checkOut: safeDate(item.check_out || item.checkOut || item.checkout || item.CheckOut),
-            status: String(item.status || item.category || ''),
-            Category: String(item.qr_source_location || item.category || 'reception'),
-            created_at: String(item.created_at || item.createdAt || item.timestamp || ''),
-            redeemed_at: String(item.redeemed_at || item.redeemedAt || ''),
-            imageUrl: String(item.imageUrl || item.imageurl || ''),
+            voucher_code: String(item.voucher_code || ''),
+            guest_name: String(item.guest_name || ''),
+            room_number: String(item.room_number || ''),
+            check_in: safeDate(item.check_in),
+            check_out: safeDate(item.check_out),
+            status: String(item.status || 'Created'),
+            qr_source_location: String(item.qr_source_location || 'reception'),
+            created_at: String(item.created_at || ''),
+            redeemed_at: item.redeemed_at ? String(item.redeemed_at) : undefined,
+            image_url: String(item.image_url || ''),
             services: servicesArr,
-            serviceType: String(item.service_type || item.serviceType || item.servicetype || ''),
-            redeemed_service: String(item.redeemed_service || item.redeemedService || ''),
-            redeemedService: String(item.redeemed_service || item.redeemedService || ''),
-            redemptions: [],
-            pax: item.pax ? parseInt(String(item.pax), 10) : 1,
-            Pax: item.pax ? parseInt(String(item.pax), 10) : 1,
-            secondGuestName: String(item.secondGuestName || ''),
+            pax: parseInt(String(item.pax || '1'), 10),
             email: String(item.email || ''),
             whatsapp: String(item.whatsapp || ''),
-            phone: String(item.whatsapp || ''),
             weather: String(item.weather || ''),
-            deviceId: String(item.deviceId || item.device_id || ''),
-            ipAddress: String(item.ipAddress || item.ip_address || ''),
-            userAgent: String(item.userAgent || item.user_agent || ''),
-            is_test: item.is_test === true || item.is_test === 'TRUE' || item.isTest === true,
-            IsTest: item.is_test === true || item.is_test === 'TRUE' || item.isTest === true,
+            device_id: String(item.device_id || ''),
+            ip_address: String(item.ip_address || ''),
+            user_agent: String(item.user_agent || ''),
+            is_test: !!item.is_test,
+            marketing_consent: !!item.marketing_consent,
         };
     };
 
     const mapRedemption = (item: Record<string, unknown>): RedemptionData => ({
-        timestamp: String(item.timestamp || item.created_at || item.redeemed_at || new Date().toISOString()),
-        voucherCode: String(item.voucher_code || item.voucherCode || item.code || item.id || ''),
-        voucherId: String(item.voucher_code || item.voucherCode || item.code || item.id || ''),
-        guestName: String(item.guest_name || item.guestName || item.name || ''),
-        serviceType: String(item.service_type || item.serviceType || item.servicetype || ''),
-        roomNumber: String(item.room_number || item.roomNumber || item.room || ''),
-        inputPath: String(item.inputPath || item.inputpath || ''),
-        emailStatus: String(item.emailStatus || item.emailstatus || ''),
+        timestamp: String(item.timestamp || new Date().toISOString()),
+        voucher_code: String(item.voucher_code || ''),
+        guest_name: String(item.guest_name || ''),
+        service_type: String(item.service_type || ''),
+        room_number: String(item.room_number || ''),
+        email: String(item.email || ''),
+        whatsapp: String(item.whatsapp || ''),
         weather: String(item.weather || ''),
-        ipAddress: String(item.ipAddress || item.ip_address || ''),
-        deviceId: String(item.deviceId || item.device_id || ''),
-        userAgent: String(item.userAgent || item.user_agent || ''),
-        Pax: item.pax ? parseInt(String(item.pax), 10) : 1,
-        Category: String(item.qr_source_location || item.category || ''),
     });
 
     const fetchData = useCallback(async (isSilent: boolean = false) => {
