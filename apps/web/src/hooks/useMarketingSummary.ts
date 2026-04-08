@@ -58,7 +58,7 @@ export const useMarketingSummary = (range: string = 'all') => {
 
     const fetchSummary = async () => {
         setIsLoading(true);
-        try {
+        setError(null);
         try {
             const response = await fetch(`${API_BASE_URL}/api/data/summary?range=${range}`);
             if (!response.ok) {
