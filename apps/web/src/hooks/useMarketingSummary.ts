@@ -57,8 +57,10 @@ export const useMarketingSummary = () => {
         fetchSummary();
 
         // Subscribe to real-time changes to refresh KPIs instantly
+        // Using a unique channel name to avoid "after subscribe" errors if multiple components use this hook
+        const channelId = `marketing-summary-${Math.random().toString(36).slice(2, 9)}`;
         const channel = supabase
-            .channel('marketing-summary-updates')
+            .channel(channelId)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'vouchers' },
