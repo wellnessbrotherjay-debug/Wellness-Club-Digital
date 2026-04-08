@@ -33,17 +33,24 @@ import CountrySelector from "./components/CountrySelector";
 import { COUNTRY_CODES } from "./data/countryCodes";
 
 export interface VoucherData {
-  id: string;
+  id?: string;
   voucherId?: string;
-  guestName: string;
-  roomNumber: string;
-  checkIn: string;
-  checkOut: string;
-  services: string[];
+  voucher_code?: string;
+  guestName?: string;
+  guest_name?: string;
+  roomNumber?: string;
+  room_number?: string;
+  checkIn?: string;
+  checkOut?: string;
+  check_in?: string;
+  check_out?: string;
+  services?: string[];
   imageUrl?: string;
+  image_url?: string;
   status?: string;
   Category?: string;
   serviceType?: string;
+  service_type?: string;
   redeemedService?: string;
   redeemed_service?: string;
   created_at?: string;
@@ -51,9 +58,6 @@ export interface VoucherData {
   expires_at?: string;
   expired_at?: string;
   checkout?: string;
-  check_out?: string;
-  guest_name?: string;
-  room_number?: string;
   redemptions?: RedemptionData[];
   pax?: number;
   Pax?: number;
@@ -63,22 +67,30 @@ export interface VoucherData {
   phone?: string;
   weather?: string;
   deviceId?: string;
+  device_id?: string;
   ipAddress?: string;
+  ip_address?: string;
   userAgent?: string;
+  user_agent?: string;
   is_test?: boolean | string;
   IsTest?: boolean;
   qr_source_location?: string;
   marketing_consent?: boolean;
+  [key: string]: any;
 }
 
 export interface RedemptionData {
-  timestamp: string;
-  voucherCode: string;
+  timestamp?: string;
+  voucherCode?: string;
+  voucher_code?: string;
   voucherId?: string;
-  guestName: string;
-  serviceType: string;
+  guestName?: string;
+  guest_name?: string;
+  serviceType?: string;
+  service_type?: string;
   redeemedService?: string;
-  roomNumber: string;
+  roomNumber?: string;
+  room_number?: string;
   inputPath?: string;
   emailStatus?: string;
   total?: number;
@@ -86,6 +98,8 @@ export interface RedemptionData {
   Pax?: number;
   IsTest?: boolean;
   Category?: string;
+  venue?: string;
+  [key: string]: any;
 }
 
 import { ENTITLEMENTS } from "./constants/services";
@@ -179,6 +193,17 @@ const VoucherPage: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const {
+    vouchers: recentVouchers,
+    setVouchers: setRecentVouchers,
+    redemptions,
+    isFetching: isFetchingHistory,
+    hasLoaded: hasInitialLoaded,
+    error: fetchError,
+    refresh: fetchData,
+    mutate,
+  } = useVoucherData();
+
   const statusCounts = useMemo(() => {
     return {
       all: recentVouchers.length,
@@ -209,17 +234,6 @@ const VoucherPage: React.FC = () => {
   const [selectedVoucherForDetail, setSelectedVoucherForDetail] = useState<VoucherData | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isSyncingManual, setIsSyncingManual] = useState(false); // For manual trigger loading state
-
-  const {
-    vouchers: recentVouchers,
-    setVouchers: setRecentVouchers,
-    redemptions,
-    isFetching: isFetchingHistory,
-    hasLoaded: hasInitialLoaded,
-    error: fetchError,
-    refresh: fetchData,
-    mutate,
-  } = useVoucherData();
 
   // Filter out explicit test accounts for the main count
   const realVouchersCount = useMemo(() => {
@@ -1966,8 +1980,6 @@ const VoucherPage: React.FC = () => {
 
         {activeTab === "analytics" && (
           <AdminDashboard
-            vouchers={recentVouchers}
-            redemptions={effectiveRedemptions}
             onViewVoucher={(id) => {
               const v = recentVouchers.find((v) => v.id === id);
               if (v) {
