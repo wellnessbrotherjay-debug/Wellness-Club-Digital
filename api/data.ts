@@ -52,8 +52,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const orderCol = table === 'redemptions' ? 'timestamp' : 'created_at';
     let query = supabase.from(table).select('*');
 
+    if (id) {
+      const normalizedId = id.trim().toUpperCase();
+
+      if (table === 'vouchers' || table === 'redemptions') {
+        query = query.eq('voucher_code', normalizedId);
+      }
+    }
+
     // Try ordering, fallback if column doesn't exist
-    const { data, error } = await query.order(orderCol, { ascending: false });
+    const { data, error } = id
+      ? await query
+      : await query.order(orderCol, { ascending: false });
 
     if (error) {
       if (error.message.includes('does not exist')) {
