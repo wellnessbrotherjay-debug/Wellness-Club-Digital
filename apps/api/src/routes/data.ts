@@ -193,13 +193,26 @@ app.get('/summary', async (c) => {
                 redeemed: daily_redeemed[date] || 0
             }));
 
-        // Leaderboard
+        // 4. Issuance Leaderboard
         const locations: Record<string, number> = {};
         realVouchers.forEach(v => {
             const loc = v.qr_source_location || 'reception';
             locations[loc] = (locations[loc] || 0) + 1;
         });
+
         const leaderboard = Object.entries(locations)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => ({ name, count }));
+
+        // 5. Redemption Leaderboard (Source of redeemed vouchers)
+        const redLocations: Record<string, number> = {};
+        realRedemptions.forEach(r => {
+            const v = voucherMap.get(r.voucher_code?.toUpperCase());
+            const loc = v?.qr_source_location || 'reception';
+            redLocations[loc] = (redLocations[loc] || 0) + 1;
+        });
+        const redemption_leaderboard = Object.entries(redLocations)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5)
             .map(([name, count]) => ({ name, count }));
@@ -221,6 +234,7 @@ app.get('/summary', async (c) => {
                 rate: total_issued > 0 ? Math.round((consent_count / total_issued) * 100) : 0
             },
             leaderboard,
+            redemption_leaderboard,
             daily_stats
         });
     } catch (err: any) {

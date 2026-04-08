@@ -549,9 +549,22 @@ const VoucherPage: React.FC = () => {
     }
   };
 
-  const filteredVouchers = (
+  const realVouchers = (
     Array.isArray(recentVouchers) ? recentVouchers : []
   ).filter((v) => {
+    if (isTestAccount(v.guest_name || "", v.voucher_code || "")) {
+      return false;
+    }
+
+    if (!v.guest_name || v.guest_name === "Unknown Guest" || v.guest_name.trim() === "")
+      return false;
+
+    return true;
+  });
+
+  const realVouchersCount = realVouchers.length;
+
+  const filteredVouchers = realVouchers.filter((v) => {
     const query = searchQuery.toLowerCase();
     const matchesQuery =
       String(v.guest_name || "")
@@ -563,13 +576,6 @@ const VoucherPage: React.FC = () => {
       String(v.room_number || "")
         .toLowerCase()
         .includes(query);
-
-    if (isTestAccount(v.guest_name || "", v.voucher_code || "")) {
-      return false;
-    }
-
-    if (!v.guest_name || v.guest_name === "Unknown Guest" || v.guest_name.trim() === "")
-      return false;
 
     if (activeTab === "issued") {
       const isRedeemed =
@@ -628,7 +634,7 @@ const VoucherPage: React.FC = () => {
                 })}
               </span>
               <span className="text-[10px] text-gray-400 uppercase">
-                Live Dashboard v3.0 • {recentVouchers.length} Total •{" "}
+                Live Dashboard v3.0 • {realVouchersCount} Total •{" "}
                 {fetchError ? "Err" : "OK"}
               </span>
               <span className="text-[8px] text-gray-300 block max-w-[200px] truncate">
@@ -717,7 +723,7 @@ const VoucherPage: React.FC = () => {
               >
                 <List size={16} /> Issued
                 <span className="ml-1 bg-gray-100 text-gray-500 py-0.5 px-1.5 rounded-full text-[9px]">
-                  {recentVouchers.length}
+                  {realVouchersCount}
                 </span>
               </button>
             )}

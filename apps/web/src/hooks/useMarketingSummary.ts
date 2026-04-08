@@ -16,6 +16,7 @@ export interface MarketingSummary {
         wellness: number;
     };
     leaderboard: { name: string, count: number }[];
+    redemption_leaderboard: { name: string, count: number }[];
     marketing: {
         count: number;
         rate: number;

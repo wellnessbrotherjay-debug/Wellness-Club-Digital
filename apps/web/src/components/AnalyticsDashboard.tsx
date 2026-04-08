@@ -232,33 +232,65 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                 ))}
             </div>
 
-            {/* Venue Leaderboard & Analysis */}
+            {/* Venue Leaderboards & Analysis */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <MapPin size={18} className="text-[#c5a572]" />
-                            <h3 className="font-serif font-bold text-gray-900">Venue Leaderboard</h3>
-                        </div>
-                        <span className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Issuance Source</span>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        {summary.leaderboard.map((item, i) => (
-                            <div key={item.name} className="space-y-1.5">
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="font-bold text-gray-700 capitalize">
-                                        {i + 1}. {item.name.replace(/-/g, ' ')}
-                                    </span>
-                                    <span className="font-mono font-bold text-[#c5a572]">{item.count} Vouchers</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-[#c5a572]/40 rounded-full" 
-                                        style={{ width: `${(item.count / summary.total_issued) * 100}%` }}
-                                    />
-                                </div>
+                <div className="grid grid-cols-1 gap-8">
+                    {/* Issuance Leaderboard */}
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                            <div className="flex items-center gap-2">
+                                <MapPin size={18} className="text-[#c5a572]" />
+                                <h3 className="font-serif font-bold text-gray-900">Highest Issuers</h3>
                             </div>
-                        ))}
+                            <span className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">By QR Source</span>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {summary.leaderboard.map((item, i) => (
+                                <div key={item.name} className="space-y-1.5">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-gray-700 capitalize">
+                                            {i + 1}. {item.name.replace(/-/g, ' ')}
+                                        </span>
+                                        <span className="font-mono font-bold text-[#c5a572]">{item.count} Issued</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-[#c5a572]/40 rounded-full" 
+                                            style={{ width: `${(item.count / summary.total_issued) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Redemption Leaderboard */}
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-green-50/30">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle size={18} className="text-green-600" />
+                                <h3 className="font-serif font-bold text-gray-900">Top Redemption Drivers</h3>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase text-green-600/60 tracking-widest">Actual Usage</span>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {summary.redemption_leaderboard?.map((item, i) => (
+                                <div key={item.name} className="space-y-1.5">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-gray-700 capitalize">
+                                            {i + 1}. {item.name.replace(/-/g, ' ')}
+                                        </span>
+                                        <span className="font-mono font-bold text-green-600">{item.count} Redemptions</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-green-500/40 rounded-full" 
+                                            style={{ width: `${(item.count / summary.total_redeemed) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )) || <p className="text-[10px] text-gray-400 text-center py-4">Waiting for more data...</p>}
+                        </div>
                     </div>
                 </div>
 
@@ -271,8 +303,8 @@ td{padding:7px 12px;border-bottom:1px solid #f0f0f0}
                     </div>
                     <p className="text-sm text-gray-600 leading-relaxed">
                         Currently tracking <b>{summary.total_issued}</b> guest lifecycles with a <b>{summary.conversion_rate}%</b> conversion rate. 
-                        <b> {summary.leaderboard[0]?.name ? summary.leaderboard[0].name.replace(/-/g, ' ') : 'Reception'}</b> is your peak driver. 
-                        Multi-category deduplication is active ensuring data integrity of <b>{summary.total_redeemed}</b> unique service redemptions.
+                        <b> {summary.leaderboard[0]?.name ? summary.leaderboard[0].name.replace(/-/g, ' ') : 'Reception'}</b> generates the most vouchers, while 
+                        <b> {summary.redemption_leaderboard?.[0]?.name ? summary.redemption_leaderboard[0].name.replace(/-/g, ' ') : 'N/A'}</b> is your peak driver for actual redemptions.
                     </p>
                     <div className="flex items-center gap-4 pt-4">
                         <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
