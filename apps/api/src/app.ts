@@ -16,6 +16,7 @@ import cronWeeklyReportRoute from './routes/cron/weekly-report.js';
 import bulkSyncRoute from './routes/bulk-sync.js';
 import dailyBackupRoute from './routes/cron/daily-backup.js';
 import backupsRoute from './routes/backups.js';
+import scheduleRoute from './routes/schedule.js';
 
 const app = new Hono({ strict: false });
 
@@ -57,5 +58,6 @@ app.route('/api/vouchers/bulk-sync', bulkSyncRoute);
 app.route('/api/cron/weekly-report', cronWeeklyReportRoute);
 app.route('/api/cron/daily-backup', dailyBackupRoute);
 app.route('/api/admin/backups', backupsRoute);
+app.route('/api/schedule', scheduleRoute);
 
 export default app;

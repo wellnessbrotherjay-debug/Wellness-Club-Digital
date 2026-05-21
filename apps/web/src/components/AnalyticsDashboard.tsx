@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  Users, 
-  MapPin, 
-  CheckCircle2, 
+import {
+  TrendingUp,
+  Users,
+  MapPin,
+  CheckCircle2,
   AlertCircle,
   Download,
   ArrowUpRight,
   ArrowDownRight,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  DoorOpen
 } from 'lucide-react';
 import { useMarketingSummary } from '../hooks/useMarketingSummary';
 import VoucherAuditView from './VoucherAuditView';
+import RoomManagement from './RoomManagement';
 
 interface AnalyticsDashboardProps {
     onViewVoucher?: (voucherCode: string) => void;
 }
 
-type ActiveTab = 'overview' | 'pax' | 'venues' | 'issuance' | 'redemptions';
+type ActiveTab = 'overview' | 'pax' | 'venues' | 'issuance' | 'redemptions' | 'rooms';
 type TimeRange = 'all' | 'week' | 'month' | 'launch';
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }) => {
@@ -61,7 +64,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                 <div className="space-y-1">
                     <h1 className="text-3xl font-serif font-bold text-[#2c2420]">Business Analytics</h1>
                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                        {['overview', 'pax', 'venues', 'issuance', 'redemptions'].map((tab) => (
+                        {['overview', 'pax', 'venues', 'issuance', 'redemptions', 'rooms'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as ActiveTab)}
@@ -71,7 +74,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
                                     : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                                 }`}
                             >
-                                {tab === 'pax' ? 'Pax Throughput' : tab === 'venues' ? 'Redemption Venues' : tab === 'issuance' ? 'Issuance Tracker' : tab === 'redemptions' ? 'Redemptions Tracker' : tab}
+                                {tab === 'pax' ? 'Pax Throughput' :
+                                 tab === 'venues' ? 'Redemption Venues' :
+                                 tab === 'issuance' ? 'Issuance Tracker' :
+                                 tab === 'redemptions' ? 'Redemptions Tracker' :
+                                 tab === 'rooms' ? 'Room Management' : tab}
                             </button>
                         ))}
                     </div>
@@ -302,11 +309,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onViewVoucher }
             )}
 
             {activeTab === 'redemptions' && (
-                <VoucherAuditView 
+                <VoucherAuditView
                     summary={summary}
                     mode="redemption"
                     onViewVoucher={onViewVoucher}
                 />
+            )}
+
+            {activeTab === 'rooms' && (
+                <RoomManagement />
             )}
         </div>
     );

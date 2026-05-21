@@ -1,33 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { X, ChevronLeft, Clock, Users, Phone } from 'lucide-react';
+import { X, ChevronLeft, Clock, Users, Phone, Trash2, Edit } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../constants';
 import { COUNTRIES } from '../constants/countries';
 import CountrySelector from './CountrySelector';
 import { trackBooking, trackOutboundLink } from '../utils/analytics';
 import { useVoucher } from '../contexts/VoucherContext';
 import { submitBooking } from '../utils/sheetData';
+import { fetchSchedule, deleteScheduleEntry } from '../utils/scheduleData';
 
 const ClassScheduleModal: React.FC<{ onClose: () => void; initialClass?: string | null; initialCoach?: string | null }> = ({ onClose, initialClass, initialCoach }) => {
     const { t, language } = useLanguage();
     const { getWhatsAppSuffix } = useVoucher();
-    const rawSchedule = [
-        { day: t('modal.days.monday'), classes: [{ name: "Pilates", times: [{ time: "10:00 - 11:00", coach: "Greg" }, { time: "15:00 - 16:00", coach: "Greg" }, { time: "19:00 - 20:00", coach: "Greg" }] }] },
-        { day: t('modal.days.tuesday'), classes: [{ name: "Yoga", times: [{ time: "10:00 - 11:00", coach: "Anais" }, { time: "15:00 - 16:00", coach: "Anais" }, { time: "19:00 - 20:00", coach: "Anais" }] }, { name: "Reformer Pilates", times: [{ time: "10:00 - 11:00", coach: "" }, { time: "15:00 - 16:00", coach: "" }, { time: "19:00 - 20:00", coach: "" }] }] },
-        { day: t('modal.days.wednesday'), classes: [{ name: "Stretching", times: [{ time: "10:00 - 11:00", coach: "Karry" }, { time: "15:00 - 16:00", coach: "Karry" }] }, { name: "Sensual Flow", times: [{ time: "19:00 - 20:00", coach: "Karry" }] }] },
-        { day: t('modal.days.thursday'), classes: [{ name: "Reformer Pilates", times: [{ time: "10:00 - 11:00", coach: "Greg" }, { time: "15:00 - 16:00", coach: "Greg" }, { time: "19:00 - 20:00", coach: "Greg" }] }, { name: "Kickboxing", times: [{ time: "10:00 - 11:00", coach: "Victor" }, { time: "19:00 - 20:00", coach: "Victor" }] }] },
-        { day: t('modal.days.friday'), classes: [{ name: "Reformer Pilates", times: [{ time: "15:00 - 16:00", coach: "Maria" }] }, { name: "Zumba", times: [{ time: "10:00 - 11:00", coach: "Maira" }, { time: "19:00 - 20:00", coach: "Maira" }] }] },
-        { day: t('modal.days.saturday'), classes: [{ name: "Yoga", times: [{ time: "10:00 - 11:00", coach: "Marina" }, { time: "15:00 - 16:00", coach: "Marina" }, { time: "19:00 - 20:00", coach: "Marina" }] }, { name: "Reformer Pilates", times: [{ time: "10:00 - 11:00", coach: "" }, { time: "15:00 - 16:00", coach: "" }, { time: "19:00 - 20:00", coach: "" }] }] },
-        { day: t('modal.days.sunday'), classes: [] }
-    ];
-
-    const schedule = rawSchedule.map(day => ({
-        ...day,
-        classes: day.classes.map(cls => ({
-            ...cls,
-            times: cls.times // Removed filter to show all times even without allocated coach
-        })).filter(cls => cls.times.length > 0)
-    }));
+    const [schedule, setSchedule] = useState<Array<{
+        day: string;
+        classes: Array<{
+            name: string;
+            times: Array<{
+                time: string;
+                coach: string;
+            }>;
+        }>>
+    }>([]);
+    const [loading, setLoading] = useState(true);
+    const [editingEntry, setEditingEntry] = useState<{ id?: string; day: string; class_name: string; time: string; coach: string } | null>(null);
 
     const [bookingStep, setBookingStep] = useState<'view' | 'select-class' | 'select-time' | 'enter-details'>(initialClass ? 'select-time' : 'view');
     const [selectedClassForBooking, setSelectedClassForBooking] = useState<string | null>(initialClass || null);
@@ -41,6 +37,38 @@ const ClassScheduleModal: React.FC<{ onClose: () => void; initialClass?: string 
     ]);
 
     const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ entryId: string; className: string; time: string } | null>(null);
+
+    // Fetch schedule data
+    useEffect(() => {
+        const loadSchedule = async () => {
+            try {
+                const scheduleData = await fetchSchedule();
+                setSchedule(scheduleData);
+            } catch (error) {
+                console.error('Failed to load schedule:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadSchedule();
+    }, []);
+
+    const handleDeleteSchedule = async (entryId: string) => {
+        const result = await deleteScheduleEntry(entryId);
+        if (result.success) {
+            // Refresh schedule
+            const updatedSchedule = await fetchSchedule();
+            setSchedule(updatedSchedule);
+            setShowDeleteConfirm(null);
+        } else {
+            alert('Failed to delete schedule entry: ' + result.error);
+        }
+    };
+
+    const handleEditSchedule = (entry: { id?: string; day: string; class_name: string; time: string; coach: string }) => {
+        setEditingEntry(entry);
+    };
 
     // Explicitly list all classes to ensure none are missing
     const classNames = ["Pilates", "Reformer Pilates", "Yoga", "Kickboxing", "Zumba", "Stretching", "Sensual Flow"];
@@ -177,28 +205,70 @@ Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
                 <div className="overflow-y-auto p-6 md:p-10 flex-1">
                     {bookingStep === 'view' ? (
                         <>
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {schedule.map((day, idx) => (
-                                    <div key={idx} className="bg-white p-6 rounded-xl border border-[#2c2420]/5 shadow-sm">
-                                        <h3 className="font-sans font-bold text-xl text-[#c5a572] mb-4 border-b border-[#c5a572]/20 pb-2">{day.day}</h3>
-                                        <div className="space-y-4">
-                                            {day.classes.map((cls, cIdx) => (
-                                                <div key={cIdx}>
-                                                    <div className="font-bold text-[#2c2420] text-sm uppercase tracking-wider mb-1">{cls.name}</div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {cls.times.map((t, tIdx) => (
-                                                            <span key={tIdx} className="text-xs bg-[#2c2420]/5 px-2 py-1 rounded text-[#2c2420]/70 flex items-center gap-1">
-                                                                <Clock size={10} /> {t.time}
-                                                                {t.coach && <span className="text-[9px] text-[#c5a572] uppercase tracking-wider font-bold ml-1">| {t.coach}</span>}
-                                                            </span>
-                                                        ))}
+                            {loading ? (
+                                <div className="col-span-2 py-20 text-center bg-white rounded-2xl border border-[#2c2420]/5">
+                                    <div className="text-[#c5a572] text-xl">Loading schedule...</div>
+                                </div>
+                            ) : (
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    {schedule.map((day, idx) => (
+                                        <div key={idx} className="bg-white p-6 rounded-xl border border-[#2c2420]/5 shadow-sm">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="font-sans font-bold text-xl text-[#c5a572] border-b border-[#c5a572]/20 pb-2">{day.day}</h3>
+                                                <button
+                                                    onClick={() => setShowDeleteConfirm({ entryId: `day-${idx}`, className: '', time: '' })}
+                                                    className="text-[#c5a572] hover:text-red-500 transition-colors"
+                                                    title="Delete day schedule"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                            <div className="space-y-4">
+                                                {day.classes.map((cls, cIdx) => (
+                                                    <div key={cIdx} className="relative">
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="font-bold text-[#2c2420] text-sm uppercase tracking-wider mb-1">{cls.name}</div>
+                                                            <div className="flex gap-1">
+                                                                <button
+                                                                    onClick={() => handleEditSchedule({
+                                                                        id: `class-${idx}-${cIdx}`,
+                                                                        day: day.day,
+                                                                        class_name: cls.name,
+                                                                        time: cls.times[0]?.time || '',
+                                                                        coach: cls.times[0]?.coach || ''
+                                                                    })}
+                                                                    className="text-[#c5a572] hover:text-blue-500 transition-colors"
+                                                                    title="Edit class"
+                                                                >
+                                                                    <Edit size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setShowDeleteConfirm({
+                                                                        entryId: `class-${idx}-${cIdx}`,
+                                                                        className: cls.name,
+                                                                        time: cls.times[0]?.time || ''
+                                                                    })}
+                                                                    className="text-[#c5a572] hover:text-red-500 transition-colors"
+                                                                    title="Delete class"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {cls.times.map((t, tIdx) => (
+                                                                <span key={tIdx} className="text-xs bg-[#2c2420]/5 px-2 py-1 rounded text-[#2c2420]/70 flex items-center gap-1">
+                                                                    <Clock size={10} /> {t.time}
+                                                                    {t.coach && <span className="text-[9px] text-[#c5a572] uppercase tracking-wider font-bold ml-1">| {t.coach}</span>}
+                                                                </span>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                            {day.classes.length === 0 && <p className="text-sm text-gray-400 italic">{t('modal.rest_day')}</p>}
+                                                ))}
+                                                {day.classes.length === 0 && <p className="text-sm text-gray-400 italic">{t('modal.rest_day')}</p>}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
 
                             <div className="mt-8 p-6 bg-[#c5a572]/10 rounded-2xl border border-[#c5a572]/20">
@@ -449,6 +519,42 @@ Total Pax: ${numPeople}${detailsMsg}${getWhatsAppSuffix()}`;
                     ) : null}
                 </div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md px-4 animate-fade-in">
+                    <div className="bg-[#f4ede5] w-full max-w-md rounded-2xl p-8 border border-[#2c2420]/10">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Trash2 size={32} className="text-red-500" />
+                            </div>
+                            <h3 className="text-2xl font-sans font-bold text-[#2c2420] mb-2">Delete Schedule</h3>
+                            <p className="text-[#2c2420]/70">
+                                Are you sure you want to delete this schedule entry?
+                            </p>
+                            {showDeleteConfirm.className && (
+                                <p className="text-sm text-[#2c2420]/60 mt-2">
+                                    <strong>{showDeleteConfirm.className}</strong> at {showDeleteConfirm.time}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => setShowDeleteConfirm(null)}
+                                className="flex-1 py-3 bg-white border border-[#2c2420]/20 text-[#2c2420] rounded-xl font-bold uppercase tracking-widest hover:bg-[#2c2420]/5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteSchedule(showDeleteConfirm.entryId)}
+                                className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-red-600 transition-colors"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
