@@ -1,0 +1,108 @@
+{
+  "project_name": "Wellness Club Digital",
+  "repo_url": "https://github.com/jaydengle/Wellness-Club-Digital",
+  "repo_role": "Voucher Layer",
+  "status": "Partially Complete - Voucher issuance and redemption working, missing integrations",
+  "framework": "Hono.js (API), React (Web)",
+  "language": "TypeScript",
+  "package_manager": "npm",
+  "hosting": "Vercel",
+  "database": "Supabase (PostgreSQL)",
+  "orm": "None (direct Supabase client)",
+  "auth": "None (public access)",
+  "main_routes": [
+    "/",
+    "/v/:id",
+    "/help",
+    "/admin/analytics",
+    "/reconciliation"
+  ],
+  "api_routes": [
+    "GET /api/data",
+    "GET /api/data/summary",
+    "POST /api/redeem",
+    "POST /api/parse-pos",
+    "POST /api/reconcile",
+    "POST /api/send-whatsapp",
+    "POST /api/send-report",
+    "POST /api/vouchers/bulk-sync",
+    "POST /api/audit-log",
+    "GET /api/admin/backups",
+    "GET /api/cron/daily-backup",
+    "GET /api/cron/weekly-report"
+  ],
+  "database_tables": [
+    "vouchers",
+    "redemptions",
+    "insights",
+    "non_issuance_logs"
+  ],
+  "events": [
+    "voucher_issued",
+    "redemption_completed"
+  ],
+  "webhooks": [
+    "Google Sheets (mirror)",
+    "Resend Email",
+    "WhatsApp (limited)"
+  ],
+  "external_services": [
+    "Supabase",
+    "Google Sheets",
+    "Resend",
+    "OpenWeather",
+    "WhatsApp"
+  ],
+  "sends_data_to": [
+    "Google Sheets",
+    "Resend Email",
+    "WhatsApp",
+    "OpenWeather API"
+  ],
+  "receives_data_from": [
+    "Supabase",
+    "QR Scanner",
+    "POS Systems"
+  ],
+  "shared_ids_present": [
+    "voucher_code"
+  ],
+  "shared_ids_missing": [
+    "venue_id",
+    "department_id",
+    "contact_id",
+    "lead_id",
+    "booking_id",
+    "campaign_id",
+    "app_user_id"
+  ],
+  "critical_risks": [
+    "Public database access (no authentication)",
+    "Service role key exposed in web context",
+    "No API authentication",
+    "Missing marketing attribution tracking",
+    "No user authentication system"
+  ],
+  "next_tasks": [
+    "Implement API key authentication",
+    "Remove service role key from frontend",
+    "Add lead capture API",
+    "Implement GA4 integration",
+    "Add multi-property support",
+    "Create audit logging system",
+    "Implement proper RLS policies",
+    "Add comprehensive event tracking",
+    "Connect to CRM system",
+    "Implement WhatsApp webhook"
+  ],
+  "ecosystem_connections": {
+    "ts_residence": "Not connected - needs guest data sharing",
+    "no1_wellness": "Not connected - needs service catalog sharing",
+    "schedule_system": "Not connected - needs booking reference integration",
+    "voucher_system": "This is the voucher system - self-contained",
+    "chatbot": "Limited WhatsApp support - needs full webhook integration",
+    "guest_app": "Not connected - needs loyalty program integration",
+    "owner_command_center": "Basic dashboard - needs real-time data feeds",
+    "pos_vhp_bridge": "Basic POS parsing - needs full transaction integration"
+  }
+}

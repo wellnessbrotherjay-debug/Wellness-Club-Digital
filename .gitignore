@@ -30,3 +30,4 @@ node_modules/
 *.sw?
 *.ntvs*
 *.njsproj
+.env*.local
