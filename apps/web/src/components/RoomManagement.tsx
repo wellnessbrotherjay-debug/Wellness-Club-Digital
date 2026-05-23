@@ -9,7 +9,9 @@ import {
   Save,
   X,
   Building,
-  DoorOpen
+  DoorOpen,
+  Droplets,
+  Sparkles
 } from 'lucide-react';
 import { fetchSchedule, deleteScheduleEntry } from '../utils/scheduleData';
 
@@ -20,26 +22,58 @@ interface Room {
   type: 'studio' | 'gym' | 'pool' | 'spa';
   status: 'available' | 'maintenance' | 'occupied';
   lastUsed?: string;
+  services?: string[];
+  serviceCategory?: 'oil' | 'signature';
+}
+
+interface ServiceAllocation {
+  id: string;
+  name: string;
+  category: 'oil' | 'signature';
+  description: string;
+  services: string[];
 }
 
 const RoomManagement: React.FC = () => {
+  const serviceAllocations: ServiceAllocation[] = [
+    {
+      id: 'oil',
+      name: 'Oil-Based Massage Services',
+      category: 'oil',
+      description: 'Relaxing, Slimming, Lymphatic',
+      services: ['Relaxing Massage', 'Slimming Massage', 'Lymphatic Massage']
+    },
+    {
+      id: 'signature',
+      name: 'No.1 Signature Massage',
+      category: 'signature',
+      description: 'Premium massage service',
+      services: ['No.1 Signature Massage']
+    }
+  ];
+
   const [rooms, setRooms] = useState<Room[]>([
-    { id: '1', name: 'Pilates Studio', capacity: 15, type: 'studio', status: 'available', lastUsed: '2 hours ago' },
-    { id: '2', name: 'Yoga Room', capacity: 20, type: 'studio', status: 'available', lastUsed: '1 hour ago' },
-    { id: '3', name: 'Main Gym', capacity: 30, type: 'gym', status: 'occupied', lastUsed: 'Currently in use' },
-    { id: '4', name: 'Pool Area', capacity: 25, type: 'pool', status: 'available', lastUsed: 'Yesterday' },
-    { id: '5', name: 'Spa Suite', capacity: 8, type: 'spa', status: 'maintenance', lastUsed: '3 days ago' },
+    { id: '1', name: 'Room 1', capacity: 1, type: 'spa', status: 'available', lastUsed: '2 hours ago', serviceCategory: 'oil', services: ['Relaxing', 'Slimming', 'Lymphatic'] },
+    { id: '2', name: 'Room 2', capacity: 1, type: 'spa', status: 'available', lastUsed: '1 hour ago', serviceCategory: 'oil', services: ['Relaxing', 'Slimming', 'Lymphatic'] },
+    { id: '3', name: 'Room 3', capacity: 1, type: 'spa', status: 'available', lastUsed: '45 min ago', serviceCategory: 'oil', services: ['Relaxing', 'Slimming', 'Lymphatic'] },
+    { id: '4', name: 'Room 4', capacity: 1, type: 'spa', status: 'available', lastUsed: '30 min ago', serviceCategory: 'oil', services: ['Relaxing', 'Slimming', 'Lymphatic'] },
+    { id: '5', name: 'Room 5', capacity: 1, type: 'spa', status: 'available', lastUsed: 'Currently in use', serviceCategory: 'signature', services: ['No.1 Signature'] },
+    { id: '6', name: 'Room 6', capacity: 1, type: 'spa', status: 'maintenance', lastUsed: '3 days ago', serviceCategory: 'signature', services: ['No.1 Signature'] },
   ]);
 
   const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showServiceAllocation, setShowServiceAllocation] = useState(false);
+  const [selectedRoomForService, setSelectedRoomForService] = useState<Room | null>(null);
   const [newRoom, setNewRoom] = useState<Omit<Room, 'id'>>({
     name: '',
-    capacity: 10,
-    type: 'studio',
-    status: 'available'
+    capacity: 1,
+    type: 'spa',
+    status: 'available',
+    serviceCategory: 'oil',
+    services: []
   });
 
   useEffect(() => {
@@ -192,6 +226,39 @@ const RoomManagement: React.FC = () => {
         </div>
       )}
 
+      {/* Service Allocation Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {serviceAllocations.map((allocation) => (
+          <div key={allocation.id} className="bg-gradient-to-br from-[#fcfaf7] to-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-lg ${allocation.category === 'oil' ? 'bg-blue-100' : 'bg-purple-100'}`}>
+                {allocation.category === 'oil' ? (
+                  <Droplets className={allocation.category === 'oil' ? 'text-blue-600' : 'text-purple-600'} size={24} />
+                ) : (
+                  <Sparkles className={allocation.category === 'oil' ? 'text-blue-600' : 'text-purple-600'} size={24} />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">{allocation.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">{allocation.description}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {allocation.services.map((service) => (
+                    <span key={service} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                      {service}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-gray-600">
+                  Allocated to: <span className="font-semibold text-gray-900">
+                    {rooms.filter(r => r.serviceCategory === allocation.category).map(r => r.name).join(', ') || 'None'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Room Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {rooms.map((room) => (
@@ -205,20 +272,49 @@ const RoomManagement: React.FC = () => {
               <Trash2 size={18} />
             </button>
 
-            {/* Edit Button */}
+            {/* Edit Service Button */}
             <button
-              onClick={() => setEditingRoom(room)}
+              onClick={() => {
+                setSelectedRoomForService(room);
+                setShowServiceAllocation(true);
+              }}
               className="absolute top-4 right-10 p-2 text-gray-400 hover:text-[#c5a572] transition-colors"
-              title="Edit Room"
+              title="Allocate Services"
             >
-              <Edit size={18} />
+              <Settings size={18} />
             </button>
 
             <div className="flex items-start gap-4 mb-4">
-              {getTypeIcon(room.type)}
+              {room.serviceCategory === 'oil' ? (
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Droplets size={20} className="text-blue-600" />
+                </div>
+              ) : (
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Sparkles size={20} className="text-purple-600" />
+                </div>
+              )}
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">{room.name}</h3>
-                <p className="text-sm text-gray-600">{room.capacity} capacity</p>
+                <p className="text-sm text-gray-600">
+                  {room.serviceCategory === 'oil' ? 'Oil-Based Services' : 'No.1 Signature Massage'}
+                </p>
+              </div>
+            </div>
+
+            {/* Services */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs font-medium text-gray-700 mb-2">Allocated Services:</p>
+              <div className="flex flex-wrap gap-1">
+                {room.services && room.services.length > 0 ? (
+                  room.services.map((service) => (
+                    <span key={service} className="px-2 py-1 bg-white border border-gray-200 text-gray-700 text-xs rounded-full">
+                      {service}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-500">No services allocated</span>
+                )}
               </div>
             </div>
 
@@ -322,6 +418,74 @@ const RoomManagement: React.FC = () => {
               </button>
               <button
                 onClick={() => setEditingRoom(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <X size={16} className="inline mr-2" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service Allocation Modal */}
+      {showServiceAllocation && selectedRoomForService && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Allocate Services to {selectedRoomForService.name}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Service Category</label>
+                <div className="space-y-2">
+                  {serviceAllocations.map((allocation) => (
+                    <label key={allocation.id} className="flex items-start p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="serviceCategory"
+                        value={allocation.category}
+                        checked={selectedRoomForService.serviceCategory === allocation.category}
+                        onChange={() => {
+                          setSelectedRoomForService({
+                            ...selectedRoomForService,
+                            serviceCategory: allocation.category,
+                            services: allocation.services
+                          });
+                        }}
+                        className="mt-1"
+                      />
+                      <div className="ml-3">
+                        <p className="font-medium text-gray-900">{allocation.name}</p>
+                        <p className="text-sm text-gray-600">{allocation.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {allocation.services.map((service) => (
+                            <span key={service} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                              {service}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setRooms(rooms.map(r => r.id === selectedRoomForService.id ? selectedRoomForService : r));
+                  setShowServiceAllocation(false);
+                  setSelectedRoomForService(null);
+                }}
+                className="flex-1 px-4 py-2 bg-[#c5a572] text-white rounded-lg hover:bg-[#b89a5f] transition-colors"
+              >
+                <Save size={16} className="inline mr-2" />
+                Save Allocation
+              </button>
+              <button
+                onClick={() => {
+                  setShowServiceAllocation(false);
+                  setSelectedRoomForService(null);
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <X size={16} className="inline mr-2" />

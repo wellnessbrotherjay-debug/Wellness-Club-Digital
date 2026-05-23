@@ -115,9 +115,17 @@ const SchedulePage: React.FC = () => {
                             <div className="w-16 h-16 bg-[#c5a572] rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#c5a572]/20">
                                 <CheckCircle size={32} className="text-white" />
                             </div>
-                            <div className="text-center md:text-left">
+                            <div className="text-center md:text-left flex-1">
                                 <h3 className="text-xl font-serif font-bold text-white mb-1">15% Savings Active</h3>
-                                <p className="text-white/40 text-xs">A special {voucher?.guestName} discount has been applied to this session. Click book to message our team.</p>
+                                <div className="text-white/40 text-xs space-y-1">
+                                    <p>A special {voucher?.guestName} discount has been applied to this session.</p>
+                                    {voucher?.roomNumber && voucher.roomNumber !== 'N/A' && (
+                                        <p className="text-[#c5a572]">Room: {voucher.roomNumber} • Click book to message our team.</p>
+                                    )}
+                                    {(!voucher?.roomNumber || voucher.roomNumber === 'N/A') && (
+                                        <p>Click book to message our team.</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}

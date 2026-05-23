@@ -116,7 +116,7 @@ const VoucherPage: React.FC = () => {
     "all" | "active" | "redeemed" | "expired"
   >("all"); // DEFAULT TO ALL TO AVOID EMPTY LIST CONFUSION
   const [formData, setFormData] = useState({
-    guestNames: [""],
+    guestNames: [{ firstName: "", surname: "" }],
     roomNumber: "",
     checkIn: new Date().toISOString().split("T")[0],
     checkOut: new Date(Date.now() + 86400000).toISOString().split("T")[0],
@@ -390,7 +390,10 @@ const VoucherPage: React.FC = () => {
     ];
 
     const joinedNames =
-      formData.guestNames.filter((n) => n.trim()).join(" & ") ||
+      formData.guestNames
+        .filter((n) => n.firstName.trim() || n.surname.trim())
+        .map((n) => `${n.firstName.trim()} ${n.surname.trim()}`.trim())
+        .join(" & ") ||
       "Unknown Guest";
     const allGuestNames = formData.isTest
       ? `[TEST] ${joinedNames}`
@@ -465,7 +468,7 @@ const VoucherPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      guestNames: [""],
+      guestNames: [{ firstName: "", surname: "" }],
       roomNumber: "",
       checkIn: new Date().toISOString().split("T")[0],
       checkOut: new Date(Date.now() + 86400000).toISOString().split("T")[0],
@@ -892,23 +895,31 @@ const VoucherPage: React.FC = () => {
                           Guest Names ({formData.pax} Pax)
                         </label>
                       </div>
-                      {formData.guestNames.map((name, index) => (
-                        <input
-                          key={index}
-                          type="text"
-                          className="w-full bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
-                          placeholder={
-                            formData.pax > 1
-                              ? `Guest ${index + 1} Name & Surname`
-                              : "Guest Name & Surname"
-                          }
-                          value={name}
-                          onChange={(e) => {
-                            const newNames = [...formData.guestNames];
-                            newNames[index] = e.target.value;
-                            setFormData({ ...formData, guestNames: newNames });
-                          }}
-                        />
+                      {formData.guestNames.map((guest, index) => (
+                        <div key={index} className="grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            className="bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                            placeholder={formData.pax > 1 ? `Guest ${index + 1} First Name` : "First Name"}
+                            value={guest.firstName}
+                            onChange={(e) => {
+                              const newNames = [...formData.guestNames];
+                              newNames[index] = { ...newNames[index], firstName: e.target.value };
+                              setFormData({ ...formData, guestNames: newNames });
+                            }}
+                          />
+                          <input
+                            type="text"
+                            className="bg-[#fcfcfc] border border-gray-200 rounded-xl px-5 py-3 focus:outline-none focus:border-[#c5a572] focus:ring-1 focus:ring-[#c5a572]/20 transition-all font-medium"
+                            placeholder={formData.pax > 1 ? `Guest ${index + 1} Surname` : "Surname"}
+                            value={guest.surname}
+                            onChange={(e) => {
+                              const newNames = [...formData.guestNames];
+                              newNames[index] = { ...newNames[index], surname: e.target.value };
+                              setFormData({ ...formData, guestNames: newNames });
+                            }}
+                          />
+                        </div>
                       ))}
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -987,12 +998,12 @@ const VoucherPage: React.FC = () => {
                             })
                           }
                           className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                          title="Decrease number of guests"
                         >
                           <XCircle
                             size={16}
                             className="text-gray-400 rotate-45"
-                          />{" "}
-                          {/* Use X as - */}
+                          />
                         </button>
                         <input
                           type="number"
@@ -1005,8 +1016,8 @@ const VoucherPage: React.FC = () => {
                                 parseInt(e.target.value) || 1,
                               );
                               const newNames = Array(newPax)
-                                .fill("")
-                                .map((_, i) => prev.guestNames[i] || "");
+                                .fill(null)
+                                .map((_, i) => prev.guestNames[i] || { firstName: "", surname: "" });
                               return {
                                 ...prev,
                                 pax: newPax,
@@ -1019,7 +1030,7 @@ const VoucherPage: React.FC = () => {
                           onClick={() =>
                             setFormData((prev) => {
                               const newPax = prev.pax + 1;
-                              const newNames = [...prev.guestNames, ""];
+                              const newNames = [...prev.guestNames, { firstName: "", surname: "" }];
                               return {
                                 ...prev,
                                 pax: newPax,
@@ -1028,6 +1039,7 @@ const VoucherPage: React.FC = () => {
                             })
                           }
                           className="w-10 h-10 rounded-lg bg-[#c5a572]/10 flex items-center justify-center hover:bg-[#c5a572]/20 transition-colors"
+                          title="Add another guest"
                         >
                           <Plus size={16} className="text-[#c5a572]" />
                         </button>

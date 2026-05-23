@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
+import { API_BASE_URL } from '../utils/api';
 
 interface VoucherData {
     id: string;
@@ -48,6 +49,25 @@ export const VoucherProvider: React.FC<{ children: ReactNode }> = ({ children })
             services: []
         });
         setIsDiscountActive(true);
+
+        // Fetch full voucher data to get room number and other details
+        if (id) {
+            fetch(`${API_BASE_URL}/api/data?sheet=vouchers&id=${encodeURIComponent(id)}`)
+                .then(res => res.json())
+                .then(rows => {
+                    if (rows && rows.length > 0) {
+                        const voucherData = rows[0];
+                        setVoucher(prev => prev ? {
+                            ...prev,
+                            roomNumber: voucherData.room_number || voucherData.roomNumber || 'N/A',
+                            checkIn: voucherData.check_in || '',
+                            checkOut: voucherData.check_out || '',
+                            guestName: voucherData.guest_name || name
+                        } : null);
+                    }
+                })
+                .catch(err => console.error('Failed to fetch voucher details:', err));
+        }
     };
 
     const deactivateVoucher = () => {
@@ -57,7 +77,12 @@ export const VoucherProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const getWhatsAppSuffix = (): string => {
         if (isDiscountActive && voucher) {
-            return `\n\n*Guest Pass Applied*\nPass ID: ${voucher.id}\nGuest: ${voucher.guestName}\n15% Discount Activated`;
+            let suffix = `\n\n*Guest Pass Applied*\nPass ID: ${voucher.id}\nGuest: ${voucher.guestName}`;
+            if (voucher.roomNumber && voucher.roomNumber !== 'N/A') {
+                suffix += `\nRoom: ${voucher.roomNumber}`;
+            }
+            suffix += '\n15% Discount Activated';
+            return suffix;
         }
         return '';
     };

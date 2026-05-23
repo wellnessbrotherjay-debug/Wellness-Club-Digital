@@ -34,65 +34,126 @@ interface WellnessDB extends DBSchema {
 
 class SyncService {
   private dbPromise: Promise<IDBPDatabase<WellnessDB>>;
+  private isInitializing: boolean = false;
+  private initRetries: number = 0;
+  private maxRetries: number = 3;
+  private dbInstance: IDBPDatabase<WellnessDB> | null = null;
 
   constructor() {
-    this.dbPromise = openDB<WellnessDB>("wellness_vouchers_db", 1, {
-      upgrade(db) {
-        const store = db.createObjectStore("vouchers", { keyPath: "voucher_code" });
-        store.createIndex("by-sync-status", "sync_status");
-      },
-    });
+    this.dbPromise = this.initializeDatabase();
 
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
         console.log("[SyncService] Online event detected. Triggering sync...");
-        this.syncPendingVouchers();
+        this.syncPendingVouchers().catch(err => console.error("[SyncService] Sync error:", err));
       });
     }
+  }
+
+  private async initializeDatabase(): Promise<IDBPDatabase<WellnessDB>> {
+    if (this.isInitializing) {
+      return new Promise((resolve) => {
+        const checkInit = setInterval(() => {
+          if (!this.isInitializing) {
+            clearInterval(checkInit);
+            resolve(this.dbPromise);
+          }
+        }, 100);
+      });
+    }
+
+    this.isInitializing = true;
+    try {
+      const db = await openDB<WellnessDB>("wellness_vouchers_db", 1, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains("vouchers")) {
+            const store = db.createObjectStore("vouchers", { keyPath: "voucher_code" });
+            store.createIndex("by-sync-status", "sync_status");
+          }
+        },
+      });
+
+      this.dbInstance = db;
+      this.initRetries = 0;
+
+      // Listen for connection close and reinitialize
+      db.addEventListener("close", () => {
+        console.log("[SyncService] Database connection closed, will reinitialize on next use");
+        this.dbInstance = null;
+        this.dbPromise = this.initializeDatabase();
+      });
+
+      return db;
+    } catch (error) {
+      console.error("[SyncService] Database initialization failed:", error);
+      if (this.initRetries < this.maxRetries) {
+        this.initRetries++;
+        await new Promise(resolve => setTimeout(resolve, 1000 * this.initRetries));
+        return this.initializeDatabase();
+      }
+      throw error;
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  private async getDb(): Promise<IDBPDatabase<WellnessDB>> {
+    // Check if current instance is still valid, reinitialize if closed
+    if (!this.dbInstance) {
+      this.dbPromise = this.initializeDatabase();
+    }
+    return this.dbPromise;
   }
 
   public async saveVoucherLocally(
     voucher: Omit<LocalVoucher, "sync_status">,
   ): Promise<void> {
-    const db = await this.dbPromise;
+    try {
+      const db = await this.getDb();
 
-    // Backward compatibility: some existing browsers still have an older
-    // IndexedDB schema keyed by `id` instead of `voucher_code`.
-    const resolvedVoucherCode = String(voucher.voucher_code || voucher.id || "").trim();
-    if (!resolvedVoucherCode) {
-      throw new Error("Invalid voucher payload: missing voucher_code");
-    }
+      // Backward compatibility: some existing browsers still have an older
+      // IndexedDB schema keyed by `id` instead of `voucher_code`.
+      const resolvedVoucherCode = String(voucher.voucher_code || voucher.id || "").trim();
+      if (!resolvedVoucherCode) {
+        throw new Error("Invalid voucher payload: missing voucher_code");
+      }
 
-    const localVoucher: LocalVoucher = {
-      ...voucher,
-      id: voucher.id || resolvedVoucherCode,
-      voucher_code: resolvedVoucherCode,
-      sync_status: "pending",
-    };
-    await db.put("vouchers", localVoucher);
+      const localVoucher: LocalVoucher = {
+        ...voucher,
+        id: voucher.id || resolvedVoucherCode,
+        voucher_code: resolvedVoucherCode,
+        sync_status: "pending",
+      };
 
-    // Trigger sync attempt immediately (if online, it will go through)
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      this.syncPendingVouchers().catch((err) => console.error(err));
+      // Ensure put operation completes before syncing
+      await db.put("vouchers", localVoucher);
+
+      // Trigger sync attempt immediately (if online, it will go through)
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        this.syncPendingVouchers().catch((err) => console.error("[SyncService] Background sync failed:", err));
+      }
+    } catch (error) {
+      console.error("[SyncService] Failed to save voucher locally:", error);
+      throw error;
     }
   }
 
   public async getPendingVouchers(): Promise<LocalVoucher[]> {
-    const db = await this.dbPromise;
+    const db = await this.getDb();
     return db.getAllFromIndex("vouchers", "by-sync-status", "pending");
   }
 
   public async syncPendingVouchers(): Promise<void> {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
-    const pending = await this.getPendingVouchers();
-    if (pending.length === 0) return;
-
-    console.log(
-      `[SyncService] Attempting to sync ${pending.length} vouchers...`,
-    );
-
     try {
+      const pending = await this.getPendingVouchers();
+      if (pending.length === 0) return;
+
+      console.log(
+        `[SyncService] Attempting to sync ${pending.length} vouchers...`,
+      );
+
       // Transformation step: Map data and ensure strings are not null/undefined
       const mappedVouchers = pending.map(v => ({
         ...v,
@@ -112,13 +173,21 @@ class SyncService {
         throw new Error(errorData.error || "Failed to bulk sync");
       }
 
-      const db = await this.dbPromise;
-      const tx = db.transaction("vouchers", "readwrite");
-      for (const v of pending) {
-        v.sync_status = "synced";
-        tx.store.put(v);
+      // Update sync status in database
+      try {
+        const db = await this.getDb();
+        const tx = db.transaction("vouchers", "readwrite");
+        for (const v of pending) {
+          v.sync_status = "synced";
+          tx.store.put(v);
+        }
+        await tx.done;
+      } catch (dbError) {
+        console.warn("[SyncService] Failed to update local sync status (DB may be closing), but cloud sync succeeded:", dbError);
+        // Trigger reinitialization on next use
+        this.dbInstance = null;
+        // Don't throw - the API sync succeeded even if local update failed
       }
-      await tx.done;
 
       // Dispatch custom event to update UI
       window.dispatchEvent(new Event("vouchersSynced"));
