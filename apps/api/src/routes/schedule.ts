@@ -18,7 +18,7 @@ app.get('/', async (c) => {
 
     if (error) {
       // If schedule table doesn't exist, return default schedule
-      if (error.message.includes 'relation "schedule" does not exist') {
+      if (error.message.includes('relation "schedule" does not exist')) {
         const defaultSchedule = [
           { day: 'Monday', classes: [{ name: "Pilates", times: [{ time: "10:00 - 11:00", coach: "Greg" }, { time: "15:00 - 16:00", coach: "Greg" }, { time: "19:00 - 20:00", coach: "Greg" }] }] },
           { day: 'Tuesday', classes: [{ name: "Yoga", times: [{ time: "10:00 - 11:00", coach: "Anais" }, { time: "15:00 - 16:00", coach: "Anais" }, { time: "19:00 - 20:00", coach: "Anais" }] }, { name: "Reformer Pilates", times: [{ time: "10:00 - 11:00", coach: "" }, { time: "15:00 - 16:00", coach: "" }, { time: "19:00 - 20:00", coach: "" }] }] },

@@ -11,7 +11,8 @@ export const fetchSchedule = async (): Promise<Array<{
       time: string;
       coach: string;
     }>;
-  }>> => {
+  }>;
+}>> => {
   try {
     const res = await fetch(`${API_BASE_URL}/api/schedule`);
     if (!res.ok) throw new Error('Failed to fetch schedule');
