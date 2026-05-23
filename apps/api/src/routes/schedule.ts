@@ -12,8 +12,9 @@ app.get('/', async (c) => {
     const { data, error } = await supabaseAdmin
       .from('schedule')
       .select('*')
+      .eq('status', 'active')
       .order('day', { ascending: true })
-      .order('start_time', { ascending: true });
+      .order('time', { ascending: true });
 
     if (error) {
       // If schedule table doesn't exist, return default schedule
