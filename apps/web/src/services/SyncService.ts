@@ -107,6 +107,7 @@ class SyncService {
 
   public async saveVoucherLocally(
     voucher: Omit<LocalVoucher, "sync_status">,
+    retryCount = 0
   ): Promise<void> {
     try {
       const db = await this.getDb();
@@ -132,7 +133,13 @@ class SyncService {
       if (typeof navigator !== "undefined" && navigator.onLine) {
         this.syncPendingVouchers().catch((err) => console.error("[SyncService] Background sync failed:", err));
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === "InvalidStateError" && retryCount < 2) {
+        console.warn("[SyncService] Database closed. Reinitializing and retrying saveVoucherLocally...", error);
+        this.dbInstance = null;
+        this.dbPromise = this.initializeDatabase();
+        return this.saveVoucherLocally(voucher, retryCount + 1);
+      }
       console.error("[SyncService] Failed to save voucher locally:", error);
       throw error;
     }
