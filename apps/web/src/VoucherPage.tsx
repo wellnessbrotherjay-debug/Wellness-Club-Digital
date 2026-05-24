@@ -1140,7 +1140,8 @@ const VoucherPage: React.FC = () => {
                   disabled={
                     status === "generating" ||
                     formData.guestNames.some((n) => !n.firstName.trim() || !n.surname.trim()) ||
-                    !formData.roomNumber
+                    !formData.roomNumber ||
+                    !formData.email.trim()
                   }
                   className="w-full bg-[#2c2420] text-white h-16 rounded-xl font-bold tracking-[.2em] uppercase hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-8 group"
                 >
