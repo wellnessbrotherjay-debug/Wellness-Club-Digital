@@ -140,6 +140,7 @@ app.post("/", async (c) => {
         marketing_consent: marketingConsent,
         service_type: v.services.join(", "), // Added service_type
         sync_status: "synced",
+        traffic_source: "TS suites", // Always tag as TS suites
         metadata: {
           ...(v.metadata || {}),
           first_name: firstName,
