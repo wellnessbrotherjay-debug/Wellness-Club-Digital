@@ -505,8 +505,7 @@ const GuestPass: React.FC = () => {
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/, "")}`}
-          target="_blank"
-          rel="noopener noreferrer"
+          target="_self"
           className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#c5a572] to-[#b08d55] text-white py-5 rounded-2xl font-bold uppercase tracking-widest text-sm shadow-2xl active:scale-95 transition-all border-2 border-white"
         >
           Click to Claim Your 15% Discount
