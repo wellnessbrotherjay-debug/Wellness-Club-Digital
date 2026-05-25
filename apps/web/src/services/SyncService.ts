@@ -169,12 +169,25 @@ class SyncService {
         `[SyncService] Attempting to sync ${pending.length} vouchers...`,
       );
 
-      // Transformation step: Map data and ensure strings are not null/undefined
+      // Transformation step: Map data to match BulkSyncSchema (camelCase for legacy fields)
       const mappedVouchers = pending.map(v => ({
-        ...v,
+        voucher_code: v.voucher_code,
+        guestName: v.guest_name,
+        firstName: v.first_name,
+        lastName: v.last_name,
+        roomNumber: v.room_number,
+        checkIn: v.check_in,
+        checkOut: v.check_out,
+        pax: v.pax,
+        services: v.services,
+        isTest: v.is_test,
+        qr_source_location: v.qr_source_location,
+        marketing_consent: v.marketing_consent,
+        created_at: v.created_at,
         email: v.email || "",
         whatsapp: v.whatsapp || "",
         image_url: v.image_url || "",
+        metadata: {},
       }));
 
       const response = await fetch(`${API_BASE_URL}/api/vouchers/bulk-sync`, {

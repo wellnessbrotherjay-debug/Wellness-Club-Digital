@@ -98,8 +98,6 @@ app.post("/", async (c) => {
       return {
         voucher_code: v.voucher_code,
         guest_name: v.guestName,
-        first_name: v.firstName,
-        last_name: v.lastName,
         room_number: v.roomNumber,
         check_in: v.checkIn ? v.checkIn.split("T")[0] : null, // YYYY-MM-DD
         check_out: v.checkOut ? v.checkOut.split("T")[0] : null, // YYYY-MM-DD
@@ -112,7 +110,11 @@ app.post("/", async (c) => {
         marketing_consent: v.marketing_consent,
         service_type: v.services.join(", "), // Added service_type
         sync_status: "synced",
-        metadata: v.metadata || {},
+        metadata: {
+          ...(v.metadata || {}),
+          first_name: v.firstName,
+          last_name: v.lastName,
+        },
       };
     });
 

@@ -141,8 +141,8 @@ const GuestPass: React.FC = () => {
           setData({
             voucher_code: voucherId,
             guest_name: guestName,
-            first_name: String(currentItem.first_name || currentItem.firstName || ""),
-            last_name: String(currentItem.last_name || currentItem.lastName || ""),
+            first_name: String(currentItem.first_name || currentItem.firstName || (currentItem.metadata as any)?.first_name || (currentItem.metadata as any)?.firstName || ""),
+            last_name: String(currentItem.last_name || currentItem.lastName || (currentItem.metadata as any)?.last_name || (currentItem.metadata as any)?.lastName || ""),
             room_number: roomNumber,
             check_in: "",
             check_out: checkOut || "",
