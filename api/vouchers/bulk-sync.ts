@@ -30,18 +30,24 @@ const supabase = createClient(SUPABASE_URL, getSupabaseKey());
 
 const VoucherSchema = z.object({
   voucher_code: z.string().min(4),
-  guest_name: z.string().optional().default('Walk-in Guest'),
-  room_number: z.string().optional().default('N/A'),
-  check_in: z.string().optional(),
-  check_out: z.string().optional(),
+  guest_name: z.string().optional(),
+  guestName: z.string().optional(),
+  room_number: z.string().optional(),
+  roomNumber: z.string().optional(),
+  check_in: z.string().optional().nullable(),
+  checkIn: z.string().optional().nullable(),
+  check_out: z.string().optional().nullable(),
+  checkOut: z.string().optional().nullable(),
   services: z.array(z.string()).optional().default([]),
   pax: z.coerce.number().int().min(1).default(1),
-  email: z.string().trim().email('Email is required and must be valid'),
+  email: z.string().trim().email().optional().nullable().or(z.literal('')),
   whatsapp: z.string().optional().nullable().or(z.literal('')),
   image_url: z.string().url().optional().nullable().or(z.literal('')),
   is_test: z.boolean().optional().default(false),
+  isTest: z.boolean().optional(),
   qr_source_location: z.string().optional().nullable(),
   marketing_consent: z.boolean().optional().default(false),
+  marketingConsent: z.boolean().optional(),
   created_at: z.string().optional(),
   metadata: z.record(z.string(), z.any()).optional().default({}),
 });
@@ -90,17 +96,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (vouchers.length === 0) {
       return res.status(200).json({ status: 'success', synced: 0 });
     }
-    // Prepare insert data
     const inserts = vouchers.map((v) => {
-      let resolvedGuestName = v.guest_name || 'Hotel Guest';
+      let resolvedGuestName = v.guestName || v.guest_name || 'Hotel Guest';
       if (!resolvedGuestName || resolvedGuestName.toLowerCase().includes('walk-in') || resolvedGuestName.toLowerCase().includes('unknown')) {
         resolvedGuestName = 'Hotel Guest';
       }
 
-      let resolvedRoomNumber = v.room_number || 'Hotel Room';
+      let resolvedRoomNumber = v.roomNumber || v.room_number || 'Hotel Room';
       if (!resolvedRoomNumber || resolvedRoomNumber === 'N/A' || resolvedRoomNumber.toLowerCase() === 'n/a') {
         resolvedRoomNumber = 'Hotel Room';
       }
+
+      const checkIn = v.checkIn || v.check_in || null;
+      const checkOut = v.checkOut || v.check_out || null;
+      const isTest = v.isTest !== undefined ? v.isTest : (v.is_test !== undefined ? v.is_test : false);
+      const marketingConsent = v.marketingConsent !== undefined ? v.marketingConsent : (v.marketing_consent !== undefined ? v.marketing_consent : false);
 
       const nameParts = resolvedGuestName.split(' ');
       const firstName = nameParts[0] || 'Hotel';
@@ -110,15 +120,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         voucher_code: v.voucher_code,
         guest_name: resolvedGuestName,
         room_number: resolvedRoomNumber,
-        check_in: v.check_in ? v.check_in.split('T')[0] : null,
-        check_out: v.check_out ? v.check_out.split('T')[0] : null,
+        check_in: checkIn ? checkIn.split('T')[0] : null,
+        check_out: checkOut ? checkOut.split('T')[0] : null,
         pax: v.pax,
         email: v.email,
         whatsapp: v.whatsapp || null,
         image_url: v.image_url || null,
-        is_test: v.is_test,
+        is_test: isTest,
         qr_source_location: v.qr_source_location || null,
-        marketing_consent: v.marketing_consent,
+        marketing_consent: marketingConsent,
         service_type: Array.isArray(v.services) ? v.services.join(', ') : String(v.services || ''),
         status: 'Created',
         sync_status: 'synced',
@@ -129,7 +139,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         created_at: v.created_at || new Date().toISOString(),
       };
-    });    // Upsert to Supabase
+    });
+    // Upsert to Supabase
     const { data, error } = await supabase
       .from('vouchers')
       .upsert(inserts, { onConflict: 'voucher_code' })
