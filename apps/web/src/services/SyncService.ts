@@ -4,8 +4,10 @@ import { API_BASE_URL } from "../utils/api";
 export interface LocalVoucher {
   id?: string;
   voucher_code: string;
-  guest_name: string;
-  room_number: string;
+  guest_name?: string;
+  first_name?: string;
+  last_name?: string;
+  room_number?: string;
   check_in: string;
   check_out: string;
   status: string;

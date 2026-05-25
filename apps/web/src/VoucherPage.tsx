@@ -409,6 +409,8 @@ const VoucherPage: React.FC = () => {
       const newVoucher: Omit<LocalVoucher, "sync_status"> = {
         voucher_code: voucherId,
         guest_name: allGuestNames,
+        first_name: formData.guestNames[0]?.firstName.trim() || "",
+        last_name: formData.guestNames[0]?.surname.trim() || "",
         room_number: formData.roomNumber,
         check_in: formData.checkIn,
         check_out: formData.checkOut,

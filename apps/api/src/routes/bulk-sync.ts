@@ -12,6 +12,8 @@ const APPS_SCRIPT_URL =
 const VoucherSchema = z.object({
   voucher_code: z.string().min(4), // Changed from id to voucher_code
   guestName: z.string().optional().default("Walk-in Guest"),
+  firstName: z.string().optional().default(""),
+  lastName: z.string().optional().default(""),
   roomNumber: z.string().optional().default("N/A"),
   checkIn: z.string().optional(),
   checkOut: z.string().optional(),
@@ -96,6 +98,8 @@ app.post("/", async (c) => {
       return {
         voucher_code: v.voucher_code,
         guest_name: v.guestName,
+        first_name: v.firstName,
+        last_name: v.lastName,
         room_number: v.roomNumber,
         check_in: v.checkIn ? v.checkIn.split("T")[0] : null, // YYYY-MM-DD
         check_out: v.checkOut ? v.checkOut.split("T")[0] : null, // YYYY-MM-DD
