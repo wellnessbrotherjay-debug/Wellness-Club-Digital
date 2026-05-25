@@ -491,6 +491,8 @@ const GuestPass: React.FC = () => {
                   expiry: data.check_out,
                   roomNumber: data.room_number,
                   roomNo: data.room_number,
+                  email: data.email,
+                  whatsapp: data.whatsapp,
                   source: 'hotel',
                 }),
               ),
