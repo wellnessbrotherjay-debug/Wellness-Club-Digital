@@ -112,7 +112,10 @@ class SyncService {
     retryCount = 0
   ): Promise<void> {
     try {
-      const db = await this.getDb();
+      const db = await Promise.race([
+        this.getDb(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Database initialization timed out")), 5000))
+      ]);
 
       // Backward compatibility: some existing browsers still have an older
       // IndexedDB schema keyed by `id` instead of `voucher_code`.
@@ -128,8 +131,11 @@ class SyncService {
         sync_status: "pending",
       };
 
-      // Ensure put operation completes before syncing
-      await db.put("vouchers", localVoucher);
+      // Ensure put operation completes before syncing, with a 3 second timeout in case IDB hangs
+      await Promise.race([
+        db.put("vouchers", localVoucher),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("IndexedDB operation timed out")), 3000))
+      ]);
 
       // Trigger sync attempt immediately (if online, it will go through)
       if (typeof navigator !== "undefined" && navigator.onLine) {
