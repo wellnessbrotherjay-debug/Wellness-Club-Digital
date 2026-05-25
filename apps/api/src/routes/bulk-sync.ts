@@ -10,21 +10,29 @@ const APPS_SCRIPT_URL =
 
 // --- Validation Schemas ---
 const VoucherSchema = z.object({
-  voucher_code: z.string().min(4), // Changed from id to voucher_code
-  guestName: z.string().optional().default("Walk-in Guest"),
-  firstName: z.string().optional().default(""),
-  lastName: z.string().optional().default(""),
-  roomNumber: z.string().optional().default("N/A"),
+  voucher_code: z.string().min(4),
+  guestName: z.string().optional(),
+  guest_name: z.string().optional(),
+  firstName: z.string().optional(),
+  first_name: z.string().optional(),
+  lastName: z.string().optional(),
+  last_name: z.string().optional(),
+  roomNumber: z.string().optional(),
+  room_number: z.string().optional(),
   checkIn: z.string().optional(),
+  check_in: z.string().optional(),
   checkOut: z.string().optional(),
+  check_out: z.string().optional(),
   services: z.array(z.string()).optional().default([]),
   pax: z.coerce.number().int().min(1).default(1),
   email: z.string().email().optional().nullable().or(z.literal("")),
   whatsapp: z.string().optional().nullable().or(z.literal("")),
   image_url: z.string().url().optional().nullable().or(z.literal("")), // Allowing empty string
-  isTest: z.boolean().optional().default(false),
+  isTest: z.boolean().optional(),
+  is_test: z.boolean().optional(),
   qr_source_location: z.string().optional().nullable(),
-  marketing_consent: z.boolean().optional().default(false),
+  marketing_consent: z.boolean().optional(),
+  marketingConsent: z.boolean().optional(),
   created_at: z
     .string()
     .optional()
@@ -95,25 +103,47 @@ app.post("/", async (c) => {
     );
 
     const inserts = vouchers.map((v) => {
+      let guestName = v.guestName || v.guest_name || "Hotel Guest";
+      if (!guestName || guestName.toLowerCase().includes("walk-in") || guestName.toLowerCase().includes("unknown")) {
+        guestName = "Hotel Guest";
+      }
+      
+      let firstName = v.firstName || v.first_name || "";
+      let lastName = v.lastName || v.last_name || "";
+      if (guestName === "Hotel Guest") {
+        firstName = "Hotel";
+        lastName = "Guest";
+      }
+
+      let roomNumber = v.roomNumber || v.room_number || "Hotel Room";
+      if (!roomNumber || roomNumber === "N/A" || roomNumber.toLowerCase() === "n/a") {
+        roomNumber = "Hotel Room";
+      }
+
+      const checkIn = v.checkIn || v.check_in || null;
+      const checkOut = v.checkOut || v.check_out || null;
+      const isTest = v.isTest !== undefined ? v.isTest : (v.is_test !== undefined ? v.is_test : false);
+      const marketingConsent = v.marketing_consent !== undefined ? v.marketing_consent : (v.marketingConsent !== undefined ? v.marketingConsent : false);
+
       return {
         voucher_code: v.voucher_code,
-        guest_name: v.guestName,
-        room_number: v.roomNumber,
-        check_in: v.checkIn ? v.checkIn.split("T")[0] : null, // YYYY-MM-DD
-        check_out: v.checkOut ? v.checkOut.split("T")[0] : null, // YYYY-MM-DD
+        guest_name: guestName,
+        room_number: roomNumber,
+        check_in: checkIn ? checkIn.split("T")[0] : null, // YYYY-MM-DD
+        check_out: checkOut ? checkOut.split("T")[0] : null, // YYYY-MM-DD
         pax: Number(v.pax) || 1,
         email: v.email || null,
         whatsapp: v.whatsapp || null,
         image_url: v.image_url || null,
-        is_test: v.isTest,
+        is_test: isTest,
         qr_source_location: v.qr_source_location,
-        marketing_consent: v.marketing_consent,
+        marketing_consent: marketingConsent,
         service_type: v.services.join(", "), // Added service_type
         sync_status: "synced",
         metadata: {
           ...(v.metadata || {}),
-          first_name: v.firstName,
-          last_name: v.lastName,
+          first_name: firstName,
+          last_name: lastName,
         },
       };
     });
