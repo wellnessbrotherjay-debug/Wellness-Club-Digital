@@ -35,10 +35,7 @@ interface WellnessDB extends DBSchema {
 }
 
 class SyncService {
-  private dbPromise: Promise<IDBPDatabase<WellnessDB>>;
-  private isInitializing: boolean = false;
-  private initRetries: number = 0;
-  private maxRetries: number = 3;
+  private dbPromise: Promise<IDBPDatabase<WellnessDB>> | null = null;
   private dbInstance: IDBPDatabase<WellnessDB> | null = null;
 
   constructor() {
@@ -53,18 +50,6 @@ class SyncService {
   }
 
   private async initializeDatabase(): Promise<IDBPDatabase<WellnessDB>> {
-    if (this.isInitializing) {
-      return new Promise((resolve) => {
-        const checkInit = setInterval(() => {
-          if (!this.isInitializing) {
-            clearInterval(checkInit);
-            resolve(this.dbPromise);
-          }
-        }, 100);
-      });
-    }
-
-    this.isInitializing = true;
     try {
       const db = await openDB<WellnessDB>("wellness_vouchers_db", 1, {
         upgrade(db) {
@@ -76,32 +61,24 @@ class SyncService {
       });
 
       this.dbInstance = db;
-      this.initRetries = 0;
 
-      // Listen for connection close and reinitialize
+      // Listen for connection close and reset
       db.addEventListener("close", () => {
         console.log("[SyncService] Database connection closed, will reinitialize on next use");
         this.dbInstance = null;
-        this.dbPromise = this.initializeDatabase();
+        this.dbPromise = null;
       });
 
       return db;
     } catch (error) {
       console.error("[SyncService] Database initialization failed:", error);
-      if (this.initRetries < this.maxRetries) {
-        this.initRetries++;
-        await new Promise(resolve => setTimeout(resolve, 1000 * this.initRetries));
-        return this.initializeDatabase();
-      }
+      this.dbPromise = null; // Reset so next call will retry
       throw error;
-    } finally {
-      this.isInitializing = false;
     }
   }
 
   private async getDb(): Promise<IDBPDatabase<WellnessDB>> {
-    // Check if current instance is still valid, reinitialize if closed
-    if (!this.dbInstance) {
+    if (!this.dbPromise) {
       this.dbPromise = this.initializeDatabase();
     }
     return this.dbPromise;
@@ -145,7 +122,7 @@ class SyncService {
       if (error?.name === "InvalidStateError" && retryCount < 2) {
         console.warn("[SyncService] Database closed. Reinitializing and retrying saveVoucherLocally...", error);
         this.dbInstance = null;
-        this.dbPromise = this.initializeDatabase();
+        this.dbPromise = null;
         return this.saveVoucherLocally(voucher, retryCount + 1);
       }
       console.error("[SyncService] Failed to save voucher locally:", error);
