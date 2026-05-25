@@ -390,20 +390,22 @@ const VoucherPage: React.FC = () => {
     ];
 
     const joinedNames =
-      formData.guestNames
-        .filter((n) => n.firstName.trim() || n.surname.trim())
-        .map((n) => `${n.firstName.trim()} ${n.surname.trim()}`.trim())
+      (formData.guestNames || [])
+        .filter((n) => n?.firstName?.trim() || n?.surname?.trim())
+        .map((n) => `${(n?.firstName || "").trim()} ${(n?.surname || "").trim()}`.trim())
         .join(" & ") ||
       "Unknown Guest";
     const allGuestNames = formData.isTest
       ? `[TEST] ${joinedNames}`
       : joinedNames;
 
-    const cleanWA = formData.whatsapp.replace(/\D/g, "").replace(/^0+/, "");
-    const prefix = formData.countryCode.replace(/\D/g, "");
+    const safeWA = formData.whatsapp || "";
+    const safeCountryCode = formData.countryCode || "+62";
+    const cleanWA = safeWA.replace(/\D/g, "").replace(/^0+/, "");
+    const prefix = safeCountryCode.replace(/\D/g, "");
     const finalWA = cleanWA.startsWith(prefix)
       ? `+${cleanWA}`
-      : `${formData.countryCode}${cleanWA}`;
+      : `${safeCountryCode}${cleanWA}`;
 
     try {
       const newVoucher: Omit<LocalVoucher, "sync_status"> = {
