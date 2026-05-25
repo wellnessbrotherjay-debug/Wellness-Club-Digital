@@ -141,6 +141,8 @@ const GuestPass: React.FC = () => {
           setData({
             voucher_code: voucherId,
             guest_name: guestName,
+            first_name: String(currentItem.first_name || currentItem.firstName || ""),
+            last_name: String(currentItem.last_name || currentItem.lastName || ""),
             room_number: roomNumber,
             check_in: "",
             check_out: checkOut || "",
@@ -488,6 +490,8 @@ const GuestPass: React.FC = () => {
                 JSON.stringify({
                   id: id,
                   guestName: data.guest_name,
+                  firstName: data.first_name,
+                  lastName: data.last_name,
                   expiry: data.check_out,
                   roomNumber: data.room_number,
                   roomNo: data.room_number,

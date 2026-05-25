@@ -37,6 +37,8 @@ export interface VoucherData {
   voucherId?: string;
   voucher_code?: string;
   guestName?: string;
+  first_name?: string;
+  last_name?: string;
   guest_name?: string;
   roomNumber?: string;
   room_number?: string;
