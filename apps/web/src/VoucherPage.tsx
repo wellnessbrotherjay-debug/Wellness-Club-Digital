@@ -1,3 +1,64 @@
+// --- TEMPORARY DEBUG STATE ---
+const [debugInfo, setDebugInfo] = React.useState({
+  url: "",
+  keySource: "",
+  count: null,
+  sampleRows: 0,
+  error: null,
+});
+
+React.useEffect(() => {
+  async function debugVoucherRead() {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const keySource = import.meta.env.VITE_SUPABASE_ANON_KEY
+      ? "VITE_SUPABASE_ANON_KEY"
+      : "VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY";
+    // Print to console for extra visibility
+    console.log("[DEBUG ENV]", { url, keySource, mode: import.meta.env.MODE });
+
+    const { count, error: countError } = await supabase
+      .from("vouchers")
+      .select("*", { count: "exact", head: true });
+
+    console.log("[FORCED VOUCHERS COUNT]", {
+      count,
+      error: countError?.message ?? null,
+      code: countError?.code ?? null,
+      details: countError?.details ?? null,
+    });
+
+    const { data, error: sampleError } = await supabase
+      .from("vouchers")
+      .select("id, voucher_code, guest_name, first_name, surname, room_number, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    console.log("[FORCED VOUCHERS SAMPLE]", {
+      rows: data?.length ?? 0,
+      error: sampleError?.message ?? null,
+      code: sampleError?.code ?? null,
+      firstCode: data?.[0]?.voucher_code ?? null,
+      firstGuestNameExists: Boolean(data?.[0]?.guest_name),
+    });
+
+    setDebugInfo({
+      url,
+      keySource,
+      count,
+      sampleRows: data?.length ?? 0,
+      error: countError?.message || sampleError?.message || null,
+    });
+  }
+  debugVoucherRead();
+}, []);
+      {/* --- TEMPORARY DEBUG BOX --- */}
+      <div className="text-xs bg-yellow-50 border border-yellow-200 p-3 rounded mb-4">
+        <div>Debug Supabase URL: {debugInfo.url}</div>
+        <div>Debug Key Source: {debugInfo.keySource}</div>
+        <div>Forced Voucher Count: {debugInfo.count}</div>
+        <div>Forced Sample Rows: {debugInfo.sampleRows}</div>
+        <div>Debug Error: {debugInfo.error || "none"}</div>
+      </div>
 import React, { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import {
