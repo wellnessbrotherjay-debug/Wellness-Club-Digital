@@ -393,10 +393,9 @@ const VoucherPage: React.FC = () => {
 
     const joinedNames =
       (formData.guestNames || [])
-        .filter((n) => n?.firstName?.trim() || n?.surname?.trim())
+        .filter((n) => n?.firstName?.trim() && n?.surname?.trim())
         .map((n) => `${(n?.firstName || "").trim()} ${(n?.surname || "").trim()}`.trim())
-        .join(" & ") ||
-      "Hotel Guest";
+        .join(" & ");
     const allGuestNames = formData.isTest
       ? `[TEST] ${joinedNames}`
       : joinedNames;
@@ -412,10 +411,13 @@ const VoucherPage: React.FC = () => {
     try {
       const firstGuestName = formData.guestNames[0]?.firstName.trim() || "";
       const lastGuestName = formData.guestNames[0]?.surname.trim() || "";
-      const isGeneric = joinedNames === "Hotel Guest" || !firstGuestName;
-      
-      const finalFirstName = isGeneric ? "Hotel" : firstGuestName;
-      const finalLastName = isGeneric ? "Guest" : lastGuestName;
+      if (!firstGuestName || !lastGuestName) {
+        setStatus("error");
+        setErrorMsg("Please enter both first name and surname for all guests.");
+        return;
+      }
+      const finalFirstName = firstGuestName;
+      const finalLastName = lastGuestName;
 
       const finalRoom = (formData.roomNumber || "").trim();
       const isRoomGeneric = !finalRoom || finalRoom.toLowerCase() === "n/a" || finalRoom.toLowerCase() === "room n/a" || finalRoom.toLowerCase() === "unknown";
@@ -682,55 +684,44 @@ const VoucherPage: React.FC = () => {
     }
   };
 
-  const filteredVouchers = (
-    Array.isArray(recentVouchers) ? recentVouchers : []
-  ).filter((v) => {
-    // 1. Basic Search Filter
+  // --- ISSUED TAB FILTER: PRODUCTION-COMPATIBLE ---
+  const filteredVouchers = (Array.isArray(recentVouchers) ? recentVouchers : []).filter((v) => {
     const query = searchQuery.toLowerCase();
+    // Accept guestName, guest_name, or first_name+last_name for search
+    const guestDisplay = v.first_name && v.last_name
+      ? `${v.first_name} ${v.last_name}`
+      : v.guest_name || v.guestName || "";
     const matchesQuery =
-      String(v.guestName || "")
-        .toLowerCase()
-        .includes(query) ||
-      String(v.id || "")
-        .toLowerCase()
-        .includes(query) ||
-      String(v.roomNumber || "")
-        .toLowerCase()
-        .includes(query);
+      guestDisplay.toLowerCase().includes(query) ||
+      String(v.id || "").toLowerCase().includes(query) ||
+      String(v.roomNumber || v.room_number || "").toLowerCase().includes(query);
 
-    // 2. Global Test Exclusion (Golden Rule)
-    if (
-      isTestAccount(v.guestName || "", v.id || "") ||
-      (v as unknown as Record<string, unknown>).is_test === "TRUE"
-    ) {
-      return false;
-    }
+    // Exclude test accounts
+    if (isTestAccount(guestDisplay, v.id || "") || v.is_test === "TRUE") return false;
 
-    // 3. Data Quality Filter: Exclude unknown guests
-    if (
-      !v.guestName ||
-      v.guestName === "Unknown Guest" ||
-      v.guestName.trim() === ""
-    )
-      return false;
+    // Do NOT hide old vouchers: allow if guest_name or first_name+last_name exists
+    const hasValidGuest = (v.first_name && v.last_name) || v.guest_name || v.guestName;
+    if (!hasValidGuest) return false;
 
-    // 3. Status/Expiry Filter: If in "Active" tab, apply chosen filter
     if (activeTab === "issued") {
-      const isRedeemed =
-        v.status === "Redeemed" ||
-        (Array.isArray(effectiveRedemptions) &&
-          effectiveRedemptions.some((r) => r.voucherCode === v.id));
-      // Expiration logic using shared utility
+      const isRedeemed = v.status === "Redeemed" || (Array.isArray(effectiveRedemptions) && effectiveRedemptions.some((r) => r.voucherCode === v.id));
       const isExpired = isVoucherExpired(v);
-
-      if (statusFilter === "active")
-        return matchesQuery && !isRedeemed && !isExpired;
+      if (statusFilter === "active") return matchesQuery && !isRedeemed && !isExpired;
       if (statusFilter === "redeemed") return matchesQuery && isRedeemed;
       if (statusFilter === "expired") return matchesQuery && isExpired;
-      return matchesQuery; // 'all'
+      return matchesQuery;
     }
-
     return matchesQuery;
+  });
+
+  // --- DEBUG LOGS ---
+  console.log("[FRONTEND SUPABASE URL]", import.meta.env.VITE_SUPABASE_URL);
+  console.log("[FRONTEND KEY SOURCE]", import.meta.env.VITE_SUPABASE_ANON_KEY ? "VITE_SUPABASE_ANON_KEY" : "VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY");
+  console.log("[ISSUED VOUCHERS DEBUG]", {
+    count: filteredVouchers.length,
+    total: recentVouchers.length,
+    error: fetchError?.message ?? null,
+    code: fetchError?.code ?? null
   });
 
   // Short URL only — no base64 payload. Long base64 URLs make QR codes too dense to scan.
@@ -1162,20 +1153,23 @@ const VoucherPage: React.FC = () => {
                   }
                   className="w-full bg-[#2c2420] text-white h-16 rounded-xl font-bold tracking-[.2em] uppercase hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-8 group"
                 >
-                  {status === "generating" ? (
-                    <>
-                      <Loader2 className="animate-spin" size={20} />
-                      <span>Generating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Issue Digital Voucher</span>
-                      <PlusCircle
-                        className="group-hover:translate-x-1 transition-transform"
-                        size={20}
-                      />
-                    </>
-                  )}
+                    {status === "generating" ? (
+                      <>
+                        {status === "error" && (
+                          <div className="text-red-500 text-xs font-bold mt-2">{errorMsg}</div>
+                        )}
+                        <Loader2 className="animate-spin" size={20} />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Issue Digital Voucher</span>
+                        <PlusCircle
+                          className="group-hover:translate-x-1 transition-transform"
+                          size={20}
+                        />
+                      </>
+                    )}
                 </button>
               </div>
             )}
@@ -1797,7 +1791,9 @@ const VoucherPage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-lg">
-                            {voucher.guestName}
+                            {voucher.first_name && voucher.last_name
+                              ? `${voucher.first_name} ${voucher.last_name}`
+                              : voucher.guest_name || voucher.guestName || <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-bold">Invalid Guest Data</span>}
                           </h3>
                           <span className="px-2 py-0.5 bg-[#f0ede6] text-[#2c2420] text-[9px] font-bold rounded uppercase">
                             Room {voucher.roomNumber}
