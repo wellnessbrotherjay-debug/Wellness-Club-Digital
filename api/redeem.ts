@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://iwkhqmonkmvyeemlihlz.supabase.co';
+const SUPABASE_URL = 'https://bwndbccgzjdgtcyornwn.supabase.co';
 const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3a2hxbW9ua212eWVlbWxpaGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyOTAzMjYsImV4cCI6MjA3Nzg2NjMyNn0.M4EbBns51gkgjcfgvVuAzMb9JNOvZdsZ2ePySULGm2I';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3bmRiY2NnempkZ3RjeW9ybnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNzk2MDYsImV4cCI6MjA3NTk1NTYwNn0.KBhWWrstu0_NTOJ38sQQNTqhhIno5iEQC-kFXd34ao4';
 
 const getSupabaseKey = () => {
   const candidate = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,7 +17,7 @@ const getSupabaseKey = () => {
       Buffer.from(candidate.split('.')[1] || '', 'base64').toString('utf8'),
     ) as { ref?: string };
 
-    return payload.ref === 'iwkhqmonkmvyeemlihlz'
+    return payload.ref === 'bwndbccgzjdgtcyornwn'
       ? candidate
       : SUPABASE_ANON_KEY;
   } catch {

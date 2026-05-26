@@ -396,7 +396,7 @@ const VoucherPage: React.FC = () => {
         .filter((n) => n?.firstName?.trim() || n?.surname?.trim())
         .map((n) => `${(n?.firstName || "").trim()} ${(n?.surname || "").trim()}`.trim())
         .join(" & ") ||
-      "Unknown Guest";
+      "Hotel Guest";
     const allGuestNames = formData.isTest
       ? `[TEST] ${joinedNames}`
       : joinedNames;
@@ -410,12 +410,23 @@ const VoucherPage: React.FC = () => {
       : `${safeCountryCode}${cleanWA}`;
 
     try {
+      const firstGuestName = formData.guestNames[0]?.firstName.trim() || "";
+      const lastGuestName = formData.guestNames[0]?.surname.trim() || "";
+      const isGeneric = joinedNames === "Hotel Guest" || !firstGuestName;
+      
+      const finalFirstName = isGeneric ? "Hotel" : firstGuestName;
+      const finalLastName = isGeneric ? "Guest" : lastGuestName;
+
+      const finalRoom = (formData.roomNumber || "").trim();
+      const isRoomGeneric = !finalRoom || finalRoom.toLowerCase() === "n/a" || finalRoom.toLowerCase() === "room n/a" || finalRoom.toLowerCase() === "unknown";
+      const finalRoomNo = isRoomGeneric ? "Unknown" : finalRoom;
+
       const newVoucher: Omit<LocalVoucher, "sync_status"> = {
         voucher_code: voucherId,
         guest_name: allGuestNames,
-        first_name: formData.guestNames[0]?.firstName.trim() || "",
-        last_name: formData.guestNames[0]?.surname.trim() || "",
-        room_number: formData.roomNumber,
+        first_name: finalFirstName,
+        last_name: finalLastName,
+        room_number: finalRoomNo,
         check_in: formData.checkIn,
         check_out: formData.checkOut,
         status: "Created",
