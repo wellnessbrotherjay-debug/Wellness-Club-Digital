@@ -484,7 +484,7 @@ const GuestPass: React.FC = () => {
       {/* Float Action for Guest */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4">
         <a
-          href={`https://no1wellness.com/?promo=${btoa(
+          href={`https://www.no1wellness.com/?pass=${id}&promo=${btoa(
             unescape(
               encodeURIComponent(
                 JSON.stringify({
