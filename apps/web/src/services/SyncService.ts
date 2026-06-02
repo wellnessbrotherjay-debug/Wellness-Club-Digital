@@ -146,18 +146,32 @@ class SyncService {
         `[SyncService] Attempting to sync ${pending.length} vouchers...`,
       );
 
-      // Transformation step: Map data to match BulkSyncSchema (camelCase for legacy fields)
+      // Transformation step: send BOTH snake_case and camelCase keys.
+      // The live voucher.htf.solutions backend only reads snake_case
+      // (room_number/guest_name/is_test); newer backends also accept camelCase.
+      // Sending both makes the sync correct regardless of which backend is deployed,
+      // so room number / guest name / test flag are never dropped to defaults.
       const mappedVouchers = pending.map(v => ({
         voucher_code: v.voucher_code,
+        // snake_case (read by the live backend)
+        guest_name: v.guest_name,
+        first_name: v.first_name,
+        last_name: v.last_name,
+        room_number: v.room_number,
+        check_in: v.check_in,
+        check_out: v.check_out,
+        is_test: v.is_test,
+        // camelCase (read by the repo/newer backend)
         guestName: v.guest_name,
         firstName: v.first_name,
         lastName: v.last_name,
         roomNumber: v.room_number,
         checkIn: v.check_in,
         checkOut: v.check_out,
+        isTest: v.is_test,
+        // identical keys in both schemas
         pax: v.pax,
         services: v.services,
-        isTest: v.is_test,
         qr_source_location: v.qr_source_location,
         marketing_consent: v.marketing_consent,
         created_at: v.created_at,
