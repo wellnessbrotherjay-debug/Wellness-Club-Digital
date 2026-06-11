@@ -178,7 +178,7 @@ class SyncService {
         email: v.email || "",
         whatsapp: v.whatsapp || "",
         image_url: v.image_url || "",
-        metadata: {},
+        metadata: v.metadata || {},
       }));
 
       const response = await fetch(`${API_BASE_URL}/api/vouchers/bulk-sync`, {

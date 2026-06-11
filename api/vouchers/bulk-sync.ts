@@ -112,9 +112,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const isTest = v.isTest !== undefined ? v.isTest : (v.is_test !== undefined ? v.is_test : false);
       const marketingConsent = v.marketingConsent !== undefined ? v.marketingConsent : (v.marketing_consent !== undefined ? v.marketing_consent : false);
 
-      const nameParts = resolvedGuestName.split(' ');
-      const firstName = nameParts[0] || 'Hotel';
-      const lastName = nameParts.slice(1).join(' ') || 'Guest';
+      let firstName = 'Hotel';
+      let lastName = 'Guest';
+      if (resolvedGuestName !== 'Hotel Guest') {
+        const nameParts = resolvedGuestName.split(' ');
+        firstName = nameParts[0] || 'Hotel';
+        lastName = nameParts.slice(1).join(' ') || 'Guest';
+      }
+
+      const metadata = { ...(v.metadata || {}) } as Record<string, any>;
+      if (!metadata.guests || !Array.isArray(metadata.guests)) {
+        const cleanName = resolvedGuestName.replace(/\[TEST\]/gi, "").trim();
+        const parts = cleanName ? cleanName.split(/\s+(?:&|and|\/)\s+|\s*,\s*/gi).map(p => p.trim()).filter(Boolean) : [];
+        metadata.guests = parts.map((part, idx) => {
+          const subParts = part.split(/\s+/).filter(Boolean);
+          const fName = subParts[0] || "Guest";
+          const lName = subParts.length > 1 ? subParts.slice(1).join(" ") : "-";
+          return {
+            id: `guest-${idx + 1}-${Math.random().toString(36).substr(2, 9)}`,
+            first_name: fName,
+            last_name: lName,
+          };
+        });
+      }
+
+      const firstGuest = metadata.guests[0];
+      const finalFirstName = firstGuest ? firstGuest.first_name : firstName;
+      const finalLastName = firstGuest ? firstGuest.last_name : lastName;
 
       return {
         voucher_code: v.voucher_code,
@@ -133,9 +157,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'Created',
         sync_status: 'synced',
         metadata: {
-          ...(v.metadata || {}),
-          first_name: firstName,
-          last_name: lastName,
+          ...metadata,
+          first_name: finalFirstName,
+          last_name: finalLastName,
         },
         created_at: v.created_at || new Date().toISOString(),
       };

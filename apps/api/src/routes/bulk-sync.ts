@@ -125,6 +125,26 @@ app.post("/", async (c) => {
       const isTest = v.isTest !== undefined ? v.isTest : (v.is_test !== undefined ? v.is_test : false);
       const marketingConsent = v.marketing_consent !== undefined ? v.marketing_consent : (v.marketingConsent !== undefined ? v.marketingConsent : false);
 
+      const metadata = { ...(v.metadata || {}) } as Record<string, any>;
+      if (!metadata.guests || !Array.isArray(metadata.guests)) {
+        const cleanName = guestName.replace(/\[TEST\]/gi, "").trim();
+        const parts = cleanName ? cleanName.split(/\s+(?:&|and|\/)\s+|\s*,\s*/gi).map(p => p.trim()).filter(Boolean) : [];
+        metadata.guests = parts.map((part, idx) => {
+          const subParts = part.split(/\s+/).filter(Boolean);
+          const fName = subParts[0] || "Guest";
+          const lName = subParts.length > 1 ? subParts.slice(1).join(" ") : "-";
+          return {
+            id: `guest-${idx + 1}-${Math.random().toString(36).substr(2, 9)}`,
+            first_name: fName,
+            last_name: lName,
+          };
+        });
+      }
+
+      const firstGuest = metadata.guests[0];
+      const finalFirstName = firstGuest ? firstGuest.first_name : firstName;
+      const finalLastName = firstGuest ? firstGuest.last_name : lastName;
+
       return {
         voucher_code: v.voucher_code,
         guest_name: guestName,
@@ -142,9 +162,9 @@ app.post("/", async (c) => {
         sync_status: "synced",
         traffic_source: "TS suites", // Always tag as TS suites
         metadata: {
-          ...(v.metadata || {}),
-          first_name: firstName,
-          last_name: lastName,
+          ...metadata,
+          first_name: finalFirstName,
+          last_name: finalLastName,
         },
       };
     });

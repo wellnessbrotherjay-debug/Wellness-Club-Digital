@@ -409,6 +409,14 @@ const VoucherPage: React.FC = () => {
       ? `+${cleanWA}`
       : `${safeCountryCode}${cleanWA}`;
 
+    const guests = (formData.guestNames || [])
+      .filter((n) => n?.firstName?.trim() || n?.surname?.trim())
+      .map((n, idx) => ({
+        id: `guest-${idx + 1}-${Math.random().toString(36).substr(2, 9)}`,
+        first_name: (n.firstName || "").trim(),
+        last_name: (n.surname || "").trim(),
+      }));
+
     try {
       const newVoucher: Omit<LocalVoucher, "sync_status"> = {
         voucher_code: voucherId,
@@ -428,6 +436,9 @@ const VoucherPage: React.FC = () => {
         qr_source_location: formData.qrSourceLocation,
         marketing_consent: formData.marketingConsent,
         created_at: new Date().toISOString(),
+        metadata: {
+          guests,
+        },
       };
 
       await syncService.saveVoucherLocally(newVoucher);
